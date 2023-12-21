@@ -1,0 +1,45 @@
+# Compiled files
+*.tfstate*
+
+# Module directory
+.terraform/
+.terraform.lock.hcl
+
+# keys
+*id_rsa*
+
+.idea
+
+.DS_Store
+
+config-terraform.sh
+
+*.out
+*.secrets*.tfvars
+
+.env
+
+# GO
+# Dependency directories (remove the comment below to include it)
+vendor/
+
+**/node_modules/
+package*.json
+yarn.lock
+
+builds/
+debug/
+
+# exceptions for semantic release
+!.release/package*
+!.release/*.lock
+
+# tests
+*.tfplan.json
+
+# VS Code
+.vscode/
+
+# Python
+.mypy_cache/
+venv/

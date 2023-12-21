@@ -1,0 +1,35 @@
+{
+  "name": "inkdrop-visualizer",
+  "version": "1.0.1",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/inkdrop-org/terraform-visualizer-cli.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/inkdrop-org/terraform-visualizer-cli/issues"
+  },
+  "homepage": "https://github.com/inkdrop-org/terraform-visualizer-cli#readme",
+  "preferGlobal": true,
+  "devDependencies": {
+    "@types/node": "^20.10.5",
+    "@types/yargs": "^17.0.32",
+    "puppeteer": "^21.6.1",
+    "typescript": "^5.3.3"
+  },
+  "bin": {
+    "inkdrop": "./dist/index.js"
+  },
+  "dependencies": {
+    "puppeteer": "^21.6.1",
+    "yargs": "^17.7.2"
+  }
+}
