@@ -16,7 +16,7 @@ const argv = yargs(hideBin(process.argv)).argv
 async function runTerraformGraph(): Promise<void> {
 
     console.log("Running terraform init...")
-    const { stdout: initStdout, stderr: initStderr } = await execAsync('terraform init', { cwd: (argv as any).path || "." })
+    const { stdout: initStdout, stderr: initStderr } = await execAsync('terraform init', { cwd: path.resolve((argv as any).path || ".") })
     if (initStderr) {
         throw new Error(`Error running terraform init: ${initStderr}`);
     }
@@ -24,7 +24,7 @@ async function runTerraformGraph(): Promise<void> {
         console.log(initStdout)
     }
     console.log("Computing raw graph...")
-    const { stdout, stderr } = await execAsync('terraform graph', { cwd: (argv as any).path || "." });
+    const { stdout, stderr } = await execAsync('terraform graph', { cwd: path.resolve((argv as any).path || ".") });
 
     if (stderr) {
         throw new Error(`Error running computing graph: ${stderr}`);
@@ -55,7 +55,7 @@ async function performActionsToDownloadFile(page: Page) {
 // Main Puppeteer logic for extracting SVG
 async function runHeadlessBrowserAndExportSVG(graphVizText: string) {
     console.log("Processing raw graph...")
-    const browser = await puppeteer.launch({ headless: false });
+    const browser = await puppeteer.launch({ headless: "new" });
     const page = await browser.newPage();
     await page.goto('https://inkdrop.ai');
     // The path to your HTML file that is designed to load the React bundle.
@@ -74,24 +74,23 @@ async function runHeadlessBrowserAndExportSVG(graphVizText: string) {
     // Act like a dictionary storing the filename for each file with guid
     let suggestedFilename = ""
 
-    const downloadFolder = (argv as any).out || (argv as any).path || "."
+    const downloadFolder = path.resolve((argv as any).out || (argv as any).path || ".")
+    const downloadPath = path.resolve((argv as any).out || (argv as any).path || ".") // Set the download path to your current working directory.
 
     await client.send('Browser.setDownloadBehavior', {
         behavior: 'allow',
         eventsEnabled: true,
-        downloadPath: path.resolve((argv as any).out || (argv as any).path || "."), // Set the download path to your current working directory.
-    });
+        downloadPath: downloadPath,
+    })
 
     client.on('Browser.downloadWillBegin', async (event) => {
         //some logic here to determine the filename
         //the event provides event.suggestedFilename and event.url
-        console.log("event1", event)
         suggestedFilename = event.suggestedFilename;
     });
 
     client.on('Browser.downloadProgress', async (event) => {
         // when the file has been downloaded, locate the file by guid and rename it
-        console.log("event2", event)
 
         if (event.state === 'completed') {
             fs.renameSync(path.resolve(downloadFolder, suggestedFilename), path.resolve(downloadFolder, suggestedFilename.replace("shapes", "inkdrop-diagram")));

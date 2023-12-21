@@ -25,7 +25,7 @@ const argv = (0, yargs_1.default)((0, helpers_1.hideBin)(process.argv)).argv;
 function runTerraformGraph() {
     return __awaiter(this, void 0, void 0, function* () {
         console.log("Running terraform init...");
-        const { stdout: initStdout, stderr: initStderr } = yield execAsync('terraform init', { cwd: argv.path || "." });
+        const { stdout: initStdout, stderr: initStderr } = yield execAsync('terraform init', { cwd: path_1.default.resolve(argv.path || ".") });
         if (initStderr) {
             throw new Error(`Error running terraform init: ${initStderr}`);
         }
@@ -33,7 +33,7 @@ function runTerraformGraph() {
             console.log(initStdout);
         }
         console.log("Computing raw graph...");
-        const { stdout, stderr } = yield execAsync('terraform graph', { cwd: argv.path || "." });
+        const { stdout, stderr } = yield execAsync('terraform graph', { cwd: path_1.default.resolve(argv.path || ".") });
         if (stderr) {
             throw new Error(`Error running computing graph: ${stderr}`);
         }
@@ -63,7 +63,7 @@ function performActionsToDownloadFile(page) {
 function runHeadlessBrowserAndExportSVG(graphVizText) {
     return __awaiter(this, void 0, void 0, function* () {
         console.log("Processing raw graph...");
-        const browser = yield puppeteer_1.default.launch({ headless: false });
+        const browser = yield puppeteer_1.default.launch({ headless: "new" });
         const page = yield browser.newPage();
         yield page.goto('https://inkdrop.ai');
         // The path to your HTML file that is designed to load the React bundle.
@@ -77,21 +77,20 @@ function runHeadlessBrowserAndExportSVG(graphVizText) {
         const client = yield page.target().createCDPSession();
         // Act like a dictionary storing the filename for each file with guid
         let suggestedFilename = "";
-        const downloadFolder = argv.out || argv.path || ".";
+        const downloadFolder = path_1.default.resolve(argv.out || argv.path || ".");
+        const downloadPath = path_1.default.resolve(argv.out || argv.path || "."); // Set the download path to your current working directory.
         yield client.send('Browser.setDownloadBehavior', {
             behavior: 'allow',
             eventsEnabled: true,
-            downloadPath: path_1.default.resolve(argv.out || argv.path || "."), // Set the download path to your current working directory.
+            downloadPath: downloadPath,
         });
         client.on('Browser.downloadWillBegin', (event) => __awaiter(this, void 0, void 0, function* () {
             //some logic here to determine the filename
             //the event provides event.suggestedFilename and event.url
-            console.log("event1", event);
             suggestedFilename = event.suggestedFilename;
         }));
         client.on('Browser.downloadProgress', (event) => __awaiter(this, void 0, void 0, function* () {
             // when the file has been downloaded, locate the file by guid and rename it
-            console.log("event2", event);
             if (event.state === 'completed') {
                 fs_1.default.renameSync(path_1.default.resolve(downloadFolder, suggestedFilename), path_1.default.resolve(downloadFolder, suggestedFilename.replace("shapes", "inkdrop-diagram")));
                 console.log(`Downloaded diagram -> ${path_1.default.resolve(downloadFolder, suggestedFilename.replace("shapes", "inkdrop-diagram"))}`);

@@ -7,7 +7,7 @@ module.exports = {
     entry: './src/index.tsx',
     output: {
         path: path.resolve(__dirname, 'build'),
-        filename: 'bundle.js'
+        filename: 'bundle.js',
     },
     resolve: {
         extensions: ['.ts', '.tsx', '.js', '.jsx'],
@@ -55,7 +55,15 @@ module.exports = {
     plugins: [
         new CopyWebpackPlugin({
             patterns: [
-                { from: 'public' }
+                {
+                    from: 'public',
+                    filter: (resourcePath) => {
+                        if (resourcePath.includes('index.html')) {
+                            return true;
+                        }
+                        return false;
+                    }
+                }
             ]
         })
     ]

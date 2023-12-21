@@ -1,4 +1,0 @@
-  [runners.docker]
-%{ for key, value in options ~}
-    ${key} = ${jsonencode(value)}
-%{ endfor ~}
