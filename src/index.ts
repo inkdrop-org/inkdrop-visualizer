@@ -55,7 +55,7 @@ async function performActionsToDownloadFile(page: Page) {
 // Main Puppeteer logic for extracting SVG
 async function runHeadlessBrowserAndExportSVG(graphVizText: string) {
     console.log("Processing raw graph...")
-    const browser = await puppeteer.launch({ headless: "new" });
+    const browser = await puppeteer.launch({ headless: false });
     const page = await browser.newPage();
     await page.goto('https://inkdrop.ai');
     // The path to your HTML file that is designed to load the React bundle.
@@ -79,17 +79,20 @@ async function runHeadlessBrowserAndExportSVG(graphVizText: string) {
     await client.send('Browser.setDownloadBehavior', {
         behavior: 'allow',
         eventsEnabled: true,
-        downloadPath: (argv as any).out || (argv as any).path || ".", // Set the download path to your current working directory.
+        downloadPath: path.resolve((argv as any).out || (argv as any).path || "."), // Set the download path to your current working directory.
     });
 
     client.on('Browser.downloadWillBegin', async (event) => {
         //some logic here to determine the filename
         //the event provides event.suggestedFilename and event.url
+        console.log("event1", event)
         suggestedFilename = event.suggestedFilename;
     });
 
     client.on('Browser.downloadProgress', async (event) => {
         // when the file has been downloaded, locate the file by guid and rename it
+        console.log("event2", event)
+
         if (event.state === 'completed') {
             fs.renameSync(path.resolve(downloadFolder, suggestedFilename), path.resolve(downloadFolder, suggestedFilename.replace("shapes", "inkdrop-diagram")));
             console.log(`Downloaded diagram -> ${path.resolve(downloadFolder, suggestedFilename.replace("shapes", "inkdrop-diagram"))}`)
