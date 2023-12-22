@@ -19,6 +19,7 @@ type NodeGroup = {
     iconPath: string,
     serviceName: string
     moduleName?: string
+    state: "no-op" | "create" | "read" | "update" | "delete" | "delete-create" | "create-delete"
 }
 
 const TLDWrapper = () => {
@@ -67,10 +68,11 @@ const TLDWrapper = () => {
         return { resourceType, resourceName }
     }
 
-    const parseModel = (model: RootGraphModel) => {
+    const parseModel = (model: RootGraphModel, planJson?: string) => {
+        const computeTerraformPlan = planJson && planJson !== ""
+        const planJsonObj = computeTerraformPlan ? JSON.parse(planJson) : undefined
         const nodeGroups = new Map<string, NodeGroup>()
         const jsonArray = Papa.parse(terraformResourcesCsv, { delimiter: ",", header: true })
-        console.log("jsonArray", jsonArray)
         model.subgraphs.forEach((subgraph) => {
             subgraph.nodes.forEach((node) => {
                 let centralPart = node.id.split(" ")[1]
@@ -79,12 +81,22 @@ const TLDWrapper = () => {
                     if (isResourceWithName) {
                         const { resourceType, resourceName } = getResourceNameAndType(processedBlockId)
                         if (resourceType && resourceName && jsonArray) {
+                            let resourceChange: any
+                            if (computeTerraformPlan) {
+                                resourceChange = planJsonObj.resource_changes.filter((resource: any) => {
+                                    return resource.address === node.id.split(" ")[1]
+                                })[0]
+                                if (!resourceChange) {
+                                    console.log("NO RESOURCE CHANGE FOR NODE", node.id.split(" ")[1], planJsonObj.resource_changes)
+                                }
+                            }
                             jsonArray.data.forEach((row: any) => {
                                 if (row["Main Diagram Blocks"].split(",").some((s: string) => s === resourceType)) {
                                     nodeGroups.set(node.id.split(" ")[1], {
                                         nodes: [node],
                                         mainNode: node,
                                         name: resourceName,
+                                        state: resourceChange ? resourceChange.change.actions.join("-") : "no-op",
                                         type: resourceType,
                                         serviceName: row["Service Name"],
                                         iconPath: row["Icon Path"].trim(),
@@ -99,15 +111,12 @@ const TLDWrapper = () => {
                 }
             })
         })
-        console.log("nodeGroups1", nodeGroups)
 
         nodeGroups.forEach((nodeGroup) => {
-            console.log("nodeGroup for edges analysis", nodeGroup)
-            getConnectedNodes(nodeGroup.mainNode, nodeGroup, nodeGroups, model.subgraphs[0], true, jsonArray)
-            getConnectedNodes(nodeGroup.mainNode, nodeGroup, nodeGroups, model.subgraphs[0], false, jsonArray)
+            getConnectedNodes(nodeGroup.mainNode, nodeGroup, nodeGroups, model.subgraphs[0], true, jsonArray, planJsonObj)
+            getConnectedNodes(nodeGroup.mainNode, nodeGroup, nodeGroups, model.subgraphs[0], false, jsonArray, planJsonObj)
         })
 
-        console.log("FINISHED ANALYSIS EDGES", nodeGroups)
         // Compute connections between groups
         model.subgraphs[0].edges.forEach((edge) => {
             const edgeFromId = (edge.targets[0] as any).id
@@ -132,7 +141,6 @@ const TLDWrapper = () => {
                 }
             }
         })
-        console.log("nodeGroups", nodeGroups)
         computeLayout(nodeGroups)
     }
 
@@ -189,6 +197,7 @@ const TLDWrapper = () => {
                     props: {
                         name: node.label,
                         iconPath: nodeGroups.get(id)?.iconPath,
+                        state: nodeGroups.get(id)?.state,
                     }
                 }
             })
@@ -235,15 +244,13 @@ const TLDWrapper = () => {
             })
         })
         editor?.createShapes(arrowShapes)
-        console.log("Created shapes", editor?.getPageShapeIds(editor.getCurrentPage()))
     }
 
 
-    const getConnectedNodes = (node: NodeModel, nodeGroup: NodeGroup, nodeGroups: Map<string, NodeGroup>, subgraph: SubgraphModel, start: boolean, jsonArray: Papa.ParseResult<unknown>) => {
+    const getConnectedNodes = (node: NodeModel, nodeGroup: NodeGroup, nodeGroups: Map<string, NodeGroup>, subgraph: SubgraphModel, start: boolean, jsonArray: Papa.ParseResult<unknown>, planJsonObj: any) => {
         subgraph.edges.filter((e) => {
             return (e.targets[start ? 0 : 1] as any).id === node.id
         }).forEach((edge, index) => {
-            console.log("edge", index, edge)
             const edgeToId = (edge.targets[start ? 1 : 0] as any).id
             let centralPart = edgeToId.split(" ")[1]
             if (centralPart) {
@@ -265,27 +272,39 @@ const TLDWrapper = () => {
                         const newNode = subgraph.nodes.filter((n) => { return n.id === (edge.targets[start ? 1 : 0] as any).id })[0]
                         if (newNode) {
                             nodeGroup.nodes.push(newNode)
-                            console.log("GOING DEEPER 1")
-                            getConnectedNodes(newNode, nodeGroup, nodeGroups, subgraph, start, jsonArray)
-                            console.log("GOING DEEPER 2")
-                            getConnectedNodes(newNode, nodeGroup, nodeGroups, subgraph, !start, jsonArray)
+                            let resourceChange: any
+                            if (planJsonObj) {
+                                resourceChange = planJsonObj.resource_changes.filter((resource: any) => {
+                                    return resource.address === newNode.id.split(" ")[1]
+                                })[0]
+                                if (!resourceChange) {
+                                    console.log("NO RESOURCE CHANGE FOR NODE", newNode.id.split(" ")[1], planJsonObj.resource_changes)
+                                }
+                            }
+                            const newState = resourceChange ? resourceChange.change.actions.join("-") : "no-op"
+                            nodeGroup.state = nodeGroup.state !== "no-op" || !planJsonObj ? nodeGroup.state :
+                                newState !== "no-op" ? "update" : newState
+                            getConnectedNodes(newNode, nodeGroup, nodeGroups, subgraph, start, jsonArray, planJsonObj)
+                            getConnectedNodes(newNode, nodeGroup, nodeGroups, subgraph, !start, jsonArray, planJsonObj)
                         }
                     }
                 }
             }
         })
     }
-    const textAreaRef = useRef<
+    const graphTextAreaRef = useRef<
+        HTMLTextAreaElement | null
+    >(null)
+
+    const planTextAreaRef = useRef<
         HTMLTextAreaElement | null
     >(null)
 
 
     const handleRenderButtonClick = () => {
-        console.log("clicked btn")
-        if (textAreaRef.current && textAreaRef.current.value) {
-            console.log("graphvizText", textAreaRef.current.value)
-            const model = fromDot(textAreaRef.current.value)
-            parseModel(model)
+        if (graphTextAreaRef.current && graphTextAreaRef.current.value) {
+            const model = fromDot(graphTextAreaRef.current.value)
+            parseModel(model, planTextAreaRef.current?.value)
         }
     }
 
@@ -306,8 +325,12 @@ const TLDWrapper = () => {
                     onMount={setAppToState}
                 />
                 <textarea
-                    ref={textAreaRef}
+                    ref={graphTextAreaRef}
                     id='inkdrop-graphviz-textarea'
+                />
+                <textarea
+                    ref={planTextAreaRef}
+                    id='inkdrop-plan-textarea'
                 />
                 <button
                     onClick={handleRenderButtonClick}

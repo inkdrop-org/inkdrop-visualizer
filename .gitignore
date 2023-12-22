@@ -9,7 +9,8 @@
 /coverage
 
 # production
-/build
+/test-project
+.env
 
 # misc
 .DS_Store

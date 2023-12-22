@@ -12,25 +12,42 @@ import util from 'util';
 const execAsync = util.promisify(exec); // This will allow us to await the command
 const argv = yargs(hideBin(process.argv)).argv
 
+import express from 'express';
+
+const PORT = (argv as any).rendererPort || 3000 // You may choose any available port
+const imagesPath = path.join(__dirname, 'Icons');
+const app = express();
+app.use('/Icons', express.static(imagesPath));
+
+// Serve static files from the build directory
+app.use(express.static(path.resolve(__dirname, 'build')));
+
+// Start the server
+const server = app.listen(PORT, '127.0.0.1', () => {
+    console.log(`Diagram renderer running on http://127.0.0.1:${PORT}`);
+});
+
 
 async function runTerraformGraph(): Promise<void> {
 
-    console.log("Running terraform init...")
-    const { stdout: initStdout, stderr: initStderr } = await execAsync('terraform init', { cwd: path.resolve((argv as any).path || ".") })
-    if (initStderr) {
-        throw new Error(`Error running terraform init: ${initStderr}`);
+    let planJson = ""
+
+    if ((argv as any).fromPlan) {
+        const { stdout: showStdout, stderr: showStderr } = await execAsync(`terraform show -json ${path.resolve((argv as any).fromPlan)}`, { cwd: path.resolve((argv as any).path || ".") });
+        if (showStderr) {
+            throw new Error(`Error running terraform show: ${showStderr}`);
+        }
+        planJson = showStdout
     }
-    if (initStdout) {
-        console.log(initStdout)
-    }
+
     console.log("Computing raw graph...")
-    const { stdout, stderr } = await execAsync('terraform graph', { cwd: path.resolve((argv as any).path || ".") });
+    const { stdout: graphStdout, stderr: graphStderr } = await execAsync('terraform graph', { cwd: path.resolve((argv as any).path || ".") });
 
-    if (stderr) {
-        throw new Error(`Error running computing graph: ${stderr}`);
+    if (graphStderr) {
+        throw new Error(`Error running computing graph: ${graphStderr}`);
     }
 
-    runHeadlessBrowserAndExportSVG(stdout)
+    runHeadlessBrowserAndExportSVG(graphStdout, planJson)
 }
 
 async function performActionsToDownloadFile(page: Page) {
@@ -53,21 +70,16 @@ async function performActionsToDownloadFile(page: Page) {
 }
 
 // Main Puppeteer logic for extracting SVG
-async function runHeadlessBrowserAndExportSVG(graphVizText: string) {
+async function runHeadlessBrowserAndExportSVG(graphVizText: string, planOutput: string) {
     console.log("Processing raw graph...")
     const browser = await puppeteer.launch({ headless: "new" });
     const page = await browser.newPage();
-    await page.goto('https://inkdrop.ai');
-    // The path to your HTML file that is designed to load the React bundle.
-    const reactHtmlFile = path.resolve(__dirname, 'build/index.html');
+    await page.goto(`http://127.0.0.1:${PORT}/index.html`);    // The path to your HTML file that is designed to load the React bundle.
 
-    // Use page.setContent to load your local HTML that includes the mounting point for your React app.
-    // Alternatively, serve this file using a local server and use page.goto with the server URL.
-    const htmlContent = fs.readFileSync(reactHtmlFile, 'utf8');
-    await page.setContent(htmlContent);
 
     // Now add your script tag pointing to the local bundle file with the correct path.
     await page.addScriptTag({ path: path.resolve(__dirname, 'build/bundle.js') });
+
 
     const client = await page.target().createCDPSession();
 
@@ -96,13 +108,18 @@ async function runHeadlessBrowserAndExportSVG(graphVizText: string) {
             fs.renameSync(path.resolve(downloadFolder, suggestedFilename), path.resolve(downloadFolder, suggestedFilename.replace("shapes", "inkdrop-diagram")));
             console.log(`Downloaded diagram -> ${path.resolve(downloadFolder, suggestedFilename.replace("shapes", "inkdrop-diagram"))}`)
             await browser.close();
+            server.close()
         }
     });
 
-    await page.evaluate((graphData) => {
-        const textarea = document.getElementById('inkdrop-graphviz-textarea');
-        if (textarea && textarea instanceof HTMLTextAreaElement) {
-            textarea.value = graphData; // Use value instead of innerHTML for textarea
+    await page.evaluate((graphData, planData) => {
+        const graphTextArea = document.getElementById('inkdrop-graphviz-textarea');
+        if (graphTextArea && graphTextArea instanceof HTMLTextAreaElement) {
+            graphTextArea.value = graphData;
+        }
+        const planTextArea = document.getElementById('inkdrop-plan-textarea');
+        if (planTextArea && planTextArea instanceof HTMLTextAreaElement) {
+            planTextArea.value = planData;
         }
         setTimeout(() => {
             const button = document.getElementById('render-button');
@@ -110,7 +127,7 @@ async function runHeadlessBrowserAndExportSVG(graphVizText: string) {
                 button.click();
             }
         }, 2000);
-    }, graphVizText); // Pass graphVizText as an argument here
+    }, graphVizText, planOutput); // Pass graphVizText as an argument here
     setTimeout(async () => {
         await performActionsToDownloadFile(page)
     }, 3000);

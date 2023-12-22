@@ -25,6 +25,7 @@ export type NodeShape = TLBaseShape<
         backgroundColor: string
         name: string
         iconPath: string
+        state: string
     }
 >
 
@@ -59,6 +60,7 @@ export class NodeShapeUtil extends BaseBoxShapeUtil<NodeShape> {
         backgroundColor: T.string,
         name: T.string,
         iconPath: T.string,
+        state: T.string,
     }
 
     override isAspectRatioLocked = (_shape: NodeShape) => false
@@ -75,6 +77,7 @@ export class NodeShapeUtil extends BaseBoxShapeUtil<NodeShape> {
             backgroundColor: "white",
             name: "AWS Service",
             iconPath: "",
+            state: "no-op",
         }
     }
 
@@ -101,7 +104,6 @@ export class NodeShapeUtil extends BaseBoxShapeUtil<NodeShape> {
                         {shape.props.name}
                     </div>
                     <img src={shape.props.iconPath} className='absolute bottom-4 h-16 w-16 rounded pointer-events-none select-none' />
-
                 </HTMLContainer>
 
             </>
