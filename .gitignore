@@ -11,6 +11,8 @@
 # production
 /test-project
 .env
+dist
+release
 
 # misc
 .DS_Store

@@ -24,7 +24,7 @@ app.use(express.static(path.resolve(__dirname, 'build')));
 
 // Start the server
 const server = app.listen(PORT, '127.0.0.1', () => {
-    console.log(`Diagram renderer running on http://127.0.0.1:${PORT}`);
+    console.log(`Diagram renderer running on localhost:${PORT}`);
 });
 
 

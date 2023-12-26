@@ -192,6 +192,28 @@ export class NodeShapeUtil extends BaseBoxShapeUtil<NodeShape> {
 
         g.appendChild(icon);
 
+        // Calculate the position for diff indicator
+        const indicatorDiameter = 28; // since the dot is 7x7, diameter would be double that
+        const indicatorRadius = indicatorDiameter / 2;
+        const indicatorX = shape.props.w
+        const indicatorY = 0; // Positioned from top edge plus half its diameter
+
+        if (["create", "update", "delete"].includes(shape.props.state)) {
+            // Create the validity indicator circle
+            const indicator = document.createElementNS(xmlns, 'circle');
+            indicator.setAttributeNS(null, 'cx', indicatorX.toString());
+            indicator.setAttributeNS(null, 'cy', indicatorY.toString());
+            indicator.setAttributeNS(null, 'r', indicatorRadius.toString());
+            indicator.setAttributeNS(null, 'fill',
+                shape.props.state === "create" ? "#dcfce7" :
+                    shape.props.state === "delete" ? "#fee2e2" : "#fef9c3"); // Using colors for green or red indicators
+            indicator.setAttributeNS(null, 'stroke', shape.props.state === "create" ? "#22c55e" :
+                shape.props.state === "delete" ? "#ef4444" : "#eab208"); // Set stroke (border) color to black
+            indicator.setAttributeNS(null, 'stroke-width', "2"); // Set stroke width to 2
+            // Append the indicator to the main group
+            g.appendChild(indicator);
+        }
+
         // Return the SVG element <g>
         return g;
     }

@@ -1,6 +1,6 @@
 {
   "name": "inkdrop-visualizer",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -33,5 +33,8 @@
     "ncp": "^2.0.0",
     "puppeteer": "^21.6.1",
     "yargs": "^17.7.2"
+  },
+  "pkg": {
+    "outputPath": "release"
   }
 }
