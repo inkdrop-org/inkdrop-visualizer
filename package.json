@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build": "cd tldraw-renderer && npm run build && cd .. && tsc && ncp public/Icons dist/Icons && ncp tldraw-renderer/build dist/build",
+    "build": "cd tldraw-renderer && npm install && npm run build && cd .. && tsc && ncp public/Icons dist/Icons && ncp tldraw-renderer/build dist/build",
     "test": "cd test-project && terraform init && terraform plan --out plan.out && cd .. && node dist/index.js --path test-project --from-plan test-project/plan.out",
     "pkg": "pkg package.json"
   },
@@ -24,9 +24,7 @@
     "@types/node": "^20.10.5",
     "@types/yargs": "^17.0.32",
     "puppeteer": "^21.6.1",
-    "typescript": "^5.3.3",
-    "webpack": "^5.89.0",
-    "webpack-cli": "^5.1.4"
+    "typescript": "^5.3.3"
   },
   "bin": {
     "inkdrop": "./dist/index.js"
