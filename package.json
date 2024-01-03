@@ -21,6 +21,7 @@
   "homepage": "https://github.com/inkdrop-org/terraform-visualizer-cli#readme",
   "preferGlobal": true,
   "devDependencies": {
+    "@types/express": "^4.17.21",
     "@types/node": "^20.10.5",
     "@types/yargs": "^17.0.32",
     "puppeteer": "^21.6.1",
@@ -31,10 +32,10 @@
   },
   "dependencies": {
     "dotenv": "^16.3.1",
+    "express": "^4.17.1",
     "ncp": "^2.0.0",
     "puppeteer": "^21.6.1",
-    "yargs": "^17.7.2",
-    "express": "^4.17.1"
+    "yargs": "^17.7.2"
   },
   "pkg": {
     "outputPath": "release",
