@@ -1,0 +1,52 @@
+name: Build and Release
+
+on:
+  push:
+    branches:
+      - 'test-ci'
+
+jobs:
+  release:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16' # use the Node.js version relevant to your project
+
+      - name: Install pkg globally
+        run: npm install -g pkg
+
+      - name: Build macOS executable
+        run: pkg -t node16-macos-x64 package.json --output releases/inkdrop-visualizer-macos
+
+      - name: Archive the macOS executable
+        run: tar -czvf releases/inkdrop-visualizer-macos.tar.gz -C releases inkdrop-visualizer-macos
+      
+      - name: Get the version tag
+        id: get_version
+        run: echo ::set-output name=VERSION::1.0.0 # replace with your versioning logic
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.get_version.outputs.VERSION }}
+          release_name: ${{ steps.get_version.outputs.VERSION }}
+          draft: false
+          prerelease: false
+
+      - name: Upload macOS archive to GitHub Release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: releases/inkdrop-visualizer-macos.tar.gz
+          asset_name: inkdrop-visualizer-macos.tar.gz
+          asset_content_type: application/gzip

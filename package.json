@@ -1,11 +1,12 @@
 {
   "name": "inkdrop-visualizer",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "",
   "main": "index.js",
   "scripts": {
     "build": "cd tldraw-renderer && npm run build && cd .. && tsc && ncp public/Icons dist/Icons && ncp tldraw-renderer/build dist/build",
-    "test": "cd test-project && terraform init && terraform plan --out plan.out && cd .. && node dist/index.js --path test-project --from-plan test-project/plan.out"
+    "test": "cd test-project && terraform init && terraform plan --out plan.out && cd .. && node dist/index.js --path test-project --from-plan test-project/plan.out",
+    "pkg": "pkg package.json"
   },
   "repository": {
     "type": "git",
@@ -32,9 +33,14 @@
     "dotenv": "^16.3.1",
     "ncp": "^2.0.0",
     "puppeteer": "^21.6.1",
-    "yargs": "^17.7.2"
+    "yargs": "^17.7.2",
+    "express": "^4.17.1"
   },
   "pkg": {
-    "outputPath": "release"
+    "outputPath": "release",
+    "assets": [
+      "dist/build/**/*",
+      "dist/Icons/**/*"
+    ]
   }
 }
