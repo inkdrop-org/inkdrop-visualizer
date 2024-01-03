@@ -30,7 +30,7 @@ jobs:
         run: pkg package.json
 
       - name: Archive the macOS executable
-        run: tar -czvf releases/inkdrop-visualizer-macos.tar.gz -C releases inkdrop-visualizer-macos
+        run: tar -czvf release/inkdrop-visualizer-macos.tar.gz -C release inkdrop-visualizer-macos
       
       - name: Get the version tag
         id: get_version
@@ -53,6 +53,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: releases/inkdrop-visualizer-macos.tar.gz
+          asset_path: release/inkdrop-visualizer-macos.tar.gz
           asset_name: inkdrop-visualizer-macos.tar.gz
           asset_content_type: application/gzip
