@@ -16,17 +16,6 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: '16' # use the Node.js version relevant to your project
-
-      release:
-    runs-on: macos-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '16'
           
       - name: Install project dependencies
         run: npm install
