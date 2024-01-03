@@ -21,7 +21,7 @@ jobs:
         run: npm install -g pkg
 
       - name: Build macOS executable
-        run: pkg -t node16-macos-x64 package.json --output releases/inkdrop-visualizer-macos
+        run: pkg package.json
 
       - name: Archive the macOS executable
         run: tar -czvf releases/inkdrop-visualizer-macos.tar.gz -C releases inkdrop-visualizer-macos
