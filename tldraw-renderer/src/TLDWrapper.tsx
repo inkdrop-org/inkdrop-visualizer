@@ -197,6 +197,7 @@ const TLDWrapper = () => {
                     props: {
                         name: node.label,
                         iconPath: nodeGroups.get(id)?.iconPath,
+                        resourceType: nodeGroups.get(id)?.type.split("_").slice(1).map(r => r.charAt(0).toUpperCase() + r.slice(1)).join(" ") || "ciao",
                         state: nodeGroups.get(id)?.state,
                     }
                 }
@@ -323,6 +324,7 @@ const TLDWrapper = () => {
                 <Tldraw
                     shapeUtils={customShapeUtils}
                     onMount={setAppToState}
+
                 />
                 <textarea
                     ref={graphTextAreaRef}

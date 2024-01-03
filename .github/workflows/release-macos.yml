@@ -43,7 +43,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ steps.get_version.outputs.VERSION }}
-          release_name: ${{ steps.get_version.outputs.VERSION }}
+          release_name: inkdrop
           draft: false
           prerelease: false
 
@@ -56,3 +56,37 @@ jobs:
           asset_path: release/inkdrop-visualizer-macos.tar.gz
           asset_name: inkdrop-visualizer-macos.tar.gz
           asset_content_type: application/gzip
+
+  update-homebrew:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Homebrew tap
+        uses: actions/checkout@v2
+        with:
+          repository: inkdrop-org/homebrew-inkdrop-visualizer
+
+      - name: Download the macOS package
+        run: |
+          wget "https://github.com/inkdrop-org/terraform-visualizer-cli/releases/download/${{ github.event.release.tag_name }}/inkdrop-visualizer-macos.tar.gz" -O /tmp/inkdrop-visualizer-macos.tar.gz
+
+      - name: Compute SHA256
+        id: sha256
+        run: echo "::set-output name=sha::$(sha256sum /tmp/inkdrop-visualizer-macos.tar.gz | awk '{print $1}')"
+
+      - name: Update formula
+        run: |
+          FORMULA_PATH="${{ github.workspace }}/Formula/inkdrop-visualizer.rb"
+          PACKAGE_URL="https://github.com/inkdrop-org/terraform-visualizer-cli/releases/download/${{ github.event.release.tag_name }}/inkdrop-visualizer-macos.tar.gz"
+          SHA256="${{ steps.sha256.outputs.sha }}"
+          sed -i "" "s|^  url .*|  url \"${PACKAGE_URL}\"|" $FORMULA_PATH
+          sed -i "" "s|^  sha256 .*|  sha256 \"${SHA256}\"|" $FORMULA_PATH
+
+      - name: Commit changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add Formula/inkdrop-visualizer.rb
+          git commit -m "Update inkdrop-visualizer to ${{ github.event.release.tag_name }}"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
