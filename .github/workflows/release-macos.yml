@@ -59,6 +59,7 @@ jobs:
 
   update-homebrew:
     runs-on: ubuntu-latest
+    needs: release
     steps:
       - name: Checkout Homebrew tap
         uses: actions/checkout@v2
