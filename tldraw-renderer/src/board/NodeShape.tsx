@@ -26,6 +26,7 @@ export type NodeShape = TLBaseShape<
         name: string
         iconPath: string
         state: string
+        resourceType: string
     }
 >
 
@@ -61,6 +62,7 @@ export class NodeShapeUtil extends BaseBoxShapeUtil<NodeShape> {
         name: T.string,
         iconPath: T.string,
         state: T.string,
+        resourceType: T.string,
     }
 
     override isAspectRatioLocked = (_shape: NodeShape) => false
@@ -78,12 +80,12 @@ export class NodeShapeUtil extends BaseBoxShapeUtil<NodeShape> {
             name: "AWS Service",
             iconPath: "",
             state: "no-op",
+            resourceType: "AWS Service"
         }
     }
 
 
     component(shape: NodeShape) {
-
 
         return (
             <>
@@ -116,6 +118,7 @@ export class NodeShapeUtil extends BaseBoxShapeUtil<NodeShape> {
         const xmlns = 'http://www.w3.org/2000/svg';
         const padding = 5; // Padding around text
         const titleSize = 14; // Font size for text elements
+        const typeSize = 10; // Font size for text elements
 
         // Create the main SVG group
         const g = document.createElementNS(xmlns, 'g');
@@ -136,24 +139,33 @@ export class NodeShapeUtil extends BaseBoxShapeUtil<NodeShape> {
         const nameText = document.createElementNS(xmlns, 'text');
         nameText.textContent = shape.props.name;
         nameText.setAttributeNS(null, 'x', padding.toString());
-        nameText.setAttributeNS(null, 'y', "17");
+        nameText.setAttributeNS(null, 'y', "14");
         nameText.setAttributeNS(null, 'style', `font-family: sans-serif; font-size: ${titleSize}px; fill: ${shape.props.borderColor};`);
         nameText.setAttributeNS(null, 'dominant-baseline', 'middle');
+        // Create the text element for the shape's resource type
+        const typeText = document.createElementNS(xmlns, 'text');
+        typeText.textContent = shape.props.resourceType;
+        typeText.setAttributeNS(null, 'x', padding.toString());
+        typeText.setAttributeNS(null, 'y', "28");
+        typeText.setAttributeNS(null, 'style', `font-family: sans-serif; font-size: ${typeSize}px; fill: #504758;`);
+        typeText.setAttributeNS(null, 'dominant-baseline', 'middle');
 
         // Truncate the text if it's too long
         truncateText(nameText, shape.props.w - 10); // Assume 5 padding on each side
+        truncateText(typeText, shape.props.w - 10); // Assume 5 padding on each side
 
         // Append the text element to the main group
         g.appendChild(nameText);
+        g.appendChild(typeText);
 
-        const iconWidth = 64; // The width of the image
+        const iconWidth = 58; // The width of the image
 
         const rectCenterX = shape.props.w / 2;
         const iconX = rectCenterX - (iconWidth / 2); // The x coordinate for the centered image
 
         // Calculate the y coordinate to position the image with a 30px margin from the bottom
-        const iconHeight = 64; // The height of the image
-        const iconY = shape.props.h - iconHeight - 16; // The y coordinate for the positioned image with bottom margin
+        const iconHeight = 58; // The height of the image
+        const iconY = shape.props.h - iconHeight - 14; // The y coordinate for the positioned image with bottom margin
 
 
         // Check if the PNG image can be converted to a data URL in the browser

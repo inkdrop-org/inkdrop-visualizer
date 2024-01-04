@@ -1,11 +1,12 @@
 {
   "name": "inkdrop-visualizer",
-  "version": "1.0.6",
+  "version": "1.0.8",
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build": "cd tldraw-renderer && npm run build && cd .. && tsc && ncp public/Icons dist/Icons && ncp tldraw-renderer/build dist/build",
-    "test": "cd test-project && terraform init && terraform plan --out plan.out && cd .. && node dist/index.js --path test-project --from-plan test-project/plan.out"
+    "build": "cd tldraw-renderer && npm install && npm run build && cd .. && tsc && ncp public/Icons dist/Icons && ncp tldraw-renderer/build dist/build",
+    "test": "cd test-project && terraform init && terraform plan --out plan.out && cd .. && node dist/index.js --path test-project --from-plan test-project/plan.out",
+    "pkg": "pkg package.json"
   },
   "repository": {
     "type": "git",
@@ -20,6 +21,7 @@
   "homepage": "https://github.com/inkdrop-org/terraform-visualizer-cli#readme",
   "preferGlobal": true,
   "devDependencies": {
+    "@types/express": "^4.17.21",
     "@types/node": "^20.10.5",
     "@types/yargs": "^17.0.32",
     "puppeteer": "^21.6.1",
@@ -30,11 +32,16 @@
   },
   "dependencies": {
     "dotenv": "^16.3.1",
+    "express": "^4.17.1",
     "ncp": "^2.0.0",
     "puppeteer": "^21.6.1",
     "yargs": "^17.7.2"
   },
   "pkg": {
-    "outputPath": "release"
+    "outputPath": "release",
+    "assets": [
+      "dist/build/**/*",
+      "dist/Icons/**/*"
+    ]
   }
 }

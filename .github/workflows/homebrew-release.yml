@@ -1,0 +1,42 @@
+name: Update Homebrew formula
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  update-homebrew:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Homebrew tap
+        uses: actions/checkout@v2
+        with:
+          repository: inkdrop-org/homebrew-inkdrop-visualizer
+          path: homebrew-tap
+
+      - name: Download the macOS package
+        run: |
+          wget "https://github.com/inkdrop-org/terraform-visualizer-cli/releases/download/${{ github.event.release.tag_name }}/inkdrop-visualizer-macos.pkg" -O /tmp/inkdrop-visualizer-macos.pkg
+
+      - name: Compute SHA256
+        id: sha256
+        run: echo "::set-output name=sha::$(sha256sum /tmp/inkdrop-visualizer-macos.pkg | awk '{print $1}')"
+
+      - name: Update formula
+        run: |
+          FORMULA_PATH="${{ github.workspace }}/homebrew-tap/Formula/inkdrop-visualizer.rb"
+          PACKAGE_URL="https://github.com/inkdrop-org/terraform-visualizer-cli/releases/download/${{ github.event.release.tag_name }}/inkdrop-visualizer-macos.pkg"
+          SHA256="${{ steps.sha256.outputs.sha }}"
+          sed -i "" "s|^  url .*|  url \"${PACKAGE_URL}\"|" $FORMULA_PATH
+          sed -i "" "s|^  sha256 .*|  sha256 \"${SHA256}\"|" $FORMULA_PATH
+
+      - name: Commit changes
+        run: |
+          cd homebrew-tap
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add Formula/inkdrop-visualizer.rb
+          git commit -m "Update inkdrop-visualizer to ${{ github.event.release.tag_name }}"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
