@@ -35,8 +35,11 @@ jobs:
         id: get_version
         run: echo ::set-output name=VERSION::1.0.0 # replace with your versioning logic
 
+      - name: Rename the package
+        run: mv release/inkdrop-visualizer-macos release/inkdrop
+
       - name: Archive the macOS executable
-        run: tar -czvf release/inkdrop-brew-${{ steps.get_version.outputs.VERSION }}.tar.gz -C release inkdrop-visualizer-macos
+        run: tar -czvf release/inkdrop-brew-${{ steps.get_version.outputs.VERSION }}.tar.gz -C release inkdrop
       
       - name: Create GitHub Release
         id: create_release
@@ -56,7 +59,7 @@ jobs:
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: release/inkdrop-brew-${{ steps.get_version.outputs.VERSION }}.tar.gz
-          asset_name: inkdrop.tar.gz
+          asset_name: inkdrop-brew-${{ steps.get_version.outputs.VERSION }}.tar.gz
           asset_content_type: application/gzip
 
   update-homebrew:
@@ -71,16 +74,16 @@ jobs:
 
       - name: Download the macOS package
         run: |
-          wget "https://github.com/inkdrop-org/terraform-visualizer-cli/releases/download/${{ needs.release.outputs.tag_name }}/inkdrop.tar.gz" -O /tmp/inkdrop.tar.gz
+          wget "https://github.com/inkdrop-org/terraform-visualizer-cli/releases/download/${{ needs.release.outputs.tag_name }}/inkdrop-brew-${{ needs.release.outputs.tag_name }}.tar.gz" -O /tmp/inkdrop-brew-${{ needs.release.outputs.tag_name }}.tar.gz
 
       - name: Compute SHA256
         id: sha256
-        run: echo "::set-output name=sha::$(sha256sum /tmp/inkdrop.tar.gz | awk '{print $1}')"
+        run: echo "::set-output name=sha::$(sha256sum /tmp/inkdrop-brew-${{ needs.release.outputs.tag_name }}.tar.gz | awk '{print $1}')"
 
       - name: Update formula
         run: |
           FORMULA_PATH="${{ github.workspace }}/Formula/inkdrop-visualizer.rb"
-          PACKAGE_URL="https://github.com/inkdrop-org/terraform-visualizer-cli/releases/download/${{ needs.release.outputs.tag_name }}/inkdrop.tar.gz"
+          PACKAGE_URL="https://github.com/inkdrop-org/terraform-visualizer-cli/releases/download/${{ needs.release.outputs.tag_name }}/inkdrop-brew-${{ needs.release.outputs.tag_name }}.tar.gz"
           SHA256="${{ steps.sha256.outputs.sha }}"
           sed -i "s|^  url .*|  url \"$PACKAGE_URL\"|" $FORMULA_PATH
           sed -i "s|^  sha256 .*|  sha256 \"$SHA256\"|" $FORMULA_PATH
