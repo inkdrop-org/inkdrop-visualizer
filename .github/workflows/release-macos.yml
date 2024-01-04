@@ -67,6 +67,7 @@ jobs:
         uses: actions/checkout@v2
         with:
           repository: inkdrop-org/homebrew-inkdrop-visualizer
+          token: ${{ secrets.HOMEBREW_REPO_TOKEN }}
 
       - name: Download the macOS package
         run: |
@@ -92,4 +93,4 @@ jobs:
           git commit -m "Update inkdrop-visualizer to ${{ needs.release.outputs.tag_name }}"
           git push
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.HOMEBREW_REPO_TOKEN }}
