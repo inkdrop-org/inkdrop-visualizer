@@ -2,8 +2,8 @@ name: Build and Release
 
 on:
   push:
-    branches:
-      - 'test-ci'
+    tags:
+      - 'v*'
 
 jobs:
   release:
@@ -33,7 +33,7 @@ jobs:
 
       - name: Get the version tag
         id: get_version
-        run: echo ::set-output name=VERSION::1.0.0 # replace with your versioning logic
+        run: echo ::set-output name=VERSION::${GITHUB_REF#refs/tags/}
 
       - name: Rename the package
         run: mv release/inkdrop-visualizer-macos release/inkdrop
