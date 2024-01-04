@@ -31,13 +31,13 @@ jobs:
       - name: Build macOS executable
         run: pkg package.json
 
-      - name: Archive the macOS executable
-        run: tar -czvf release/inkdrop.tar.gz -C release inkdrop-visualizer-macos
-      
       - name: Get the version tag
         id: get_version
         run: echo ::set-output name=VERSION::1.0.0 # replace with your versioning logic
 
+      - name: Archive the macOS executable
+        run: tar -czvf release/inkdrop-brew-${{ steps.get_version.outputs.VERSION }}.tar.gz -C release inkdrop-visualizer-macos
+      
       - name: Create GitHub Release
         id: create_release
         uses: actions/create-release@v1
@@ -45,7 +45,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ steps.get_version.outputs.VERSION }}
-          release_name: inkdrop-macos
+          release_name: inkdrop-${{ steps.get_version.outputs.VERSION }}
           draft: false
           prerelease: false
 
@@ -55,7 +55,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: release/inkdrop.tar.gz
+          asset_path: release/inkdrop-brew-${{ steps.get_version.outputs.VERSION }}.tar.gz
           asset_name: inkdrop.tar.gz
           asset_content_type: application/gzip
 
