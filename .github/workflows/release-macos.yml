@@ -81,8 +81,8 @@ jobs:
           FORMULA_PATH="${{ github.workspace }}/Formula/inkdrop-visualizer.rb"
           PACKAGE_URL="https://github.com/inkdrop-org/terraform-visualizer-cli/releases/download/${{ needs.release.outputs.tag_name }}/inkdrop-visualizer-macos.tar.gz"
           SHA256="${{ steps.sha256.outputs.sha }}"
-          sed -i "" "s|^  url .*|  url \"${PACKAGE_URL}\"|" $FORMULA_PATH
-          sed -i "" "s|^  sha256 .*|  sha256 \"${SHA256}\"|" $FORMULA_PATH
+          sed -i "s|^  url .*|  url \"$PACKAGE_URL\"|" $FORMULA_PATH
+          sed -i "s|^  sha256 .*|  sha256 \"$SHA256\"|" $FORMULA_PATH
 
       - name: Commit changes
         run: |
