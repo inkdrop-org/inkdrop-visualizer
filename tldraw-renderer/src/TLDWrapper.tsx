@@ -69,8 +69,8 @@ const TLDWrapper = () => {
     }
 
     const parseModel = (model: RootGraphModel, planJson?: string) => {
-        const computeTerraformPlan = planJson && planJson !== ""
-        const planJsonObj = computeTerraformPlan ? JSON.parse(planJson) : undefined
+        const computeTerraformPlan = (planJson && planJson !== "") ? true : false
+        const planJsonObj = computeTerraformPlan ? JSON.parse(planJson!) : undefined
         const nodeGroups = new Map<string, NodeGroup>()
         const jsonArray = Papa.parse(terraformResourcesCsv, { delimiter: ",", header: true })
         model.subgraphs.forEach((subgraph) => {
@@ -138,10 +138,10 @@ const TLDWrapper = () => {
                 }
             }
         })
-        computeLayout(nodeGroups)
+        computeLayout(nodeGroups, computeTerraformPlan)
     }
 
-    const computeLayout = (nodeGroups: Map<string, NodeGroup>) => {
+    const computeLayout = (nodeGroups: Map<string, NodeGroup>, computeTerraformPlan: boolean) => {
         const g = new dagre.graphlib.Graph({ compound: true });
         g.setGraph({ rankdir: "TB", ranksep: 120 });
         g.setDefaultEdgeLabel(function () { return {}; });
@@ -166,7 +166,7 @@ const TLDWrapper = () => {
                 return g.children(id) && g.children(id)!.length > 0
             }).map((id) => {
                 const node = g.node(id);
-                const opacity = (g.children(id) as any).some((childId: string) => {
+                const opacity = !computeTerraformPlan || (g.children(id) as any).some((childId: string) => {
                     const nodeGroup = nodeGroups.get(childId)
                     return nodeGroup && !["no-op", "read"].includes(nodeGroup.state)
                 }) ? 1 : 0.2
@@ -201,7 +201,7 @@ const TLDWrapper = () => {
                         resourceType: nodeGroups.get(id)?.type.split("_").slice(1).map(r => r.charAt(0).toUpperCase() + r.slice(1)).join(" "),
                         state: nodeGroups.get(id)?.state,
                     },
-                    opacity: (["no-op", "read"].includes(nodeGroups.get(id)?.state || "no-op") &&
+                    opacity: computeTerraformPlan && (["no-op", "read"].includes(nodeGroups.get(id)?.state || "no-op") &&
                         !g.nodes().some((nodeId) => {
                             g.children(nodeId) && g.children(nodeId)!.length > 0 && g.children(nodeId)!.includes(id)
                         })) ? 0.2 : 1
@@ -222,7 +222,7 @@ const TLDWrapper = () => {
                             {
                                 id: "shape:" + id + "-" + connection + date as TLShapeId,
                                 type: "arrow",
-                                opacity: fromShape.opacity * toShape.opacity < 0.2 ? 0.2 : 1,
+                                opacity: computeTerraformPlan && fromShape.opacity * toShape.opacity < 1 ? 0.2 : 1,
                                 props: {
                                     size: "s",
                                     start: {
@@ -327,7 +327,7 @@ const TLDWrapper = () => {
                 <Tldraw
                     shapeUtils={customShapeUtils}
                     onMount={setAppToState}
-
+                    persistenceKey="tldraw_basic"
                 />
                 <textarea
                     ref={graphTextAreaRef}
