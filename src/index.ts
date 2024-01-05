@@ -74,7 +74,7 @@ async function performActionsToDownloadFile(page: Page) {
 // Main Puppeteer logic for extracting SVG
 async function runHeadlessBrowserAndExportSVG(graphVizText: string, planOutput: string) {
     console.log("Processing raw graph...")
-    const browser = await puppeteer.launch({ headless: false });
+    const browser = await puppeteer.launch({ headless: "new" });
     const page = await browser.newPage();
     await page.goto(`http://127.0.0.1:${PORT}/index.html`);    // The path to your HTML file that is designed to load the React bundle.
 
@@ -109,7 +109,7 @@ async function runHeadlessBrowserAndExportSVG(graphVizText: string, planOutput: 
         if (event.state === 'completed') {
             fs.renameSync(path.resolve(downloadFolder, suggestedFilename), path.resolve(downloadFolder, suggestedFilename.replace("shapes", "inkdrop-diagram")));
             console.log(`Downloaded diagram -> ${path.resolve(downloadFolder, suggestedFilename.replace("shapes", "inkdrop-diagram"))}`)
-            //await browser.close();
+            await browser.close();
             server.close()
         }
     });
@@ -131,7 +131,10 @@ async function runHeadlessBrowserAndExportSVG(graphVizText: string, planOutput: 
         }, graphVizText, planOutput); // Pass graphVizText as an argument here
         await sleep(3000);
         await performActionsToDownloadFile(page)
-    })
+    }).catch(() => {
+        console.log("Error rendering graph")
+        server.close()
+    });
 }
 
 runTerraformGraph()

@@ -80,18 +80,16 @@ jobs:
         id: sha256
         run: echo "::set-output name=sha::$(sha256sum /tmp/inkdrop-brew-${{ needs.release.outputs.tag_name }}.tar.gz | awk '{print $1}')"
 
-      - name: Get the version tag without 'v'
-        id: get_version
-        run: echo ::set-output name=VERSION::${GITHUB_REF#refs/tags/v}
-
       - name: Update formula
         run: |
           FORMULA_PATH="${{ github.workspace }}/Formula/inkdrop-visualizer.rb"
           PACKAGE_URL="https://github.com/inkdrop-org/terraform-visualizer-cli/releases/download/${{ needs.release.outputs.tag_name }}/inkdrop-brew-${{ needs.release.outputs.tag_name }}.tar.gz"
           SHA256="${{ steps.sha256.outputs.sha }}"
+          VERSION="${{ needs.release.outputs.tag_name }}"
+          STRIPPED_VERSION="${VERSION#v}"
           sed -i "s|^  url .*|  url \"$PACKAGE_URL\"|" $FORMULA_PATH
           sed -i "s|^  sha256 .*|  sha256 \"$SHA256\"|" $FORMULA_PATH
-          sed -i "s|^  version .*|  version \"$VERSION\"|" $FORMULA_PATH
+          sed -i "s|^  version .*|  version \"$STRIPPED_VERSION\"|" $FORMULA_PATH
 
       - name: Commit changes
         run: |
