@@ -13,7 +13,7 @@ Using Inkdrop is simple:
 **Install via Homebrew or NPM:**
 
 ```
-brew tap inkdrop-visualizer
+brew tap inkdrop-org/inkdrop-visualizer
 brew install inkdrop-visualizer
 ```
 or
