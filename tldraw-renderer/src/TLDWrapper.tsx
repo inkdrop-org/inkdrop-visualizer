@@ -3,6 +3,7 @@ import { NodeShapeUtil } from './board/NodeShape';
 import { Editor, TLShapeId, Tldraw } from '@tldraw/tldraw';
 import dagre from "dagre"
 import Papa from "papaparse"
+import { getAssetUrls } from '@tldraw/assets/selfHosted';
 import { NodeModel, RootGraphModel, SubgraphModel, fromDot } from "ts-graphviz"
 import { terraformResourcesCsv } from './terraformResourcesCsv';
 
@@ -21,6 +22,8 @@ type NodeGroup = {
     moduleName?: string
     state: "no-op" | "create" | "read" | "update" | "delete" | "delete-create" | "create-delete"
 }
+
+const assetUrls = getAssetUrls()
 
 const TLDWrapper = () => {
 
@@ -328,6 +331,7 @@ const TLDWrapper = () => {
                     shapeUtils={customShapeUtils}
                     onMount={setAppToState}
                     persistenceKey="tldraw_basic"
+                    assetUrls={assetUrls}
                 />
                 <textarea
                     ref={graphTextAreaRef}

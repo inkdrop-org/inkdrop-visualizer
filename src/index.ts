@@ -15,8 +15,10 @@ import { runHeadlessBrowserAndExportSVG } from './renderer/renderer';
 
 const PORT = (argv as any).rendererPort || 3000
 const imagesPath = path.join(__dirname, 'Icons');
+const assetsPath = path.join(__dirname, 'assets');
 const app = express();
 app.use('/Icons', express.static(imagesPath));
+app.use('/', express.static(assetsPath));
 
 // Serve static files from the build directory
 app.use(express.static(path.resolve(__dirname, 'build')));
