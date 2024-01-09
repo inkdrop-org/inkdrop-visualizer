@@ -106,6 +106,7 @@ export class NodeShapeUtil extends BaseBoxShapeUtil<NodeShape> {
                         {shape.props.name}
                     </div>
                     <img src={shape.props.iconPath} className='absolute bottom-4 h-16 w-16 rounded pointer-events-none select-none' />
+                    <div className='absolute top-0 right-0 rounded-full bg-green-500 border-red-500 border-2 translate-y-[-50%] translate-x-[50%] h-7 w-7' />
                 </HTMLContainer>
 
             </>

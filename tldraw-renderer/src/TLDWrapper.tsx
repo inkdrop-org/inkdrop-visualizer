@@ -1,11 +1,13 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { NodeShapeUtil } from './board/NodeShape';
-import { Editor, TLShapeId, Tldraw } from '@tldraw/tldraw';
+import { Editor, TLShapeId, TLStoreOptions, Tldraw, createTLStore, defaultShapeUtils, throttle } from '@tldraw/tldraw';
 import dagre from "dagre"
 import Papa from "papaparse"
 import { getAssetUrls } from '@tldraw/assets/selfHosted';
 import { NodeModel, RootGraphModel, SubgraphModel, fromDot } from "ts-graphviz"
 import { terraformResourcesCsv } from './terraformResourcesCsv';
+import '@tldraw/tldraw/tldraw.css'
+import { getData, sendData } from './utils/storage';
 
 
 const customShapeUtils = [NodeShapeUtil]
@@ -28,12 +30,69 @@ const assetUrls = getAssetUrls()
 const TLDWrapper = () => {
 
     const [editor, setEditor] = useState<Editor | null>(null)
+    const [storedData, setStoredData] = useState<{ editor: Editor | null, planJson?: any }>()
 
     const setAppToState = useCallback((editor: Editor) => {
         setEditor(editor)
     }, [])
 
+    const [store] = useState(() => createTLStore({
+        shapeUtils: [...customShapeUtils, ...defaultShapeUtils],
+        history: undefined
+    } as TLStoreOptions))
+    const [loadingState, setLoadingState] = useState<
+        { status: 'loading' } | { status: 'ready' } | { status: 'error'; error: string }
+    >({
+        status: 'loading',
+    })
+
+    useEffect(() => {
+        const getAndUpdateState = async () => {
+            setLoadingState({ status: 'loading' })
+            const state = (await getData()).state
+            const editorValue = state ? state.editor : undefined
+            if (editorValue) {
+                try {
+                    const snapshot = JSON.parse(editorValue)
+                    store.loadSnapshot(snapshot)
+
+                    setLoadingState({ status: 'ready' })
+                } catch (error: any) {
+                    setLoadingState({ status: 'error', error: error.message }) // Something went wrong
+                }
+            } else {
+                setLoadingState({ status: 'ready' }) // Nothing persisted, continue with the empty store
+            }
+
+            // Each time the store changes, run the (debounced) persist function
+            const cleanupFn = store.listen(
+                throttle(() => {
+                    const snapshot = store.getSnapshot()
+                    sendData({
+                        editor: JSON.stringify(snapshot),
+                    })
+                }, 500)
+            )
+
+            return () => {
+                cleanupFn()
+            }
+        }
+        getAndUpdateState()
+
+    }, [store])
+
     const defaultWidth = 120, defaultHeight = 120
+
+    useEffect(() => {
+        const getStoredData = async () => {
+            const data = await getData()
+            if (Object.keys(data.state).length > 0) {
+                setStoredData(data)
+            }
+        }
+        getStoredData()
+    }, [])
 
     const checkHclBlockType = (blockId: string) => {
         let moduleName = ""
@@ -142,6 +201,10 @@ const TLDWrapper = () => {
             }
         })
         computeLayout(nodeGroups, computeTerraformPlan)
+        sendData({
+            editor: JSON.stringify(store.getSnapshot()),
+            planJson: planJsonObj
+        })
     }
 
     const computeLayout = (nodeGroups: Map<string, NodeGroup>, computeTerraformPlan: boolean) => {
@@ -261,6 +324,7 @@ const TLDWrapper = () => {
         subgraph.edges.filter((e) => {
             return (e.targets[start ? 0 : 1] as any).id === node.id
         }).forEach((edge, index) => {
+
             const edgeToId = (edge.targets[start ? 1 : 0] as any).id
             let centralPart = edgeToId.split(" ")[1]
             if (centralPart) {
@@ -321,32 +385,29 @@ const TLDWrapper = () => {
             position: "fixed",
             inset: 0,
         }}>
-            <div style={{
-                height: "100%",
-                transitionProperty: "all",
-                transitionTimingFunction: "cubic-bezier(0.4, 0, 0.2, 1)",
-                transitionDuration: "150ms",
-            }}>
-                <Tldraw
-                    shapeUtils={customShapeUtils}
-                    onMount={setAppToState}
-                    persistenceKey="tldraw_basic"
-                    assetUrls={assetUrls}
-                />
-                <textarea
-                    ref={graphTextAreaRef}
-                    id='inkdrop-graphviz-textarea'
-                />
-                <textarea
-                    ref={planTextAreaRef}
-                    id='inkdrop-plan-textarea'
-                />
-                <button
-                    onClick={handleRenderButtonClick}
-                    id="render-button">
-                    Render
-                </button>
-            </div>
+            <Tldraw
+                shapeUtils={customShapeUtils}
+                onMount={setAppToState}
+                store={store}
+                assetUrls={assetUrls}
+            />
+            {!storedData &&
+                <>
+                    <textarea
+                        ref={graphTextAreaRef}
+                        id='inkdrop-graphviz-textarea'
+                    />
+                    <textarea
+                        ref={planTextAreaRef}
+                        id='inkdrop-plan-textarea'
+                    />
+                    <button
+                        onClick={handleRenderButtonClick}
+                        id="render-button">
+                        Render
+                    </button>
+                </>
+            }
         </div>
     );
 };

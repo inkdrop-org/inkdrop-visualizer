@@ -17,11 +17,32 @@ const PORT = (argv as any).rendererPort || 3000
 const imagesPath = path.join(__dirname, 'Icons');
 const assetsPath = path.join(__dirname, 'assets');
 const app = express();
+
+// Middleware to parse JSON bodies
+app.use(express.json());
 app.use('/Icons', express.static(imagesPath));
 app.use('/', express.static(assetsPath));
 
 // Serve static files from the build directory
 app.use(express.static(path.resolve(__dirname, 'build')));
+
+let state: any = {}
+
+app.post('/senddata', (req, res) => {
+    const receivedData = req.body;
+    Object.keys(receivedData).forEach(key => {
+        state[key] = receivedData[key]
+    })
+    res.status(200).json({ message: 'Data stored', yourData: receivedData });
+});
+
+app.get('/getdata', (req, res) => {
+    if (!state) {
+        res.status(404).json({ message: 'No state found' });
+        return
+    }
+    res.status(200).json({ message: 'Current state', state: state });
+});
 
 // Start the server
 const server = app.listen(PORT, '127.0.0.1', () => {
@@ -39,6 +60,7 @@ async function runTerraformGraph(): Promise<void> {
             throw new Error(`Error running terraform show: ${showStderr}`);
         }
         planJson = showStdout
+        //console.log("planjson", planJson)
     }
 
     console.log("Computing raw graph...")

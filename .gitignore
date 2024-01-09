@@ -13,6 +13,7 @@
 .env
 dist
 release
+.cache
 
 # misc
 .DS_Store

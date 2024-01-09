@@ -3,6 +3,32 @@ import path from "path";
 import puppeteer, { Page } from "puppeteer";
 import { sleep } from "../utils/time";
 import fs from "fs";
+import { exec } from "child_process";
+
+function openUrl(url: string) {
+    let startCommand;
+
+    switch (process.platform) {
+        case 'darwin': // macOS
+            startCommand = 'open';
+            break;
+        case 'win32': // Windows
+            startCommand = 'start';
+            break;
+        case 'linux': // Linux
+            startCommand = 'xdg-open';
+            break;
+        default:
+            throw new Error(`Unsupported platform: ${process.platform}`);
+    }
+
+    exec(`${startCommand} ${url}`, (err) => {
+        if (err) {
+            console.error(`Failed to open ${url}: ${err.message}`);
+            return;
+        }
+    });
+}
 
 async function performActionsToDownloadFile(page: Page) {
     // Define the platform-specific key for 'Control' or 'Command'
@@ -24,23 +50,18 @@ async function performActionsToDownloadFile(page: Page) {
     });
 }
 
-// Main Puppeteer logic for extracting SVG
 export async function runHeadlessBrowserAndExportSVG(graphVizText: string, planOutput: string, server: Server, argv: any) {
 
     console.log("Processing raw graph...")
-    const browser = await puppeteer.launch({ headless: "new" });
+    const browser = await puppeteer.launch({ headless: "new", defaultViewport: null });
     const page = await browser.newPage();
     const PORT = (argv as any).rendererPort || 3000
-    await page.goto(`http://127.0.0.1:${PORT}/index.html`);    // The path to your HTML file that is designed to load the React bundle.
-
-
-    // Now add your script tag pointing to the local bundle file with the correct path.
-    await page.addScriptTag({ path: path.resolve(__dirname, '../build/bundle.js') });
-
+    const noUI = (argv as any).noUI || false
+    await page.goto(`http://127.0.0.1:${PORT}/index.html`);
 
     const client = await page.target().createCDPSession();
 
-    // Act like a dictionary storing the filename for each file with guid
+
     let suggestedFilename = ""
 
     const downloadFolder = path.resolve((argv as any).out || (argv as any).path || ".")
@@ -65,7 +86,12 @@ export async function runHeadlessBrowserAndExportSVG(graphVizText: string, planO
             fs.renameSync(path.resolve(downloadFolder, suggestedFilename), path.resolve(downloadFolder, suggestedFilename.replace("shapes", "inkdrop-diagram")));
             console.log(`Downloaded diagram -> ${path.resolve(downloadFolder, suggestedFilename.replace("shapes", "inkdrop-diagram"))}`)
             await browser.close();
-            server.close()
+            if (noUI) {
+                server.close()
+            } else {
+                console.log(`Opening Inkdrop...`);
+                openUrl('http://127.0.0.1:' + PORT)
+            }
         }
     });
 
