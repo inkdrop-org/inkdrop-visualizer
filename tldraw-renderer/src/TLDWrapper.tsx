@@ -8,12 +8,18 @@ import { NodeModel, RootGraphModel, SubgraphModel, fromDot } from "ts-graphviz"
 import { terraformResourcesCsv } from './terraformResourcesCsv';
 import '@tldraw/tldraw/tldraw.css'
 import { getData, sendData } from './utils/storage';
+import EditorHandler from './editorHandler/EditorHandler';
+import { nodeChangesToString } from './jsonPlanManager/jsonPlanManager';
 
 
 const customShapeUtils = [NodeShapeUtil]
 
 type NodeGroup = {
-    nodes: NodeModel[],
+    nodes: {
+        nodeModel: NodeModel,
+        resourceChange?: any
+    }[],
+    id: string,
     mainNode: NodeModel,
     connectionsOut: string[],
     connectionsIn: string[],
@@ -31,9 +37,11 @@ const TLDWrapper = () => {
 
     const [editor, setEditor] = useState<Editor | null>(null)
     const [storedData, setStoredData] = useState<{ editor: Editor | null, planJson?: any }>()
+    const [storedNodeGroups, setStoredNodeGroups] = useState<NodeGroup[]>()
 
     const setAppToState = useCallback((editor: Editor) => {
         setEditor(editor)
+        editor?.zoomToContent()
     }, [])
 
     const [store] = useState(() => createTLStore({
@@ -49,7 +57,9 @@ const TLDWrapper = () => {
     useEffect(() => {
         const getAndUpdateState = async () => {
             setLoadingState({ status: 'loading' })
-            const state = (await getData()).state
+            const storedData = await getData()
+            const state = storedData.state
+            setStoredNodeGroups(storedData.state ? storedData.state.nodeGroups : [])
             const editorValue = state ? state.editor : undefined
             if (editorValue) {
                 try {
@@ -145,6 +155,7 @@ const TLDWrapper = () => {
                         if (resourceType && resourceName && jsonArray) {
                             let resourceChange: any
                             if (computeTerraformPlan) {
+
                                 resourceChange = planJsonObj.resource_changes.filter((resource: any) => {
                                     return resource.address === node.id.split(" ")[1]
                                 })[0]
@@ -152,7 +163,11 @@ const TLDWrapper = () => {
                             jsonArray.data.forEach((row: any) => {
                                 if (row["Main Diagram Blocks"].split(",").some((s: string) => s === resourceType)) {
                                     nodeGroups.set(node.id.split(" ")[1], {
-                                        nodes: [node],
+                                        nodes: [{
+                                            nodeModel: node,
+                                            resourceChange: resourceChange
+                                        }],
+                                        id: node.id.split(" ")[1],
                                         mainNode: node,
                                         name: resourceName,
                                         state: resourceChange ? resourceChange.change.actions.join("-") : "no-op",
@@ -183,12 +198,12 @@ const TLDWrapper = () => {
 
             const fromGroup = Array.from(nodeGroups).filter(([id, group]) => {
                 return group.nodes.some((n) => {
-                    return n.id === edgeFromId
+                    return n.nodeModel.id === edgeFromId
                 })
             })[0]
             const toGroup = Array.from(nodeGroups).filter(([id, group]) => {
                 return group.nodes.some((n) => {
-                    return n.id === edgeToId
+                    return n.nodeModel.id === edgeToId
                 })
             })[0]
             if (fromGroup && toGroup && fromGroup !== toGroup) {
@@ -201,8 +216,10 @@ const TLDWrapper = () => {
             }
         })
         computeLayout(nodeGroups, computeTerraformPlan)
+        editor?.zoomToContent()
         sendData({
             editor: JSON.stringify(store.getSnapshot()),
+            nodeGroups: Array.from(nodeGroups.values()),
             planJson: planJsonObj
         })
     }
@@ -237,7 +254,7 @@ const TLDWrapper = () => {
                     return nodeGroup && !["no-op", "read"].includes(nodeGroup.state)
                 }) ? 1 : 0.2
                 return {
-                    id: "shape:" + id + date as TLShapeId,
+                    id: "shape:" + id + ":" + date as TLShapeId,
                     type: "frame",
                     x: node.x - node.width / 2,
                     y: node.y - node.height / 2,
@@ -257,7 +274,7 @@ const TLDWrapper = () => {
                 const node = g.node(id);
 
                 return {
-                    id: "shape:" + id + date as TLShapeId,
+                    id: "shape:" + id + ":" + date as TLShapeId,
                     type: "node",
                     x: node.x - node.width / 2,
                     y: node.y - node.height / 2,
@@ -281,12 +298,12 @@ const TLDWrapper = () => {
             nodeGroup.connectionsOut.forEach((connection) => {
                 const connectionNode = nodeGroups.get(connection)
                 if (connectionNode) {
-                    const fromShape = editor?.getShape("shape:" + id + date as TLShapeId)
-                    const toShape = editor?.getShape("shape:" + connection + date as TLShapeId)
+                    const fromShape = editor?.getShape("shape:" + id + ":" + date as TLShapeId)
+                    const toShape = editor?.getShape("shape:" + connection + ":" + date as TLShapeId)
                     if (fromShape && toShape) {
                         arrowShapes.push(
                             {
-                                id: "shape:" + id + "-" + connection + date as TLShapeId,
+                                id: "shape:" + id + "-" + connection + ":" + date as TLShapeId,
                                 type: "arrow",
                                 opacity: computeTerraformPlan && fromShape.opacity * toShape.opacity < 1 ? 0.2 : 1,
                                 props: {
@@ -334,7 +351,7 @@ const TLDWrapper = () => {
                     const { resourceType, resourceName } = getResourceNameAndType(processedBlockId)
                     const isNodePresent = Array.from(nodeGroups.values()).some((group) => {
                         return group.nodes.some((n) => {
-                            return n.id === (edge.targets[start ? 1 : 0] as any).id
+                            return n.nodeModel.id === (edge.targets[start ? 1 : 0] as any).id
                         })
                     })
                     if (resourceType && resourceName && jsonArray && !isNodePresent &&
@@ -345,13 +362,16 @@ const TLDWrapper = () => {
                         })) {
                         const newNode = subgraph.nodes.filter((n) => { return n.id === (edge.targets[start ? 1 : 0] as any).id })[0]
                         if (newNode) {
-                            nodeGroup.nodes.push(newNode)
                             let resourceChange: any
                             if (planJsonObj) {
                                 resourceChange = planJsonObj.resource_changes.filter((resource: any) => {
                                     return resource.address === newNode.id.split(" ")[1]
                                 })[0]
                             }
+                            nodeGroup.nodes.push({
+                                nodeModel: newNode,
+                                resourceChange: resourceChange
+                            })
                             const newState = resourceChange ? resourceChange.change.actions.join("-") : "no-op"
                             nodeGroup.state = nodeGroup.state !== "no-op" || !planJsonObj ? nodeGroup.state :
                                 newState !== "no-op" ? "update" : newState
@@ -379,6 +399,20 @@ const TLDWrapper = () => {
         }
     }
 
+    const handleShapeSelectionChange = (shapeId: string) => {
+        if (shapeId === "") {
+        } else if (storedNodeGroups) {
+            // remove shape: prefix, and date suffix
+            const shapeIdWithoutPrefixAndSuffix = shapeId.split(":")[1]
+
+            const textToShow = nodeChangesToString(storedNodeGroups?.filter((nodeGroup) => {
+                return nodeGroup.id === shapeIdWithoutPrefixAndSuffix
+            })[0].nodes.map((node) => {
+                return node.resourceChange || undefined
+            }).filter((s) => s !== undefined))
+        }
+    }
+
 
     return (
         <div style={{
@@ -391,6 +425,9 @@ const TLDWrapper = () => {
                 store={store}
                 assetUrls={assetUrls}
             />
+            <EditorHandler
+                editor={editor}
+                handleShapeSelectionChange={handleShapeSelectionChange} />
             {!storedData &&
                 <>
                     <textarea

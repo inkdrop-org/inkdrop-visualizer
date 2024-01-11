@@ -53,7 +53,7 @@ async function performActionsToDownloadFile(page: Page) {
 export async function runHeadlessBrowserAndExportSVG(graphVizText: string, planOutput: string, server: Server, argv: any) {
 
     console.log("Processing raw graph...")
-    const browser = await puppeteer.launch({ headless: "new", defaultViewport: null });
+    const browser = await puppeteer.launch({ headless: false, defaultViewport: null });
     const page = await browser.newPage();
     const PORT = (argv as any).rendererPort || 3000
     const noUI = (argv as any).noUI || false
@@ -85,7 +85,7 @@ export async function runHeadlessBrowserAndExportSVG(graphVizText: string, planO
         if (event.state === 'completed') {
             fs.renameSync(path.resolve(downloadFolder, suggestedFilename), path.resolve(downloadFolder, suggestedFilename.replace("shapes", "inkdrop-diagram")));
             console.log(`Downloaded diagram -> ${path.resolve(downloadFolder, suggestedFilename.replace("shapes", "inkdrop-diagram"))}`)
-            await browser.close();
+            //await browser.close();
             if (noUI) {
                 server.close()
             } else {
