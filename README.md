@@ -10,13 +10,8 @@ It works entirely locally - just point it at your Terraform directory and you'll
 # Usage and Deployment
 Using Inkdrop is simple:
 
-**Install via Homebrew or NPM:**
+**Install via NPM:**
 
-```
-brew tap inkdrop-org/inkdrop-visualizer
-brew install inkdrop-visualizer
-```
-or
 ```
 npm install -g inkdrop-visualizer
 ```
