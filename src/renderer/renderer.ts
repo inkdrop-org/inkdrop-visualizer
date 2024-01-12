@@ -1,8 +1,21 @@
-import { Server } from "http";
 import path from "path";
-import puppeteer, { Page } from "puppeteer";
-import { sleep } from "../utils/time";
 import fs from "fs";
+import { chromium, Page } from "playwright";
+import { sleep } from "../utils/time";
+import { Server } from "http";
+
+async function rightClickTopLeftCorner(page: Page, selector: string) {
+    const element = await page.waitForSelector(selector);
+    const boundingBox = await element.boundingBox();
+
+    if (boundingBox) {
+        // Perform a right-click at the top-left corner of the bounding box
+        // Note: boundingBox.x and boundingBox.y are the coordinates of the top-left corner
+        await page.mouse.click(boundingBox.x, 0, { button: 'right' });
+    } else {
+        throw new Error(`Could not find bounding box for selector ${selector}`);
+    }
+}
 import { exec } from "child_process";
 
 function openUrl(url: string) {
@@ -32,71 +45,59 @@ function openUrl(url: string) {
 
 async function performActionsToDownloadFile(page: Page) {
     // Define the platform-specific key for 'Control' or 'Command'
-    page.waitForSelector('.tlui-layout').then(async () => {
-        await page.mouse.click(0, 0, { button: 'right' }); // Update x, y coordinates as needed
-        const selectAllButton = await page.$('[data-testid="menu-item.select-all"]');
-        if (selectAllButton) {
-            await selectAllButton.click();
-        }
-        await page.mouse.click(0, 0, { button: 'right' }); // Update x, y coordinates as needed
-        const exportAsButton = await page.$('[data-testid="menu-item.export-as"]');
-        if (exportAsButton) {
-            await exportAsButton.click();
-        }
-        const svgButton = await page.$('[data-testid="menu-item.export-as-svg"]');
-        if (svgButton) {
-            await svgButton.click();
-        }
-    });
+
+    await page.waitForSelector('.tlui-layout');
+    await rightClickTopLeftCorner(page, '.tlui-layout');
+
+    const selectAllButton = await page.$('[data-testid="menu-item.select-all"]');
+    if (selectAllButton) {
+        await selectAllButton.click();
+    }
+    await rightClickTopLeftCorner(page, '.tlui-layout');
+
+    const exportAsButton = await page.$('[data-testid="menu-item.export-as"]');
+    if (exportAsButton) {
+        await exportAsButton.click();
+    }
+    const svgButton = await page.$('[data-testid="menu-item.export-as-svg"]');
+    if (svgButton) {
+        await svgButton.click();
+    }
 }
 
 export async function runHeadlessBrowserAndExportSVG(graphVizText: string, planOutput: string, server: Server, argv: any) {
-
-    console.log("Processing raw graph...")
-    const browser = await puppeteer.launch({ headless: false, defaultViewport: null });
-    const page = await browser.newPage();
-    const PORT = (argv as any).rendererPort || 3000
+    console.log("Processing raw graph...");
+    const browser = await chromium.launch({ headless: false });
+    const context = await browser.newContext({
+        acceptDownloads: true // This option allows downloads in headless mode
+    });
+    const page = await context.newPage();
+    const PORT = argv.rendererPort || 3000;
     const noUI = (argv as any).noUI || false
+
     await page.goto(`http://127.0.0.1:${PORT}/index.html`);
 
-    const client = await page.target().createCDPSession();
+    const downloadFolder = path.resolve(argv.out || argv.path || ".");
 
-
-    let suggestedFilename = ""
-
-    const downloadFolder = path.resolve((argv as any).out || (argv as any).path || ".")
-    const downloadPath = path.resolve((argv as any).out || (argv as any).path || ".") // Set the download path to your current working directory.
-
-    await client.send('Browser.setDownloadBehavior', {
-        behavior: 'allow',
-        eventsEnabled: true,
-        downloadPath: downloadPath,
-    })
-
-    client.on('Browser.downloadWillBegin', async (event) => {
-        //some logic here to determine the filename
-        //the event provides event.suggestedFilename and event.url
-        suggestedFilename = event.suggestedFilename;
-    });
-
-    client.on('Browser.downloadProgress', async (event) => {
-        // when the file has been downloaded, locate the file by guid and rename it
-
-        if (event.state === 'completed') {
-            fs.renameSync(path.resolve(downloadFolder, suggestedFilename), path.resolve(downloadFolder, suggestedFilename.replace("shapes", "inkdrop-diagram")));
-            console.log(`Downloaded diagram -> ${path.resolve(downloadFolder, suggestedFilename.replace("shapes", "inkdrop-diagram"))}`)
-            //await browser.close();
-            if (noUI) {
-                server.close()
-            } else {
-                console.log(`Opening Inkdrop...`);
-                openUrl('http://127.0.0.1:' + PORT)
-            }
+    page.on('download', async (download) => {
+        // Wait for the download and save to the file.
+        const outputPath = download.suggestedFilename().replace("shapes", "inkdrop-diagram");
+        const downloadPath = path.join(downloadFolder, outputPath);
+        await download.saveAs(downloadPath);
+        console.log(`Downloaded diagram -> ${downloadPath}`);
+        await browser.close();
+        if (noUI) {
+            server.close();
+        } else {
+            openUrl(`http://127.0.0.1:${PORT}/`);
         }
     });
 
-    page.waitForSelector('.tlui-layout').then(async () => {
-        await page.evaluate((graphData, planData) => {
+    try {
+        await page.waitForSelector('.tlui-layout');
+
+        await page.evaluate(({ graphData, planData }) => {
+            // Assuming `graphData` and `planData` are expected to be available here as variables.
             const graphTextArea = document.getElementById('inkdrop-graphviz-textarea');
             if (graphTextArea && graphTextArea instanceof HTMLTextAreaElement) {
                 graphTextArea.value = graphData;
@@ -109,12 +110,16 @@ export async function runHeadlessBrowserAndExportSVG(graphVizText: string, planO
             if (button) {
                 button.click();
             }
-        }, graphVizText, planOutput); // Pass graphVizText as an argument here
-        await sleep(3000);
-        await performActionsToDownloadFile(page)
-    }).catch(async () => {
-        console.log("Error rendering graph")
-        server.close()
-        await browser.close()
-    });
+        }, { graphData: graphVizText, planData: planOutput }); // Passing an object containing both variables
+
+        await sleep(3000); // Consider using waitForFunction or waitForTimeout instead
+        await performActionsToDownloadFile(page);
+
+        // Wait for the download event or the browser disconnection, implemented according to your needs.
+
+    } catch (error) {
+        console.log("Error rendering graph:", error);
+        server.close();
+        await browser.close();
+    }
 }
