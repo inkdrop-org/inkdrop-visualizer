@@ -101,11 +101,26 @@ export class NodeShapeUtil extends BaseBoxShapeUtil<NodeShape> {
                         backgroundColor: shape.props.backgroundColor,
                     }}
                 >
-                    <div className={`absolute top-0 left-0 text-center max-w-full p-1 text-sm text-black truncate rounded-br`}
+                    <div className={`absolute top-0 left-0 text-center max-w-full p-1 pt-[2px] text-sm text-black truncate rounded-br`}
                     >
                         {shape.props.name}
                     </div>
+                    <div className={`absolute top-[14px] left-0 text-center max-w-full p-1 text-[10px] text-[#504758] truncate rounded-br`}
+                    >
+                        {shape.props.resourceType}
+                    </div>
                     <img src={shape.props.iconPath} className='absolute bottom-4 h-16 w-16 rounded pointer-events-none select-none' />
+                    {
+                        !["no-op", "read"].includes(shape.props.state) &&
+                        <div
+                            style={{
+                                backgroundColor: shape.props.state === "create" ? "#dcfce7" :
+                                    shape.props.state === "delete" ? "#fee2e2" : "#fef9c3",
+                                borderColor: shape.props.state === "create" ? "#22c55e" :
+                                    shape.props.state === "delete" ? "#ef4444" : "#eab208"
+                            }}
+                            className='absolute top-0 right-0 rounded-full border-2 translate-y-[-50%] translate-x-[50%] h-7 w-7' />
+                    }
                 </HTMLContainer>
 
             </>

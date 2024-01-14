@@ -1,8 +1,35 @@
-import { Server } from "http";
 import path from "path";
 import puppeteer, { Page } from "puppeteer";
 import { sleep } from "../utils/time";
+import { Server } from "http";
 import fs from "fs";
+
+import { exec } from "child_process";
+
+function openUrl(url: string) {
+    let startCommand;
+
+    switch (process.platform) {
+        case 'darwin': // macOS
+            startCommand = 'open';
+            break;
+        case 'win32': // Windows
+            startCommand = 'start';
+            break;
+        case 'linux': // Linux
+            startCommand = 'xdg-open';
+            break;
+        default:
+            throw new Error(`Unsupported platform: ${process.platform}`);
+    }
+
+    exec(`${startCommand} ${url}`, (err) => {
+        if (err) {
+            console.error(`Failed to open ${url}: ${err.message}`);
+            return;
+        }
+    });
+}
 
 async function performActionsToDownloadFile(page: Page) {
     page.waitForSelector('.tlui-layout').then(async () => {
@@ -30,11 +57,9 @@ export async function runHeadlessBrowserAndExportSVG(graphVizText: string, planO
     const browser = await puppeteer.launch({ headless: "new" });
     const page = await browser.newPage();
     const PORT = (argv as any).rendererPort || 3000
+    const noUi = (argv as any).noUi || false
+
     await page.goto(`http://127.0.0.1:${PORT}/index.html`);
-
-
-    await page.addScriptTag({ path: path.resolve(__dirname, '../build/bundle.js') });
-
 
     const client = await page.target().createCDPSession();
 
@@ -62,7 +87,12 @@ export async function runHeadlessBrowserAndExportSVG(graphVizText: string, planO
             fs.renameSync(path.resolve(downloadFolder, suggestedFilename), path.resolve(downloadFolder, suggestedFilename.replace("shapes", "inkdrop-diagram")));
             console.log(`Downloaded diagram -> ${path.resolve(downloadFolder, suggestedFilename.replace("shapes", "inkdrop-diagram"))}`)
             await browser.close();
-            server.close()
+            if (noUi) {
+                server.close();
+            } else {
+                console.log("Opening Inkdrop...")
+                openUrl(`http://127.0.0.1:${PORT}/`);
+            }
         }
     });
 

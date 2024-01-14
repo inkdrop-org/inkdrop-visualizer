@@ -1,17 +1,28 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { NodeShapeUtil } from './board/NodeShape';
-import { Editor, TLShapeId, Tldraw } from '@tldraw/tldraw';
+import { Editor, TLShapeId, TLStoreOptions, Tldraw, createTLStore, defaultShapeUtils, throttle } from '@tldraw/tldraw';
 import dagre from "dagre"
 import Papa from "papaparse"
 import { getAssetUrls } from '@tldraw/assets/selfHosted';
 import { NodeModel, RootGraphModel, SubgraphModel, fromDot } from "ts-graphviz"
 import { terraformResourcesCsv } from './terraformResourcesCsv';
+import '@tldraw/tldraw/tldraw.css'
+import { getData, sendData } from './utils/storage';
+import EditorHandler from './editorHandler/EditorHandler';
+import { nodeChangesToString } from './jsonPlanManager/jsonPlanManager';
+import Sidebar from './sidebar/Sidebar';
 
 
 const customShapeUtils = [NodeShapeUtil]
 
+type ResourceState = "no-op" | "create" | "read" | "update" | "delete" | "delete-create" | "create-delete"
+
 type NodeGroup = {
-    nodes: NodeModel[],
+    nodes: {
+        nodeModel: NodeModel,
+        resourceChanges?: any[]
+    }[],
+    id: string,
     mainNode: NodeModel,
     connectionsOut: string[],
     connectionsIn: string[],
@@ -20,7 +31,7 @@ type NodeGroup = {
     iconPath: string,
     serviceName: string
     moduleName?: string
-    state: "no-op" | "create" | "read" | "update" | "delete" | "delete-create" | "create-delete"
+    state: ResourceState
 }
 
 const assetUrls = getAssetUrls()
@@ -28,12 +39,76 @@ const assetUrls = getAssetUrls()
 const TLDWrapper = () => {
 
     const [editor, setEditor] = useState<Editor | null>(null)
+    const [storedData, setStoredData] = useState<{ editor: Editor | null, planJson?: any }>()
+    const [storedNodeGroups, setStoredNodeGroups] = useState<NodeGroup[]>()
+    const [sidebarWidth, setSidebarWidth] = useState<number>(0)
+    const [diffText, setDiffText] = useState<string>("")
+    const [showUnknown, setShowUnknown] = useState<boolean>(false)
 
     const setAppToState = useCallback((editor: Editor) => {
         setEditor(editor)
+        editor?.zoomToContent()
     }, [])
 
+    const [store] = useState(() => createTLStore({
+        shapeUtils: [...customShapeUtils, ...defaultShapeUtils],
+        history: undefined
+    } as TLStoreOptions))
+    const [loadingState, setLoadingState] = useState<
+        { status: 'loading' } | { status: 'ready' } | { status: 'error'; error: string }
+    >({
+        status: 'loading',
+    })
+
+    useEffect(() => {
+        const getAndUpdateState = async () => {
+            setLoadingState({ status: 'loading' })
+            const storedData = await getData()
+            const state = storedData.state
+            setStoredNodeGroups(storedData.state ? storedData.state.nodeGroups : [])
+            const editorValue = state ? state.editor : undefined
+            if (editorValue) {
+                try {
+                    const snapshot = JSON.parse(editorValue)
+                    store.loadSnapshot(snapshot)
+
+                    setLoadingState({ status: 'ready' })
+                } catch (error: any) {
+                    setLoadingState({ status: 'error', error: error.message }) // Something went wrong
+                }
+            } else {
+                setLoadingState({ status: 'ready' }) // Nothing persisted, continue with the empty store
+            }
+
+            // Each time the store changes, run the (debounced) persist function
+            const cleanupFn = store.listen(
+                throttle(() => {
+                    const snapshot = store.getSnapshot()
+                    sendData({
+                        editor: JSON.stringify(snapshot),
+                    })
+                }, 500)
+            )
+
+            return () => {
+                cleanupFn()
+            }
+        }
+        getAndUpdateState()
+
+    }, [store])
+
     const defaultWidth = 120, defaultHeight = 120
+
+    useEffect(() => {
+        const getStoredData = async () => {
+            const data = await getData()
+            if (Object.keys(data.state).length > 0) {
+                setStoredData(data.state)
+            }
+        }
+        getStoredData()
+    }, [])
 
     const checkHclBlockType = (blockId: string) => {
         let moduleName = ""
@@ -84,19 +159,33 @@ const TLDWrapper = () => {
                     if (isResourceWithName) {
                         const { resourceType, resourceName } = getResourceNameAndType(processedBlockId)
                         if (resourceType && resourceName && jsonArray) {
-                            let resourceChange: any
+                            let resourceChanges: any[] = []
                             if (computeTerraformPlan) {
-                                resourceChange = planJsonObj.resource_changes.filter((resource: any) => {
-                                    return resource.address === node.id.split(" ")[1]
-                                })[0]
+
+                                resourceChanges = planJsonObj.resource_changes.filter((resource: any) => {
+                                    return resource.address === node.id.split(" ")[1] || resource.address.startsWith(node.id.split(" ")[1] + "[")
+                                })
                             }
+                            // Determine a general state, given all the actions
+                            let generalState = "no-op"
+                            resourceChanges?.forEach((resourceChange) => {
+                                const newState = resourceChange.change.actions.join("-")
+                                generalState = newState !== generalState ?
+                                    (["no-op", "read"].includes(newState) && ["no-op", "read"].includes(generalState)) ? "read" :
+                                        ["no-op", "read"].includes(generalState) ? newState : "update" : newState
+                            })
+
                             jsonArray.data.forEach((row: any) => {
                                 if (row["Main Diagram Blocks"].split(",").some((s: string) => s === resourceType)) {
                                     nodeGroups.set(node.id.split(" ")[1], {
-                                        nodes: [node],
+                                        nodes: [{
+                                            nodeModel: node,
+                                            resourceChanges: resourceChanges
+                                        }],
+                                        id: node.id.split(" ")[1],
                                         mainNode: node,
                                         name: resourceName,
-                                        state: resourceChange ? resourceChange.change.actions.join("-") : "no-op",
+                                        state: resourceChanges.length > 0 ? generalState as ResourceState : "no-op",
                                         type: resourceType,
                                         serviceName: row["Service Name"],
                                         iconPath: row["Icon Path"].trim(),
@@ -117,6 +206,61 @@ const TLDWrapper = () => {
             getConnectedNodes(nodeGroup.mainNode, nodeGroup, nodeGroups, model.subgraphs[0], false, jsonArray, planJsonObj)
         })
 
+        // Add a nodeGroup for each node that is not connected to any other node
+        model.subgraphs[0].nodes.forEach((node) => {
+            if (!Array.from(nodeGroups.values()).some((group) => {
+                return group.nodes.some((n) => {
+                    return n.nodeModel.id === node.id
+                })
+            })) {
+                let centralPart = node.id.split(" ")[1]
+                if (centralPart) {
+                    const { processedBlockId, isResourceWithName, moduleName } = checkHclBlockType(centralPart)
+                    if (isResourceWithName) {
+                        const { resourceType, resourceName } = getResourceNameAndType(processedBlockId)
+                        if (resourceType && resourceName && jsonArray) {
+                            let resourceChanges: any[] = []
+                            if (computeTerraformPlan) {
+
+                                resourceChanges = planJsonObj.resource_changes.filter((resource: any) => {
+                                    return resource.address === node.id.split(" ")[1] || resource.address.startsWith(node.id.split(" ")[1] + "[")
+                                })
+                            }
+                            // Determine a general state, given all the actions
+                            let generalState = "no-op"
+                            resourceChanges?.forEach((resourceChange) => {
+                                const newState = resourceChange.change.actions.join("-")
+                                generalState = newState !== generalState ?
+                                    (["no-op", "read"].includes(newState) && ["no-op", "read"].includes(generalState)) ? "read" :
+                                        ["no-op", "read"].includes(generalState) ? newState : "update" : newState
+                            })
+
+                            jsonArray.data.forEach((row: any) => {
+                                if (row["Missing Resources"].split(",").some((s: string) => s === resourceType)) {
+                                    nodeGroups.set(node.id.split(" ")[1], {
+                                        nodes: [{
+                                            nodeModel: node,
+                                            resourceChanges: resourceChanges
+                                        }],
+                                        id: node.id.split(" ")[1],
+                                        mainNode: node,
+                                        name: resourceName,
+                                        state: resourceChanges.length > 0 ? generalState as ResourceState : "no-op",
+                                        type: resourceType,
+                                        serviceName: row["Service Name"],
+                                        iconPath: row["Icon Path"].trim(),
+                                        connectionsIn: [],
+                                        connectionsOut: [],
+                                        moduleName: moduleName
+                                    })
+                                }
+                            })
+                        }
+                    }
+                }
+            }
+        })
+
         // Compute connections between groups
         model.subgraphs[0].edges.forEach((edge) => {
             const edgeFromId = (edge.targets[0] as any).id
@@ -124,12 +268,12 @@ const TLDWrapper = () => {
 
             const fromGroup = Array.from(nodeGroups).filter(([id, group]) => {
                 return group.nodes.some((n) => {
-                    return n.id === edgeFromId
+                    return n.nodeModel.id === edgeFromId
                 })
             })[0]
             const toGroup = Array.from(nodeGroups).filter(([id, group]) => {
                 return group.nodes.some((n) => {
-                    return n.id === edgeToId
+                    return n.nodeModel.id === edgeToId
                 })
             })[0]
             if (fromGroup && toGroup && fromGroup !== toGroup) {
@@ -142,6 +286,12 @@ const TLDWrapper = () => {
             }
         })
         computeLayout(nodeGroups, computeTerraformPlan)
+        editor?.zoomToContent()
+        sendData({
+            editor: JSON.stringify(store.getSnapshot()),
+            nodeGroups: Array.from(nodeGroups.values()),
+            planJson: planJsonObj
+        })
     }
 
     const computeLayout = (nodeGroups: Map<string, NodeGroup>, computeTerraformPlan: boolean) => {
@@ -174,7 +324,7 @@ const TLDWrapper = () => {
                     return nodeGroup && !["no-op", "read"].includes(nodeGroup.state)
                 }) ? 1 : 0.2
                 return {
-                    id: "shape:" + id + date as TLShapeId,
+                    id: "shape:" + id + ":" + date as TLShapeId,
                     type: "frame",
                     x: node.x - node.width / 2,
                     y: node.y - node.height / 2,
@@ -194,7 +344,7 @@ const TLDWrapper = () => {
                 const node = g.node(id);
 
                 return {
-                    id: "shape:" + id + date as TLShapeId,
+                    id: "shape:" + id + ":" + date as TLShapeId,
                     type: "node",
                     x: node.x - node.width / 2,
                     y: node.y - node.height / 2,
@@ -218,12 +368,12 @@ const TLDWrapper = () => {
             nodeGroup.connectionsOut.forEach((connection) => {
                 const connectionNode = nodeGroups.get(connection)
                 if (connectionNode) {
-                    const fromShape = editor?.getShape("shape:" + id + date as TLShapeId)
-                    const toShape = editor?.getShape("shape:" + connection + date as TLShapeId)
+                    const fromShape = editor?.getShape("shape:" + id + ":" + date as TLShapeId)
+                    const toShape = editor?.getShape("shape:" + connection + ":" + date as TLShapeId)
                     if (fromShape && toShape) {
                         arrowShapes.push(
                             {
-                                id: "shape:" + id + "-" + connection + date as TLShapeId,
+                                id: "shape:" + id + "-" + connection + ":" + date as TLShapeId,
                                 type: "arrow",
                                 opacity: computeTerraformPlan && fromShape.opacity * toShape.opacity < 1 ? 0.2 : 1,
                                 props: {
@@ -261,6 +411,7 @@ const TLDWrapper = () => {
         subgraph.edges.filter((e) => {
             return (e.targets[start ? 0 : 1] as any).id === node.id
         }).forEach((edge, index) => {
+
             const edgeToId = (edge.targets[start ? 1 : 0] as any).id
             let centralPart = edgeToId.split(" ")[1]
             if (centralPart) {
@@ -270,7 +421,7 @@ const TLDWrapper = () => {
                     const { resourceType, resourceName } = getResourceNameAndType(processedBlockId)
                     const isNodePresent = Array.from(nodeGroups.values()).some((group) => {
                         return group.nodes.some((n) => {
-                            return n.id === (edge.targets[start ? 1 : 0] as any).id
+                            return n.nodeModel.id === (edge.targets[start ? 1 : 0] as any).id
                         })
                     })
                     if (resourceType && resourceName && jsonArray && !isNodePresent &&
@@ -281,16 +432,29 @@ const TLDWrapper = () => {
                         })) {
                         const newNode = subgraph.nodes.filter((n) => { return n.id === (edge.targets[start ? 1 : 0] as any).id })[0]
                         if (newNode) {
-                            nodeGroup.nodes.push(newNode)
-                            let resourceChange: any
+
+                            let resourceChanges: any[] = []
                             if (planJsonObj) {
-                                resourceChange = planJsonObj.resource_changes.filter((resource: any) => {
-                                    return resource.address === newNode.id.split(" ")[1]
-                                })[0]
+
+                                resourceChanges = planJsonObj.resource_changes.filter((resource: any) => {
+                                    return resource.address === newNode.id.split(" ")[1] || resource.address.startsWith(newNode.id.split(" ")[1] + "[")
+                                })
                             }
-                            const newState = resourceChange ? resourceChange.change.actions.join("-") : "no-op"
+                            // Determine a general state, given all the actions
+                            let generalState = "no-op"
+                            resourceChanges?.forEach((resourceChange) => {
+                                const newState = resourceChange.change.actions.join("-")
+                                generalState = newState !== generalState ?
+                                    (["no-op", "read"].includes(newState) && ["no-op", "read"].includes(generalState)) ? "read" : "update" : newState
+                            })
+
+                            nodeGroup.nodes.push({
+                                nodeModel: newNode,
+                                resourceChanges: resourceChanges
+                            })
+
                             nodeGroup.state = nodeGroup.state !== "no-op" || !planJsonObj ? nodeGroup.state :
-                                newState !== "no-op" ? "update" : newState
+                                generalState !== "no-op" ? "update" : generalState
                             getConnectedNodes(newNode, nodeGroup, nodeGroups, subgraph, start, jsonArray, planJsonObj)
                             getConnectedNodes(newNode, nodeGroup, nodeGroups, subgraph, !start, jsonArray, planJsonObj)
                         }
@@ -315,38 +479,80 @@ const TLDWrapper = () => {
         }
     }
 
+    const handleShapeSelectionChange = (shapeId: string) => {
+        if (!storedData?.planJson || shapeId === "") {
+            setSidebarWidth(0)
+            setDiffText("")
+        } else if (storedNodeGroups) {
+            // remove shape: prefix, and date suffix
+            const shapeIdWithoutPrefixAndSuffix = shapeId.split(":")[1]
+
+            const textToShow = nodeChangesToString(storedNodeGroups?.filter((nodeGroup) => {
+                return nodeGroup.id === shapeIdWithoutPrefixAndSuffix
+            })[0].nodes.map((node) => {
+                return node.resourceChanges || undefined
+            }).filter((s) => s !== undefined).flat(), showUnknown)
+
+            setSidebarWidth(30)
+            setDiffText(textToShow || "No changes detected")
+        }
+    }
+
+    const handleShowUnknownChange = (showUnknown: boolean) => {
+        if (storedNodeGroups) {
+            setShowUnknown(showUnknown)
+            const shapeIdWithoutPrefixAndSuffix = editor?.getSelectedShapeIds()[0].split(":")[1]
+
+            const textToShow = nodeChangesToString(storedNodeGroups?.filter((nodeGroup) => {
+                return nodeGroup.id === shapeIdWithoutPrefixAndSuffix
+            })[0].nodes.map((node) => {
+                return node.resourceChanges || undefined
+            }).filter((s) => s !== undefined).flat(), showUnknown)
+
+            setDiffText(textToShow || "No changes detected")
+        }
+    }
+
 
     return (
         <div style={{
             position: "fixed",
             inset: 0,
         }}>
-            <div style={{
-                height: "100%",
-                transitionProperty: "all",
-                transitionTimingFunction: "cubic-bezier(0.4, 0, 0.2, 1)",
-                transitionDuration: "150ms",
-            }}>
+            <div className={'h-full transition-all'} style={{ marginRight: sidebarWidth + "rem" }}
+            >
                 <Tldraw
                     shapeUtils={customShapeUtils}
                     onMount={setAppToState}
-                    persistenceKey="tldraw_basic"
+                    store={store}
                     assetUrls={assetUrls}
                 />
-                <textarea
-                    ref={graphTextAreaRef}
-                    id='inkdrop-graphviz-textarea'
-                />
-                <textarea
-                    ref={planTextAreaRef}
-                    id='inkdrop-plan-textarea'
-                />
-                <button
-                    onClick={handleRenderButtonClick}
-                    id="render-button">
-                    Render
-                </button>
             </div>
+            <EditorHandler
+                editor={editor}
+                handleShapeSelectionChange={handleShapeSelectionChange} />
+
+            {sidebarWidth > 0 &&
+                <Sidebar width={sidebarWidth} text={diffText} handleShowUnknownChange={handleShowUnknownChange} />
+            }
+
+            {!storedData &&
+                <>
+                    <textarea
+                        ref={graphTextAreaRef}
+                        id='inkdrop-graphviz-textarea'
+                    />
+                    <textarea
+                        ref={planTextAreaRef}
+                        id='inkdrop-plan-textarea'
+                    />
+                    <button
+                        onClick={handleRenderButtonClick}
+                        id="render-button">
+                        Render
+                    </button>
+                </>
+            }
         </div>
     );
 };

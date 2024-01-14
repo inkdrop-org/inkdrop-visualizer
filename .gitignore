@@ -9,11 +9,12 @@
 /coverage
 
 # production
-/test-project
+/test-project*
 .env
 .cache
 dist
 release
+.cache
 
 # misc
 .DS_Store

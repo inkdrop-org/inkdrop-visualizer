@@ -1,0 +1,15 @@
+.green-text {
+    color: rgb(34 197 94 / var(--tw-bg-opacity));
+}
+
+.red-text {
+    color: rgb(239 68 68 / var(--tw-border-opacity));
+}
+
+.yellow-text {
+    color: rgb(234 179 8 / var(--tw-bg-opacity));
+}
+
+.blue-text {
+    color: rgb(59 130 246 / var(--tw-bg-opacity));
+}
