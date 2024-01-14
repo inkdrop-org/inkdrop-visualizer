@@ -10,14 +10,17 @@ import '@tldraw/tldraw/tldraw.css'
 import { getData, sendData } from './utils/storage';
 import EditorHandler from './editorHandler/EditorHandler';
 import { nodeChangesToString } from './jsonPlanManager/jsonPlanManager';
+import Sidebar from './sidebar/Sidebar';
 
 
 const customShapeUtils = [NodeShapeUtil]
 
+type ResourceState = "no-op" | "create" | "read" | "update" | "delete" | "delete-create" | "create-delete"
+
 type NodeGroup = {
     nodes: {
         nodeModel: NodeModel,
-        resourceChange?: any
+        resourceChanges?: any[]
     }[],
     id: string,
     mainNode: NodeModel,
@@ -28,7 +31,7 @@ type NodeGroup = {
     iconPath: string,
     serviceName: string
     moduleName?: string
-    state: "no-op" | "create" | "read" | "update" | "delete" | "delete-create" | "create-delete"
+    state: ResourceState
 }
 
 const assetUrls = getAssetUrls()
@@ -38,6 +41,9 @@ const TLDWrapper = () => {
     const [editor, setEditor] = useState<Editor | null>(null)
     const [storedData, setStoredData] = useState<{ editor: Editor | null, planJson?: any }>()
     const [storedNodeGroups, setStoredNodeGroups] = useState<NodeGroup[]>()
+    const [sidebarWidth, setSidebarWidth] = useState<number>(0)
+    const [diffText, setDiffText] = useState<string>("")
+    const [showUnknown, setShowUnknown] = useState<boolean>(false)
 
     const setAppToState = useCallback((editor: Editor) => {
         setEditor(editor)
@@ -98,7 +104,7 @@ const TLDWrapper = () => {
         const getStoredData = async () => {
             const data = await getData()
             if (Object.keys(data.state).length > 0) {
-                setStoredData(data)
+                setStoredData(data.state)
             }
         }
         getStoredData()
@@ -153,24 +159,33 @@ const TLDWrapper = () => {
                     if (isResourceWithName) {
                         const { resourceType, resourceName } = getResourceNameAndType(processedBlockId)
                         if (resourceType && resourceName && jsonArray) {
-                            let resourceChange: any
+                            let resourceChanges: any[] = []
                             if (computeTerraformPlan) {
 
-                                resourceChange = planJsonObj.resource_changes.filter((resource: any) => {
-                                    return resource.address === node.id.split(" ")[1]
-                                })[0]
+                                resourceChanges = planJsonObj.resource_changes.filter((resource: any) => {
+                                    return resource.address === node.id.split(" ")[1] || resource.address.startsWith(node.id.split(" ")[1] + "[")
+                                })
                             }
+                            // Determine a general state, given all the actions
+                            let generalState = "no-op"
+                            resourceChanges?.forEach((resourceChange) => {
+                                const newState = resourceChange.change.actions.join("-")
+                                generalState = newState !== generalState ?
+                                    (["no-op", "read"].includes(newState) && ["no-op", "read"].includes(generalState)) ? "read" :
+                                        ["no-op", "read"].includes(generalState) ? newState : "update" : newState
+                            })
+
                             jsonArray.data.forEach((row: any) => {
                                 if (row["Main Diagram Blocks"].split(",").some((s: string) => s === resourceType)) {
                                     nodeGroups.set(node.id.split(" ")[1], {
                                         nodes: [{
                                             nodeModel: node,
-                                            resourceChange: resourceChange
+                                            resourceChanges: resourceChanges
                                         }],
                                         id: node.id.split(" ")[1],
                                         mainNode: node,
                                         name: resourceName,
-                                        state: resourceChange ? resourceChange.change.actions.join("-") : "no-op",
+                                        state: resourceChanges.length > 0 ? generalState as ResourceState : "no-op",
                                         type: resourceType,
                                         serviceName: row["Service Name"],
                                         iconPath: row["Icon Path"].trim(),
@@ -189,6 +204,61 @@ const TLDWrapper = () => {
         nodeGroups.forEach((nodeGroup) => {
             getConnectedNodes(nodeGroup.mainNode, nodeGroup, nodeGroups, model.subgraphs[0], true, jsonArray, planJsonObj)
             getConnectedNodes(nodeGroup.mainNode, nodeGroup, nodeGroups, model.subgraphs[0], false, jsonArray, planJsonObj)
+        })
+
+        // Add a nodeGroup for each node that is not connected to any other node
+        model.subgraphs[0].nodes.forEach((node) => {
+            if (!Array.from(nodeGroups.values()).some((group) => {
+                return group.nodes.some((n) => {
+                    return n.nodeModel.id === node.id
+                })
+            })) {
+                let centralPart = node.id.split(" ")[1]
+                if (centralPart) {
+                    const { processedBlockId, isResourceWithName, moduleName } = checkHclBlockType(centralPart)
+                    if (isResourceWithName) {
+                        const { resourceType, resourceName } = getResourceNameAndType(processedBlockId)
+                        if (resourceType && resourceName && jsonArray) {
+                            let resourceChanges: any[] = []
+                            if (computeTerraformPlan) {
+
+                                resourceChanges = planJsonObj.resource_changes.filter((resource: any) => {
+                                    return resource.address === node.id.split(" ")[1] || resource.address.startsWith(node.id.split(" ")[1] + "[")
+                                })
+                            }
+                            // Determine a general state, given all the actions
+                            let generalState = "no-op"
+                            resourceChanges?.forEach((resourceChange) => {
+                                const newState = resourceChange.change.actions.join("-")
+                                generalState = newState !== generalState ?
+                                    (["no-op", "read"].includes(newState) && ["no-op", "read"].includes(generalState)) ? "read" :
+                                        ["no-op", "read"].includes(generalState) ? newState : "update" : newState
+                            })
+
+                            jsonArray.data.forEach((row: any) => {
+                                if (row["Missing Resources"].split(",").some((s: string) => s === resourceType)) {
+                                    nodeGroups.set(node.id.split(" ")[1], {
+                                        nodes: [{
+                                            nodeModel: node,
+                                            resourceChanges: resourceChanges
+                                        }],
+                                        id: node.id.split(" ")[1],
+                                        mainNode: node,
+                                        name: resourceName,
+                                        state: resourceChanges.length > 0 ? generalState as ResourceState : "no-op",
+                                        type: resourceType,
+                                        serviceName: row["Service Name"],
+                                        iconPath: row["Icon Path"].trim(),
+                                        connectionsIn: [],
+                                        connectionsOut: [],
+                                        moduleName: moduleName
+                                    })
+                                }
+                            })
+                        }
+                    }
+                }
+            }
         })
 
         // Compute connections between groups
@@ -362,19 +432,29 @@ const TLDWrapper = () => {
                         })) {
                         const newNode = subgraph.nodes.filter((n) => { return n.id === (edge.targets[start ? 1 : 0] as any).id })[0]
                         if (newNode) {
-                            let resourceChange: any
+
+                            let resourceChanges: any[] = []
                             if (planJsonObj) {
-                                resourceChange = planJsonObj.resource_changes.filter((resource: any) => {
-                                    return resource.address === newNode.id.split(" ")[1]
-                                })[0]
+
+                                resourceChanges = planJsonObj.resource_changes.filter((resource: any) => {
+                                    return resource.address === newNode.id.split(" ")[1] || resource.address.startsWith(newNode.id.split(" ")[1] + "[")
+                                })
                             }
+                            // Determine a general state, given all the actions
+                            let generalState = "no-op"
+                            resourceChanges?.forEach((resourceChange) => {
+                                const newState = resourceChange.change.actions.join("-")
+                                generalState = newState !== generalState ?
+                                    (["no-op", "read"].includes(newState) && ["no-op", "read"].includes(generalState)) ? "read" : "update" : newState
+                            })
+
                             nodeGroup.nodes.push({
                                 nodeModel: newNode,
-                                resourceChange: resourceChange
+                                resourceChanges: resourceChanges
                             })
-                            const newState = resourceChange ? resourceChange.change.actions.join("-") : "no-op"
+
                             nodeGroup.state = nodeGroup.state !== "no-op" || !planJsonObj ? nodeGroup.state :
-                                newState !== "no-op" ? "update" : newState
+                                generalState !== "no-op" ? "update" : generalState
                             getConnectedNodes(newNode, nodeGroup, nodeGroups, subgraph, start, jsonArray, planJsonObj)
                             getConnectedNodes(newNode, nodeGroup, nodeGroups, subgraph, !start, jsonArray, planJsonObj)
                         }
@@ -400,7 +480,9 @@ const TLDWrapper = () => {
     }
 
     const handleShapeSelectionChange = (shapeId: string) => {
-        if (shapeId === "") {
+        if (!storedData?.planJson || shapeId === "") {
+            setSidebarWidth(0)
+            setDiffText("")
         } else if (storedNodeGroups) {
             // remove shape: prefix, and date suffix
             const shapeIdWithoutPrefixAndSuffix = shapeId.split(":")[1]
@@ -408,8 +490,26 @@ const TLDWrapper = () => {
             const textToShow = nodeChangesToString(storedNodeGroups?.filter((nodeGroup) => {
                 return nodeGroup.id === shapeIdWithoutPrefixAndSuffix
             })[0].nodes.map((node) => {
-                return node.resourceChange || undefined
-            }).filter((s) => s !== undefined))
+                return node.resourceChanges || undefined
+            }).filter((s) => s !== undefined).flat(), showUnknown)
+
+            setSidebarWidth(30)
+            setDiffText(textToShow || "No changes detected")
+        }
+    }
+
+    const handleShowUnknownChange = (showUnknown: boolean) => {
+        if (storedNodeGroups) {
+            setShowUnknown(showUnknown)
+            const shapeIdWithoutPrefixAndSuffix = editor?.getSelectedShapeIds()[0].split(":")[1]
+
+            const textToShow = nodeChangesToString(storedNodeGroups?.filter((nodeGroup) => {
+                return nodeGroup.id === shapeIdWithoutPrefixAndSuffix
+            })[0].nodes.map((node) => {
+                return node.resourceChanges || undefined
+            }).filter((s) => s !== undefined).flat(), showUnknown)
+
+            setDiffText(textToShow || "No changes detected")
         }
     }
 
@@ -419,15 +519,23 @@ const TLDWrapper = () => {
             position: "fixed",
             inset: 0,
         }}>
-            <Tldraw
-                shapeUtils={customShapeUtils}
-                onMount={setAppToState}
-                store={store}
-                assetUrls={assetUrls}
-            />
+            <div className={'h-full transition-all'} style={{ marginRight: sidebarWidth + "rem" }}
+            >
+                <Tldraw
+                    shapeUtils={customShapeUtils}
+                    onMount={setAppToState}
+                    store={store}
+                    assetUrls={assetUrls}
+                />
+            </div>
             <EditorHandler
                 editor={editor}
                 handleShapeSelectionChange={handleShapeSelectionChange} />
+
+            {sidebarWidth > 0 &&
+                <Sidebar width={sidebarWidth} text={diffText} handleShowUnknownChange={handleShowUnknownChange} />
+            }
+
             {!storedData &&
                 <>
                     <textarea

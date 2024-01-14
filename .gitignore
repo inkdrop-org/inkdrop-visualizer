@@ -9,7 +9,7 @@
 /coverage
 
 # production
-/test-project
+/test-project*
 .env
 .cache
 dist

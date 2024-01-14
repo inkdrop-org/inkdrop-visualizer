@@ -1,6 +1,6 @@
 {
   "name": "inkdrop-visualizer",
-  "version": "1.0.17",
+  "version": "1.1.0",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -25,26 +25,25 @@
     "@types/express": "^4.17.21",
     "@types/node": "^20.10.5",
     "@types/yargs": "^17.0.32",
+    "puppeteer": "^21.6.1",
     "typescript": "^5.3.3"
   },
   "bin": {
     "inkdrop": "./dist/index.js"
   },
   "dependencies": {
-    "@playwright/browser-chromium": "^1.40.1",
     "dotenv": "^16.3.1",
     "express": "^4.17.1",
     "ncp": "^2.0.0",
-    "pkg": "^5.8.1",
-    "playwright": "^1.40.1",
+    "puppeteer": "^21.6.1",
     "yargs": "^17.7.2"
   },
   "pkg": {
     "outputPath": "release",
     "assets": [
       "dist/build/**/*",
-      "dist/assets/**/*",
-      "dist/Icons/**/*"
+      "dist/Icons/**/*",
+      "dist/assets/**/*"
     ]
   }
 }

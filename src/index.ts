@@ -60,7 +60,6 @@ async function runTerraformGraph(): Promise<void> {
             throw new Error(`Error running terraform show: ${showStderr}`);
         }
         planJson = showStdout
-        //console.log("planjson", planJson)
     }
 
     console.log("Computing raw graph...")
