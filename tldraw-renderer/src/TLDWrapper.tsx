@@ -146,7 +146,7 @@ const TLDWrapper = () => {
         return { resourceType, resourceName }
     }
 
-    const parseModel = (model: RootGraphModel, planJson?: string) => {
+    const parseModel = (model: RootGraphModel, detailed: boolean, planJson?: string) => {
         const computeTerraformPlan = (planJson && planJson !== "") ? true : false
         const planJsonObj = computeTerraformPlan ? JSON.parse(planJson!) : undefined
         const nodeGroups = new Map<string, NodeGroup>()
@@ -206,60 +206,62 @@ const TLDWrapper = () => {
             getConnectedNodes(nodeGroup.mainNode, nodeGroup, nodeGroups, model.subgraphs[0], false, jsonArray, planJsonObj)
         })
 
-        // Add a nodeGroup for each node that is not connected to any other node
-        model.subgraphs[0].nodes.forEach((node) => {
-            if (!Array.from(nodeGroups.values()).some((group) => {
-                return group.nodes.some((n) => {
-                    return n.nodeModel.id === node.id
-                })
-            })) {
-                let centralPart = node.id.split(" ")[1]
-                if (centralPart) {
-                    const { processedBlockId, isResourceWithName, moduleName } = checkHclBlockType(centralPart)
-                    if (isResourceWithName) {
-                        const { resourceType, resourceName } = getResourceNameAndType(processedBlockId)
-                        if (resourceType && resourceName && jsonArray) {
-                            let resourceChanges: any[] = []
-                            if (computeTerraformPlan) {
+        if (detailed) {
+            // Add a nodeGroup for each node that is not connected to any other node
+            model.subgraphs[0].nodes.forEach((node) => {
+                if (!Array.from(nodeGroups.values()).some((group) => {
+                    return group.nodes.some((n) => {
+                        return n.nodeModel.id === node.id
+                    })
+                })) {
+                    let centralPart = node.id.split(" ")[1]
+                    if (centralPart) {
+                        const { processedBlockId, isResourceWithName, moduleName } = checkHclBlockType(centralPart)
+                        if (isResourceWithName) {
+                            const { resourceType, resourceName } = getResourceNameAndType(processedBlockId)
+                            if (resourceType && resourceName && jsonArray) {
+                                let resourceChanges: any[] = []
+                                if (computeTerraformPlan) {
 
-                                resourceChanges = planJsonObj.resource_changes.filter((resource: any) => {
-                                    return resource.address === node.id.split(" ")[1] || resource.address.startsWith(node.id.split(" ")[1] + "[")
-                                })
-                            }
-                            // Determine a general state, given all the actions
-                            let generalState = "no-op"
-                            resourceChanges?.forEach((resourceChange) => {
-                                const newState = resourceChange.change.actions.join("-")
-                                generalState = newState !== generalState ?
-                                    (["no-op", "read"].includes(newState) && ["no-op", "read"].includes(generalState)) ? "read" :
-                                        ["no-op", "read"].includes(generalState) ? newState : "update" : newState
-                            })
-
-                            jsonArray.data.forEach((row: any) => {
-                                if (row["Missing Resources"].split(",").some((s: string) => s === resourceType)) {
-                                    nodeGroups.set(node.id.split(" ")[1], {
-                                        nodes: [{
-                                            nodeModel: node,
-                                            resourceChanges: resourceChanges
-                                        }],
-                                        id: node.id.split(" ")[1],
-                                        mainNode: node,
-                                        name: resourceName,
-                                        state: resourceChanges.length > 0 ? generalState as ResourceState : "no-op",
-                                        type: resourceType,
-                                        serviceName: row["Service Name"],
-                                        iconPath: row["Icon Path"].trim(),
-                                        connectionsIn: [],
-                                        connectionsOut: [],
-                                        moduleName: moduleName
+                                    resourceChanges = planJsonObj.resource_changes.filter((resource: any) => {
+                                        return resource.address === node.id.split(" ")[1] || resource.address.startsWith(node.id.split(" ")[1] + "[")
                                     })
                                 }
-                            })
+                                // Determine a general state, given all the actions
+                                let generalState = "no-op"
+                                resourceChanges?.forEach((resourceChange) => {
+                                    const newState = resourceChange.change.actions.join("-")
+                                    generalState = newState !== generalState ?
+                                        (["no-op", "read"].includes(newState) && ["no-op", "read"].includes(generalState)) ? "read" :
+                                            ["no-op", "read"].includes(generalState) ? newState : "update" : newState
+                                })
+
+                                jsonArray.data.forEach((row: any) => {
+                                    if (row["Missing Resources"].split(",").some((s: string) => s === resourceType)) {
+                                        nodeGroups.set(node.id.split(" ")[1], {
+                                            nodes: [{
+                                                nodeModel: node,
+                                                resourceChanges: resourceChanges
+                                            }],
+                                            id: node.id.split(" ")[1],
+                                            mainNode: node,
+                                            name: resourceName,
+                                            state: resourceChanges.length > 0 ? generalState as ResourceState : "no-op",
+                                            type: resourceType,
+                                            serviceName: row["Service Name"],
+                                            iconPath: row["Icon Path"].trim(),
+                                            connectionsIn: [],
+                                            connectionsOut: [],
+                                            moduleName: moduleName
+                                        })
+                                    }
+                                })
+                            }
                         }
                     }
                 }
-            }
-        })
+            })
+        }
 
         // Compute connections between groups
         model.subgraphs[0].edges.forEach((edge) => {
@@ -471,11 +473,16 @@ const TLDWrapper = () => {
         HTMLTextAreaElement | null
     >(null)
 
+    const detailedTextAreaRef = useRef<
+        HTMLTextAreaElement | null
+    >(null)
+
 
     const handleRenderButtonClick = () => {
         if (graphTextAreaRef.current && graphTextAreaRef.current.value) {
+            const detailed = detailedTextAreaRef.current?.value === "true"
             const model = fromDot(graphTextAreaRef.current.value)
-            parseModel(model, planTextAreaRef.current?.value)
+            parseModel(model, detailed, planTextAreaRef.current?.value)
         }
     }
 
@@ -545,6 +552,10 @@ const TLDWrapper = () => {
                     <textarea
                         ref={planTextAreaRef}
                         id='inkdrop-plan-textarea'
+                    />
+                    <textarea
+                        ref={detailedTextAreaRef}
+                        id='detailed-textarea'
                     />
                     <button
                         onClick={handleRenderButtonClick}

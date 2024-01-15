@@ -57,7 +57,10 @@ export async function runHeadlessBrowserAndExportSVG(graphVizText: string, planO
     const browser = await puppeteer.launch({ headless: "new" });
     const page = await browser.newPage();
     const PORT = (argv as any).rendererPort || 3000
+    // check if the argument "--no-ui" is passed
     const noUi = (argv as any).noUi || false
+    // check if the argument "--detailed" is passed
+    const detailed = (argv as any).detailed || false
 
     await page.goto(`http://127.0.0.1:${PORT}/index.html`);
 
@@ -97,7 +100,7 @@ export async function runHeadlessBrowserAndExportSVG(graphVizText: string, planO
     });
 
     page.waitForSelector('.tlui-layout').then(async () => {
-        await page.evaluate((graphData, planData) => {
+        await page.evaluate((graphData, planData, detailed) => {
             const graphTextArea = document.getElementById('inkdrop-graphviz-textarea');
             if (graphTextArea && graphTextArea instanceof HTMLTextAreaElement) {
                 graphTextArea.value = graphData;
@@ -106,11 +109,15 @@ export async function runHeadlessBrowserAndExportSVG(graphVizText: string, planO
             if (planTextArea && planTextArea instanceof HTMLTextAreaElement) {
                 planTextArea.value = planData;
             }
+            const detailedTextArea = document.getElementById('detailed-textarea');
+            if (detailedTextArea && detailedTextArea instanceof HTMLTextAreaElement) {
+                detailedTextArea.value = detailed
+            }
             const button = document.getElementById('render-button');
             if (button) {
-                button.click();
+                button.click()
             }
-        }, graphVizText, planOutput); // Pass graphVizText as an argument here
+        }, graphVizText, planOutput, detailed); // Pass graphVizText as an argument here
         await sleep(3000);
         await performActionsToDownloadFile(page)
     }).catch(async () => {
