@@ -11,6 +11,7 @@ import { getData, sendData } from './utils/storage';
 import EditorHandler from './editorHandler/EditorHandler';
 import { nodeChangesToString } from './jsonPlanManager/jsonPlanManager';
 import Sidebar from './sidebar/Sidebar';
+import ToggleLayers from './layers/ToggleLayers';
 
 
 const customShapeUtils = [NodeShapeUtil]
@@ -28,10 +29,16 @@ type NodeGroup = {
     connectionsIn: string[],
     name: string,
     type: string,
+    category: string,
     iconPath: string,
     serviceName: string
     moduleName?: string
     state: ResourceState
+}
+
+type Tag = {
+    name: string,
+    value: string
 }
 
 const assetUrls = getAssetUrls()
@@ -39,11 +46,21 @@ const assetUrls = getAssetUrls()
 const TLDWrapper = () => {
 
     const [editor, setEditor] = useState<Editor | null>(null)
-    const [storedData, setStoredData] = useState<{ editor: Editor | null, planJson?: any }>()
+    const [storedData, setStoredData] = useState<{ editor: Editor | null, planJson?: any, graph?: string, detailed?: boolean, showInactive?: boolean }>()
     const [storedNodeGroups, setStoredNodeGroups] = useState<NodeGroup[]>()
     const [sidebarWidth, setSidebarWidth] = useState<number>(0)
     const [diffText, setDiffText] = useState<string>("")
+    const tagsRef = useRef<Tag[]>([])
+    const selectedTagsRef = useRef<string[]>([])
+    const [initialized, setInitialized] = useState<boolean>(false)
+    const categoriesRef = useRef<string[]>([])
+    const selectedCategoriesRef = useRef<string[]>([])
     const [showUnknown, setShowUnknown] = useState<boolean>(false)
+
+    useEffect(() => {
+        if (!storedData || initialized) return
+        refreshWhiteboard()
+    }, [storedData])
 
     const setAppToState = useCallback((editor: Editor) => {
         setEditor(editor)
@@ -146,58 +163,106 @@ const TLDWrapper = () => {
         return { resourceType, resourceName }
     }
 
-    const parseModel = (model: RootGraphModel, detailed: boolean, planJson?: string) => {
+    const addNodeToGroup = (node: NodeModel, nodeGroups: Map<string, NodeGroup>, mainBlock: boolean, jsonArray?: Papa.ParseResult<unknown>, planJsonObj?: any, computeTerraformPlan?: boolean) => {
+        let centralPart = node.id.split(" ")[1]
+        if (centralPart) {
+            const { processedBlockId, isResourceWithName, moduleName } = checkHclBlockType(centralPart)
+            if (isResourceWithName) {
+                const { resourceType, resourceName } = getResourceNameAndType(processedBlockId)
+                if (resourceType && resourceName && jsonArray) {
+                    let resourceChanges: any[] = []
+                    if (computeTerraformPlan) {
+
+                        resourceChanges = planJsonObj.resource_changes.filter((resource: any) => {
+                            return resource.address === node.id.split(" ")[1] || resource.address.startsWith(node.id.split(" ")[1] + "[")
+                        })
+                    }
+                    // Determine a general state, given all the actions
+                    let generalState = "no-op"
+                    resourceChanges?.forEach((resourceChange) => {
+                        const newState = resourceChange.change.actions.join("-")
+                        generalState = newState !== generalState ?
+                            (["no-op", "read"].includes(newState) && ["no-op", "read"].includes(generalState)) ? "read" :
+                                ["no-op", "read"].includes(generalState) ? newState : "update" : newState
+                    })
+
+                    jsonArray.data.forEach((row: any) => {
+                        if (row[mainBlock ? "Main Diagram Blocks" : "Missing Resources"].split(",").some((s: string) => s === resourceType)) {
+
+                            nodeGroups.set(node.id.split(" ")[1], {
+                                nodes: [{
+                                    nodeModel: node,
+                                    resourceChanges: resourceChanges
+                                }],
+                                id: node.id.split(" ")[1],
+                                mainNode: node,
+                                category: row["Simplified Category"],
+                                name: resourceName,
+                                state: resourceChanges.length > 0 ? generalState as ResourceState : "no-op",
+                                type: resourceType,
+                                serviceName: row["Service Name"],
+                                iconPath: row["Icon Path"].trim(),
+                                connectionsIn: [],
+                                connectionsOut: [],
+                                moduleName: moduleName
+                            })
+                        }
+                    })
+
+                }
+            }
+        }
+
+    }
+
+    const findAndSetCategories = (nodeGroups: Map<string, NodeGroup>) => {
+        const catList: string[] = []
+        nodeGroups.forEach((nodeGroup, key) => {
+            const category = nodeGroup.category
+            if (!catList.includes(category)) {
+                catList.push(category)
+            }
+        })
+
+        //sort alphabetically
+        catList.sort((a, b) => {
+            if (a < b) return -1
+            if (a > b) return 1
+            return 0
+        })
+
+        categoriesRef.current = catList
+    }
+
+    const findAndSetTags = (nodeGroups: Map<string, NodeGroup>) => {
+        const tags: Tag[] = []
+        nodeGroups.forEach((nodeGroup, key) => {
+            nodeGroup.nodes.forEach((node) => {
+                if (node.resourceChanges && node.resourceChanges.length > 0) {
+                    const resourceChanges = node.resourceChanges
+                    resourceChanges.forEach((resourceChange) => {
+                        const tagsToAdd = Object.entries(resourceChange.change?.after?.tags_all || {}).map(([key, value]) => {
+                            return { name: key as string, value: value as string }
+                        })
+                        if (tagsToAdd) {
+                            tags.push(...tagsToAdd)
+                        }
+                    })
+                }
+            })
+        })
+        tagsRef.current = tags
+    }
+
+    const parseModel = (model: RootGraphModel, firstRender: boolean, planJson?: string | Object, detailed?: boolean, showInactive?: boolean) => {
         const computeTerraformPlan = (planJson && planJson !== "") ? true : false
-        const planJsonObj = computeTerraformPlan ? JSON.parse(planJson!) : undefined
+        const planJsonObj = computeTerraformPlan ?
+            typeof planJson === "string" ? JSON.parse(planJson!) : planJson : undefined
         const nodeGroups = new Map<string, NodeGroup>()
         const jsonArray = Papa.parse(terraformResourcesCsv, { delimiter: ",", header: true })
         model.subgraphs.forEach((subgraph) => {
             subgraph.nodes.forEach((node) => {
-                let centralPart = node.id.split(" ")[1]
-                if (centralPart) {
-                    const { processedBlockId, isResourceWithName, moduleName } = checkHclBlockType(centralPart)
-                    if (isResourceWithName) {
-                        const { resourceType, resourceName } = getResourceNameAndType(processedBlockId)
-                        if (resourceType && resourceName && jsonArray) {
-                            let resourceChanges: any[] = []
-                            if (computeTerraformPlan) {
-
-                                resourceChanges = planJsonObj.resource_changes.filter((resource: any) => {
-                                    return resource.address === node.id.split(" ")[1] || resource.address.startsWith(node.id.split(" ")[1] + "[")
-                                })
-                            }
-                            // Determine a general state, given all the actions
-                            let generalState = "no-op"
-                            resourceChanges?.forEach((resourceChange) => {
-                                const newState = resourceChange.change.actions.join("-")
-                                generalState = newState !== generalState ?
-                                    (["no-op", "read"].includes(newState) && ["no-op", "read"].includes(generalState)) ? "read" :
-                                        ["no-op", "read"].includes(generalState) ? newState : "update" : newState
-                            })
-
-                            jsonArray.data.forEach((row: any) => {
-                                if (row["Main Diagram Blocks"].split(",").some((s: string) => s === resourceType)) {
-                                    nodeGroups.set(node.id.split(" ")[1], {
-                                        nodes: [{
-                                            nodeModel: node,
-                                            resourceChanges: resourceChanges
-                                        }],
-                                        id: node.id.split(" ")[1],
-                                        mainNode: node,
-                                        name: resourceName,
-                                        state: resourceChanges.length > 0 ? generalState as ResourceState : "no-op",
-                                        type: resourceType,
-                                        serviceName: row["Service Name"],
-                                        iconPath: row["Icon Path"].trim(),
-                                        connectionsIn: [],
-                                        connectionsOut: [],
-                                        moduleName: moduleName
-                                    })
-                                }
-                            })
-                        }
-                    }
-                }
+                addNodeToGroup(node, nodeGroups, true, jsonArray, planJsonObj, computeTerraformPlan)
             })
         })
 
@@ -206,7 +271,7 @@ const TLDWrapper = () => {
             getConnectedNodes(nodeGroup.mainNode, nodeGroup, nodeGroups, model.subgraphs[0], false, jsonArray, planJsonObj)
         })
 
-        if (detailed) {
+        if (storedData?.detailed || detailed) {
             // Add a nodeGroup for each node that is not connected to any other node
             model.subgraphs[0].nodes.forEach((node) => {
                 if (!Array.from(nodeGroups.values()).some((group) => {
@@ -214,54 +279,58 @@ const TLDWrapper = () => {
                         return n.nodeModel.id === node.id
                     })
                 })) {
-                    let centralPart = node.id.split(" ")[1]
-                    if (centralPart) {
-                        const { processedBlockId, isResourceWithName, moduleName } = checkHclBlockType(centralPart)
-                        if (isResourceWithName) {
-                            const { resourceType, resourceName } = getResourceNameAndType(processedBlockId)
-                            if (resourceType && resourceName && jsonArray) {
-                                let resourceChanges: any[] = []
-                                if (computeTerraformPlan) {
-
-                                    resourceChanges = planJsonObj.resource_changes.filter((resource: any) => {
-                                        return resource.address === node.id.split(" ")[1] || resource.address.startsWith(node.id.split(" ")[1] + "[")
-                                    })
-                                }
-                                // Determine a general state, given all the actions
-                                let generalState = "no-op"
-                                resourceChanges?.forEach((resourceChange) => {
-                                    const newState = resourceChange.change.actions.join("-")
-                                    generalState = newState !== generalState ?
-                                        (["no-op", "read"].includes(newState) && ["no-op", "read"].includes(generalState)) ? "read" :
-                                            ["no-op", "read"].includes(generalState) ? newState : "update" : newState
-                                })
-
-                                jsonArray.data.forEach((row: any) => {
-                                    if (row["Missing Resources"].split(",").some((s: string) => s === resourceType)) {
-                                        nodeGroups.set(node.id.split(" ")[1], {
-                                            nodes: [{
-                                                nodeModel: node,
-                                                resourceChanges: resourceChanges
-                                            }],
-                                            id: node.id.split(" ")[1],
-                                            mainNode: node,
-                                            name: resourceName,
-                                            state: resourceChanges.length > 0 ? generalState as ResourceState : "no-op",
-                                            type: resourceType,
-                                            serviceName: row["Service Name"],
-                                            iconPath: row["Icon Path"].trim(),
-                                            connectionsIn: [],
-                                            connectionsOut: [],
-                                            moduleName: moduleName
-                                        })
-                                    }
-                                })
-                            }
-                        }
-                    }
+                    addNodeToGroup(node, nodeGroups, false, jsonArray, planJsonObj, computeTerraformPlan)
                 }
             })
         }
+
+
+        if ((!storedData?.showInactive && !showInactive) && computeTerraformPlan) {
+            // Remove nodeGroups whose first node has no resourceChanges
+            Array.from(nodeGroups.keys()).forEach((key) => {
+                const nodeGroup = nodeGroups.get(key)
+                if (nodeGroup && nodeGroup.nodes[0].resourceChanges && nodeGroup.nodes[0].resourceChanges.length === 0) {
+                    nodeGroups.delete(key)
+                }
+            })
+            // Remove nodes whose resourceChanges are empty
+            nodeGroups.forEach((nodeGroup) => {
+                nodeGroup.nodes = nodeGroup.nodes.filter((node) => {
+                    return node.resourceChanges && node.resourceChanges.length > 0
+                })
+            })
+        }
+
+        findAndSetCategories(nodeGroups)
+        if (selectedCategoriesRef.current.length > 0) {
+            // Remove nodeGroups whose category is not selected
+            Array.from(nodeGroups.keys()).forEach((key) => {
+                const nodeGroup = nodeGroups.get(key)
+                if (nodeGroup && !selectedCategoriesRef.current.includes(nodeGroup.category)) {
+                    nodeGroups.delete(key)
+                }
+            })
+        }
+
+        findAndSetTags(nodeGroups)
+        if (selectedTagsRef.current.length > 0) {
+            // Remove nodeGroups whose tags are not selected
+            Array.from(nodeGroups.keys()).forEach((key) => {
+                const nodeGroup = nodeGroups.get(key)
+                if (nodeGroup && !nodeGroup.nodes.some((node) => {
+                    return node.resourceChanges && node.resourceChanges.some((resourceChange) => {
+                        return resourceChange.change?.after?.tags_all && Object.entries(resourceChange.change?.after?.tags_all || {}).some(([key, value]) => {
+                            return selectedTagsRef.current.includes(key)
+                        })
+                    })
+                })) {
+                    nodeGroups.delete(key)
+                }
+            })
+        }
+
+        setInitialized(true)
+
 
         // Compute connections between groups
         model.subgraphs[0].edges.forEach((edge) => {
@@ -288,12 +357,18 @@ const TLDWrapper = () => {
             }
         })
         computeLayout(nodeGroups, computeTerraformPlan)
+
         editor?.zoomToContent()
-        sendData({
-            editor: JSON.stringify(store.getSnapshot()),
-            nodeGroups: Array.from(nodeGroups.values()),
-            planJson: planJsonObj
-        })
+        if (firstRender)
+            sendData({
+                editor: JSON.stringify(store.getSnapshot()),
+                nodeGroups: Array.from(nodeGroups.values()),
+                planJson: planJsonObj,
+                detailed: detailed,
+                showInactive: showInactive,
+                graph: graphTextAreaRef.current?.value,
+            })
+        setStoredNodeGroups(Array.from(nodeGroups.values()))
     }
 
     const computeLayout = (nodeGroups: Map<string, NodeGroup>, computeTerraformPlan: boolean) => {
@@ -460,6 +535,7 @@ const TLDWrapper = () => {
                             getConnectedNodes(newNode, nodeGroup, nodeGroups, subgraph, start, jsonArray, planJsonObj)
                             getConnectedNodes(newNode, nodeGroup, nodeGroups, subgraph, !start, jsonArray, planJsonObj)
                         }
+
                     }
                 }
             }
@@ -476,13 +552,17 @@ const TLDWrapper = () => {
     const detailedTextAreaRef = useRef<
         HTMLTextAreaElement | null
     >(null)
+    const inactiveTextAreaRef = useRef<
+        HTMLTextAreaElement | null
+    >(null)
 
 
     const handleRenderButtonClick = () => {
         if (graphTextAreaRef.current && graphTextAreaRef.current.value) {
             const detailed = detailedTextAreaRef.current?.value === "true"
+            const showInactive = inactiveTextAreaRef.current?.value === "true"
             const model = fromDot(graphTextAreaRef.current.value)
-            parseModel(model, detailed, planTextAreaRef.current?.value)
+            parseModel(model, true, planTextAreaRef.current?.value, detailed, showInactive)
         }
     }
 
@@ -520,6 +600,50 @@ const TLDWrapper = () => {
         }
     }
 
+    const refreshWhiteboard = () => {
+        editor?.deleteShapes(Array.from(editor.getPageShapeIds(editor.getCurrentPageId())))
+        const model = fromDot(storedData?.graph || "")
+        parseModel(model, false, storedData?.planJson)
+    }
+
+    const toggleShowUnplanned = () => {
+        storedData!.showInactive = !storedData?.showInactive
+        refreshWhiteboard()
+        sendData({
+            showInactive: storedData?.showInactive
+        })
+    }
+
+    const toggleDetailed = () => {
+        storedData!.detailed = !storedData?.detailed
+        refreshWhiteboard()
+        sendData({
+            detailed: storedData?.detailed
+        })
+    }
+
+    const toggleCategory = (category: string) => {
+        if (selectedCategoriesRef.current.includes(category)) {
+            selectedCategoriesRef.current = selectedCategoriesRef.current.filter((cat) => {
+                return cat !== category
+            })
+        } else {
+            selectedCategoriesRef.current.push(category)
+        }
+        refreshWhiteboard()
+    }
+
+    const toggleTag = (tag: string) => {
+        if (selectedTagsRef.current.includes(tag)) {
+            selectedTagsRef.current = selectedTagsRef.current.filter((t) => {
+                return t !== tag
+            })
+        } else {
+            selectedTagsRef.current.push(tag)
+        }
+        refreshWhiteboard()
+    }
+
 
     return (
         <div style={{
@@ -535,6 +659,54 @@ const TLDWrapper = () => {
                     assetUrls={assetUrls}
                 />
             </div>
+            {initialized &&
+                <div className={'absolute top-2 z-200'}
+                    style={{ right: (sidebarWidth + 0.5) + "rem" }}
+                >
+                    <ToggleLayers items={
+                        [
+                            {
+                                name: "Inactive resources",
+                                value: storedData?.showInactive || false,
+                                action: toggleShowUnplanned
+                            },
+                            {
+                                name: "Detailed diagram",
+                                value: storedData?.detailed || false,
+                                action: toggleDetailed
+                            },
+                            {
+                                name: "Categories",
+                                items:
+                                    categoriesRef.current.map((category) => {
+                                        return {
+                                            name: category,
+                                            value: selectedCategoriesRef.current.includes(category),
+                                            action: () => {
+                                                toggleCategory(category)
+                                            }
+                                        }
+                                    })
+                            }, {
+                                name: "Tags",
+                                items:
+                                    tagsRef.current.map((tag) => tag.name).filter((tag, index, self) => {
+                                        return self.indexOf(tag) === index
+                                    }).map((tag) => {
+                                        return {
+                                            name: tag,
+                                            value: selectedTagsRef.current.includes(tag),
+                                            action: () => {
+                                                toggleTag(tag)
+                                            }
+                                        }
+                                    })
+                            }
+                        ]
+                    } />
+
+                </div>
+            }
             <EditorHandler
                 editor={editor}
                 handleShapeSelectionChange={handleShapeSelectionChange} />
@@ -556,6 +728,10 @@ const TLDWrapper = () => {
                     <textarea
                         ref={detailedTextAreaRef}
                         id='detailed-textarea'
+                    />
+                    <textarea
+                        ref={inactiveTextAreaRef}
+                        id='show-inactive-textarea'
                     />
                     <button
                         onClick={handleRenderButtonClick}
