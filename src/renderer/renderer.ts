@@ -58,9 +58,10 @@ export async function runHeadlessBrowserAndExportSVG(graphVizText: string, planO
     const page = await browser.newPage();
     const PORT = (argv as any).rendererPort || 3000
     // check if the argument "--no-ui" is passed
-    const noUi = (argv as any).noUi || false
+    const noUi = (argv as any).disableUi || false
     // check if the argument "--detailed" is passed
     const detailed = (argv as any).detailed || false
+    const showInactive = (argv as any).showInactive || false
 
     await page.goto(`http://127.0.0.1:${PORT}/index.html`);
 
@@ -100,7 +101,7 @@ export async function runHeadlessBrowserAndExportSVG(graphVizText: string, planO
     });
 
     page.waitForSelector('.tlui-layout').then(async () => {
-        await page.evaluate((graphData, planData, detailed) => {
+        await page.evaluate((graphData, planData, detailed, showInactive) => {
             const graphTextArea = document.getElementById('inkdrop-graphviz-textarea');
             if (graphTextArea && graphTextArea instanceof HTMLTextAreaElement) {
                 graphTextArea.value = graphData;
@@ -113,11 +114,15 @@ export async function runHeadlessBrowserAndExportSVG(graphVizText: string, planO
             if (detailedTextArea && detailedTextArea instanceof HTMLTextAreaElement) {
                 detailedTextArea.value = detailed
             }
+            const showInactiveTextArea = document.getElementById('show-inactive-textarea');
+            if (showInactiveTextArea && showInactiveTextArea instanceof HTMLTextAreaElement) {
+                showInactiveTextArea.value = showInactive
+            }
             const button = document.getElementById('render-button');
             if (button) {
                 button.click()
             }
-        }, graphVizText, planOutput, detailed); // Pass graphVizText as an argument here
+        }, graphVizText, planOutput, detailed, showInactive); // Pass graphVizText as an argument here
         await sleep(3000);
         await performActionsToDownloadFile(page)
     }).catch(async () => {
