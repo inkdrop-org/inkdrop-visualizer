@@ -54,7 +54,7 @@ const TLDWrapper = () => {
     const selectedTagsRef = useRef<string[]>([])
     const [initialized, setInitialized] = useState<boolean>(false)
     const categoriesRef = useRef<string[]>([])
-    const selectedCategoriesRef = useRef<string[]>([])
+    const selectedCategoriesRef = useRef<string[] | undefined>(undefined)
     const [showUnknown, setShowUnknown] = useState<boolean>(false)
 
     useEffect(() => {
@@ -232,6 +232,8 @@ const TLDWrapper = () => {
         })
 
         categoriesRef.current = catList
+        if (selectedCategoriesRef.current === undefined)
+            selectedCategoriesRef.current = catList
     }
 
     const findAndSetTags = (nodeGroups: Map<string, NodeGroup>) => {
@@ -302,11 +304,11 @@ const TLDWrapper = () => {
         }
 
         findAndSetCategories(nodeGroups)
-        if (selectedCategoriesRef.current.length > 0) {
+        if (selectedCategoriesRef.current && selectedCategoriesRef.current.length > 0) {
             // Remove nodeGroups whose category is not selected
             Array.from(nodeGroups.keys()).forEach((key) => {
                 const nodeGroup = nodeGroups.get(key)
-                if (nodeGroup && !selectedCategoriesRef.current.includes(nodeGroup.category)) {
+                if (nodeGroup && !selectedCategoriesRef.current!.includes(nodeGroup.category)) {
                     nodeGroups.delete(key)
                 }
             })
@@ -623,6 +625,7 @@ const TLDWrapper = () => {
     }
 
     const toggleCategory = (category: string) => {
+        if (!selectedCategoriesRef.current) return;
         if (selectedCategoriesRef.current.includes(category)) {
             selectedCategoriesRef.current = selectedCategoriesRef.current.filter((cat) => {
                 return cat !== category
@@ -681,7 +684,7 @@ const TLDWrapper = () => {
                                     categoriesRef.current.map((category) => {
                                         return {
                                             name: category,
-                                            value: selectedCategoriesRef.current.includes(category),
+                                            value: selectedCategoriesRef.current ? selectedCategoriesRef.current.includes(category) : false,
                                             action: () => {
                                                 toggleCategory(category)
                                             }
