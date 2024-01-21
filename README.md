@@ -35,6 +35,27 @@ Now Inkdrop will show you exactly what resources will change.
 
 No credentials needed - it works anywhere terraform init does. It runs locally & we don't collect any data.
 
+# Command Line Arguments
+
+| Argument           | Description                                                           | Example Usage                               |
+|--------------------|-----------------------------------------------------------------------|---------------------------------------------|
+| (no argument)      | Generates an SVG image of your Terraform resources. Automatically launches a browser tab to display the diagram interactively. | `inkdrop`                                   |
+| `--detailed`       | Includes comprehensive details for all rendered resources.            | `inkdrop --detailed`                        |
+| `--disable-ui`     | Saves the SVG diagram locally without opening the interactive renderer in a browser. | `inkdrop --disable-ui`                     |
+| `--from-plan`      | Visualizes the impact of changes defined in a specified Terraform plan file. | `inkdrop --from-plan plan.out`              |
+| `--path`           | Sets the working directory to a specified Terraform project path.     | `inkdrop --path ./repos/my-tf-project`      |
+| `--renderer-port`  | Defines the port for the local diagram rendering service (default: `3000`). | `inkdrop --renderer-port 8080`             |
+| `--show-inactive`  | Displays both active and inactive resources within a Terraform plan.  | `inkdrop --from-plan plan.out --show-inactive` |
+
+
+# Troubleshooting
+
+If you encounter any issues while using command line arguments, make sure you are using the latest version of Inkdrop by updating it via npm:
+
+```
+npm update -g inkdrop-visualizer
+```
+
 # Configuration
 No complex configuration required! As long as you can run terraform init, Inkdrop will work.
 In the future we may add options to filter resources by tag or layer. Let us know if you have suggestions!
