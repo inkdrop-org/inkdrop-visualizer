@@ -46,7 +46,7 @@ const ToggleLayers = ({ items }: ToggleLayersProps) => {
                 borderRadius: "5px",
                 marginTop: "10px",
                 border: "1px solid black",
-                maxHeight: "85vh",
+                maxHeight: "65vh",
                 overflowY: "scroll"
             }}>
                 <FormGroup>

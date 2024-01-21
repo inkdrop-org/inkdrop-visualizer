@@ -54,7 +54,7 @@ async function performActionsToDownloadFile(page: Page) {
 export async function runHeadlessBrowserAndExportSVG(graphVizText: string, planOutput: string, server: Server, argv: any) {
 
     console.log("Processing raw graph...")
-    const browser = await puppeteer.launch({ headless: "new" });
+    const browser = await puppeteer.launch({ headless: false });
     const page = await browser.newPage();
     const PORT = (argv as any).rendererPort || 3000
     // check if the argument "--no-ui" is passed

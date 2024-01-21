@@ -54,7 +54,7 @@ const TLDWrapper = () => {
     const selectedTagsRef = useRef<string[]>([])
     const [initialized, setInitialized] = useState<boolean>(false)
     const categoriesRef = useRef<string[]>([])
-    const selectedCategoriesRef = useRef<string[] | undefined>(undefined)
+    const deselectedCategoriesRef = useRef<string[]>([])
     const [showUnknown, setShowUnknown] = useState<boolean>(false)
 
     useEffect(() => {
@@ -177,6 +177,7 @@ const TLDWrapper = () => {
                             return resource.address === node.id.split(" ")[1] || resource.address.startsWith(node.id.split(" ")[1] + "[")
                         })
                     }
+
                     // Determine a general state, given all the actions
                     let generalState = "no-op"
                     resourceChanges?.forEach((resourceChange) => {
@@ -188,6 +189,21 @@ const TLDWrapper = () => {
 
                     jsonArray.data.forEach((row: any) => {
                         if (row[mainBlock ? "Main Diagram Blocks" : "Missing Resources"].split(",").some((s: string) => s === resourceType)) {
+                            const resourceIndex = mainBlock ? row["Main Diagram Blocks"].split(",").indexOf(resourceType) : -1
+                            const attributesArray = row["Arguments For Name"].split(",")
+                            const nameAttribute = resourceIndex !== -1 && attributesArray[resourceIndex] && attributesArray[resourceIndex] !== "-" ? attributesArray[resourceIndex] : "name"
+
+                            let name = ""
+                            if (resourceChanges && resourceChanges.length > 0) {
+                                name = resourceChanges[0].change?.after &&
+                                    (resourceChanges[0].change?.after[nameAttribute] || resourceChanges[0].change?.after["name"])
+                            }
+                            if (!name) {
+                                if (resourceChanges && resourceChanges.length > 0 && nameAttribute.split(".").length === 2) {
+                                    name = resourceChanges[0].change?.after[nameAttribute.split(".")[0]][nameAttribute.split(".")[1]]
+                                } else
+                                    name = resourceName
+                            }
 
                             nodeGroups.set(node.id.split(" ")[1], {
                                 nodes: [{
@@ -197,7 +213,7 @@ const TLDWrapper = () => {
                                 id: node.id.split(" ")[1],
                                 mainNode: node,
                                 category: row["Simplified Category"],
-                                name: resourceName,
+                                name: name,
                                 state: resourceChanges.length > 0 ? generalState as ResourceState : "no-op",
                                 type: resourceType,
                                 serviceName: row["Service Name"],
@@ -232,8 +248,6 @@ const TLDWrapper = () => {
         })
 
         categoriesRef.current = catList
-        if (selectedCategoriesRef.current === undefined)
-            selectedCategoriesRef.current = catList
     }
 
     const findAndSetTags = (nodeGroups: Map<string, NodeGroup>) => {
@@ -304,15 +318,13 @@ const TLDWrapper = () => {
         }
 
         findAndSetCategories(nodeGroups)
-        if (selectedCategoriesRef.current && selectedCategoriesRef.current.length > 0) {
-            // Remove nodeGroups whose category is not selected
-            Array.from(nodeGroups.keys()).forEach((key) => {
-                const nodeGroup = nodeGroups.get(key)
-                if (nodeGroup && !selectedCategoriesRef.current!.includes(nodeGroup.category)) {
-                    nodeGroups.delete(key)
-                }
-            })
-        }
+        // Remove nodeGroups whose category is not selected
+        Array.from(nodeGroups.keys()).forEach((key) => {
+            const nodeGroup = nodeGroups.get(key)
+            if (nodeGroup && deselectedCategoriesRef.current!.includes(nodeGroup.category)) {
+                nodeGroups.delete(key)
+            }
+        })
 
         findAndSetTags(nodeGroups)
         if (selectedTagsRef.current.length > 0) {
@@ -625,13 +637,12 @@ const TLDWrapper = () => {
     }
 
     const toggleCategory = (category: string) => {
-        if (!selectedCategoriesRef.current) return;
-        if (selectedCategoriesRef.current.includes(category)) {
-            selectedCategoriesRef.current = selectedCategoriesRef.current.filter((cat) => {
+        if (deselectedCategoriesRef.current.includes(category)) {
+            deselectedCategoriesRef.current = deselectedCategoriesRef.current.filter((cat) => {
                 return cat !== category
             })
         } else {
-            selectedCategoriesRef.current.push(category)
+            deselectedCategoriesRef.current.push(category)
         }
         refreshWhiteboard()
     }
@@ -663,9 +674,7 @@ const TLDWrapper = () => {
                 />
             </div>
             {initialized &&
-                <div className={'absolute top-2 z-200'}
-                    style={{ right: (sidebarWidth + 0.5) + "rem" }}
-                >
+                <div className={'absolute top-2 z-200 left-2'}>
                     <ToggleLayers items={
                         [
                             {
@@ -684,7 +693,7 @@ const TLDWrapper = () => {
                                     categoriesRef.current.map((category) => {
                                         return {
                                             name: category,
-                                            value: selectedCategoriesRef.current ? selectedCategoriesRef.current.includes(category) : false,
+                                            value: deselectedCategoriesRef.current.includes(category) ? false : true,
                                             action: () => {
                                                 toggleCategory(category)
                                             }
