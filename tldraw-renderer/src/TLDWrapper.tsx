@@ -12,13 +12,17 @@ import EditorHandler from './editorHandler/EditorHandler';
 import { nodeChangesToString } from './jsonPlanManager/jsonPlanManager';
 import Sidebar from './sidebar/Sidebar';
 import ToggleLayers from './layers/ToggleLayers';
+import { computeLayout } from './layout/computeLayout';
+import { getVariablesAndOutputs } from './variablesAndOutputs/variablesAndOutputs';
+import { getResourceNameAndType } from './utils/resources';
+import VarsAndOutputsPanel from './variablesAndOutputs/VarsAndOutputsPanel';
 
 
 const customShapeUtils = [NodeShapeUtil]
 
 type ResourceState = "no-op" | "create" | "read" | "update" | "delete" | "delete-create" | "create-delete"
 
-type NodeGroup = {
+export type NodeGroup = {
     nodes: {
         nodeModel: NodeModel,
         resourceChanges?: any[]
@@ -27,6 +31,8 @@ type NodeGroup = {
     mainNode: NodeModel,
     connectionsOut: string[],
     connectionsIn: string[],
+    variableRefs?: string[],
+    outputRefs?: string[],
     name: string,
     type: string,
     category: string,
@@ -34,6 +40,24 @@ type NodeGroup = {
     serviceName: string
     moduleName?: string
     state: ResourceState
+}
+
+export type TFVariable = {
+    name: string,
+    expressionReferences: {
+        type: "variable" | "output" | "unknown",
+        module: string,
+        name: string
+    }[]
+}
+
+export type TFOutput = {
+    name: string,
+    outputReferences: {
+        type: "variable" | "output" | "resource",
+        module: string,
+        name: string
+    }[]
 }
 
 type Tag = {
@@ -48,6 +72,13 @@ const TLDWrapper = () => {
     const [editor, setEditor] = useState<Editor | null>(null)
     const [storedData, setStoredData] = useState<{ editor: Editor | null, planJson?: any, graph?: string, detailed?: boolean, showInactive?: boolean }>()
     const [storedNodeGroups, setStoredNodeGroups] = useState<NodeGroup[]>()
+    const [selectedNode, setSelectedNode] = useState<NodeGroup | undefined>()
+    const [variables, setVariables] = useState<{
+        [moduleName: string]: TFVariable[]
+    }>()
+    const [outputs, setOutputs] = useState<{
+        [moduleName: string]: TFOutput[]
+    }>()
     const [sidebarWidth, setSidebarWidth] = useState<number>(0)
     const [diffText, setDiffText] = useState<string>("")
     const tagsRef = useRef<Tag[]>([])
@@ -115,8 +146,6 @@ const TLDWrapper = () => {
 
     }, [store])
 
-    const defaultWidth = 120, defaultHeight = 120
-
     useEffect(() => {
         const getStoredData = async () => {
             const data = await getData()
@@ -154,19 +183,11 @@ const TLDWrapper = () => {
         return { processedBlockId: blockId, isData, isVariable, isResource, isLocal, isOutput, isProvider, isModule, isResourceWithName, moduleName }
     }
 
-    const getResourceNameAndType = (blockId: string) => {
-        const resourceType = blockId.split(".") && blockId.split(".").filter(s => s.startsWith("aws_")).length > 0 ?
-            blockId.split(".").filter(s => s.startsWith("aws_"))[0] : undefined
-        const resourceName = resourceType && blockId.split(".").filter((s, index) => {
-            return index > 0 && blockId.split(".")[index - 1] === resourceType
-        })[0].split(" ")[0]
-        return { resourceType, resourceName }
-    }
-
     const addNodeToGroup = (node: NodeModel, nodeGroups: Map<string, NodeGroup>, mainBlock: boolean, jsonArray?: Papa.ParseResult<unknown>, planJsonObj?: any, computeTerraformPlan?: boolean) => {
         let centralPart = node.id.split(" ")[1]
         if (centralPart) {
             const { processedBlockId, isResourceWithName, moduleName } = checkHclBlockType(centralPart)
+
             if (isResourceWithName) {
                 const { resourceType, resourceName } = getResourceNameAndType(processedBlockId)
                 if (resourceType && resourceName && jsonArray) {
@@ -189,21 +210,6 @@ const TLDWrapper = () => {
 
                     jsonArray.data.forEach((row: any) => {
                         if (row[mainBlock ? "Main Diagram Blocks" : "Missing Resources"].split(",").some((s: string) => s === resourceType)) {
-                            const resourceIndex = mainBlock ? row["Main Diagram Blocks"].split(",").indexOf(resourceType) : -1
-                            const attributesArray = row["Arguments For Name"].split(",")
-                            const nameAttribute = resourceIndex !== -1 && attributesArray[resourceIndex] && attributesArray[resourceIndex] !== "-" ? attributesArray[resourceIndex] : "name"
-
-                            let name = ""
-                            if (resourceChanges && resourceChanges.length > 0) {
-                                name = resourceChanges[0].change?.after &&
-                                    (resourceChanges[0].change?.after[nameAttribute] || resourceChanges[0].change?.after["name"])
-                            }
-                            if (!name) {
-                                if (resourceChanges && resourceChanges.length > 0 && nameAttribute.split(".").length === 2) {
-                                    name = resourceChanges[0].change?.after[nameAttribute.split(".")[0]][nameAttribute.split(".")[1]]
-                                } else
-                                    name = resourceName
-                            }
 
                             nodeGroups.set(node.id.split(" ")[1], {
                                 nodes: [{
@@ -213,7 +219,7 @@ const TLDWrapper = () => {
                                 id: node.id.split(" ")[1],
                                 mainNode: node,
                                 category: row["Simplified Category"],
-                                name: name,
+                                name: resourceName,
                                 state: resourceChanges.length > 0 ? generalState as ResourceState : "no-op",
                                 type: resourceType,
                                 serviceName: row["Service Name"],
@@ -300,7 +306,6 @@ const TLDWrapper = () => {
             })
         }
 
-
         if ((!storedData?.showInactive && !showInactive) && computeTerraformPlan) {
             // Remove nodeGroups whose first node has no resourceChanges
             Array.from(nodeGroups.keys()).forEach((key) => {
@@ -370,7 +375,13 @@ const TLDWrapper = () => {
                 }
             }
         })
-        computeLayout(nodeGroups, computeTerraformPlan)
+
+        const { variables, outputs } = computeTerraformPlan ? getVariablesAndOutputs(nodeGroups, planJsonObj) :
+            { variables: undefined, outputs: undefined }
+        setVariables(variables)
+        setOutputs(outputs)
+
+        computeLayout(nodeGroups, computeTerraformPlan, editor)
 
         editor?.zoomToContent()
         if (firstRender)
@@ -383,118 +394,6 @@ const TLDWrapper = () => {
                 graph: graphTextAreaRef.current?.value,
             })
         setStoredNodeGroups(Array.from(nodeGroups.values()))
-    }
-
-    const computeLayout = (nodeGroups: Map<string, NodeGroup>, computeTerraformPlan: boolean) => {
-        const g = new dagre.graphlib.Graph({ compound: true });
-        g.setGraph({ rankdir: "TB", ranksep: 120 });
-        g.setDefaultEdgeLabel(function () { return {}; });
-        nodeGroups.forEach((nodeGroup, key) => {
-
-            g.setNode(key, { label: nodeGroup.name, width: defaultWidth, height: defaultHeight })
-            nodeGroup.connectionsOut.forEach((connection) => {
-                g.setEdge(key, connection)
-            })
-            if (nodeGroup.moduleName) {
-                if (!g.hasNode("module." + nodeGroup.moduleName)) {
-                    g.setNode("module." + nodeGroup.moduleName, { label: nodeGroup.moduleName })
-                }
-                g.setParent(key, "module." + nodeGroup.moduleName)
-            }
-        })
-        dagre.layout(g);
-        const date = Date.now()
-
-        editor?.createShapes(
-            g.nodes().filter((id) => {
-                return g.children(id) && g.children(id)!.length > 0
-            }).map((id) => {
-                const node = g.node(id);
-                const opacity = !computeTerraformPlan || (g.children(id) as any).some((childId: string) => {
-                    const nodeGroup = nodeGroups.get(childId)
-                    return nodeGroup && !["no-op", "read"].includes(nodeGroup.state)
-                }) ? 1 : 0.2
-                return {
-                    id: "shape:" + id + ":" + date as TLShapeId,
-                    type: "frame",
-                    x: node.x - node.width / 2,
-                    y: node.y - node.height / 2,
-                    opacity: opacity,
-                    props: {
-                        name: id,
-                        w: node.width,
-                        h: node.height,
-                    }
-                }
-            }))
-
-        editor?.createShapes(
-            g.nodes().filter((id) => {
-                return !g.children(id) || g.children(id)!.length === 0
-            }).map((id) => {
-                const node = g.node(id);
-
-                return {
-                    id: "shape:" + id + ":" + date as TLShapeId,
-                    type: "node",
-                    x: node.x - node.width / 2,
-                    y: node.y - node.height / 2,
-                    props: {
-                        name: node.label,
-                        iconPath: nodeGroups.get(id)?.iconPath,
-                        resourceType: nodeGroups.get(id)?.type.split("_").slice(1).map(r => r.charAt(0).toUpperCase() + r.slice(1)).join(" "),
-                        state: nodeGroups.get(id)?.state,
-                    },
-                    opacity: computeTerraformPlan && (["no-op", "read"].includes(nodeGroups.get(id)?.state || "no-op") &&
-                        !g.nodes().some((nodeId) => {
-                            g.children(nodeId) && g.children(nodeId)!.length > 0 && g.children(nodeId)!.includes(id)
-                        })) ? 0.2 : 1
-                }
-            })
-        )
-
-        const arrowShapes: any[] = []
-
-        nodeGroups.forEach((nodeGroup, id) => {
-            nodeGroup.connectionsOut.forEach((connection) => {
-                const connectionNode = nodeGroups.get(connection)
-                if (connectionNode) {
-                    const fromShape = editor?.getShape("shape:" + id + ":" + date as TLShapeId)
-                    const toShape = editor?.getShape("shape:" + connection + ":" + date as TLShapeId)
-                    if (fromShape && toShape) {
-                        arrowShapes.push(
-                            {
-                                id: "shape:" + id + "-" + connection + ":" + date as TLShapeId,
-                                type: "arrow",
-                                opacity: computeTerraformPlan && fromShape.opacity * toShape.opacity < 1 ? 0.2 : 1,
-                                props: {
-                                    size: "s",
-                                    start: {
-                                        type: "binding",
-                                        boundShapeId: fromShape.id,
-                                        normalizedAnchor: {
-                                            x: 0.5,
-                                            y: 0.5
-                                        },
-                                        isExact: false
-                                    },
-                                    end: {
-                                        type: "binding",
-                                        boundShapeId: toShape.id,
-                                        normalizedAnchor: {
-                                            x: 0.5,
-                                            y: 0.5
-                                        },
-                                        isExact: false
-                                    }
-                                }
-                            }
-                        )
-                    }
-                }
-            })
-        })
-        editor?.createShapes(arrowShapes)
     }
 
 
@@ -581,16 +480,26 @@ const TLDWrapper = () => {
     }
 
     const handleShapeSelectionChange = (shapeId: string) => {
+        const element = document.querySelector(".tlui-navigation-zone") as HTMLElement
         if (!storedData?.planJson || shapeId === "") {
+            setSelectedNode(undefined)
             setSidebarWidth(0)
             setDiffText("")
+            if (element)
+                element.style.display = ""
         } else if (storedNodeGroups) {
             // remove shape: prefix, and date suffix
             const shapeIdWithoutPrefixAndSuffix = shapeId.split(":")[1]
-
-            const textToShow = nodeChangesToString(storedNodeGroups?.filter((nodeGroup) => {
+            const selectedNodeGroup = storedNodeGroups?.filter((nodeGroup) => {
                 return nodeGroup.id === shapeIdWithoutPrefixAndSuffix
-            })[0].nodes.map((node) => {
+            })[0]
+
+            setSelectedNode(selectedNodeGroup)
+
+            if (element)
+                element.style.display = "none"
+
+            const textToShow = nodeChangesToString(selectedNodeGroup.nodes.map((node) => {
                 return node.resourceChanges || undefined
             }).filter((s) => s !== undefined).flat(), showUnknown)
 
@@ -673,6 +582,11 @@ const TLDWrapper = () => {
                     assetUrls={assetUrls}
                 />
             </div>
+            {
+                selectedNode &&
+                <VarsAndOutputsPanel selectedNode={selectedNode} sidebarWidth={sidebarWidth} variables={variables} />
+            }
+
             {initialized &&
                 <div className={'absolute top-2 z-200 left-2'}>
                     <ToggleLayers items={
