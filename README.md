@@ -13,7 +13,7 @@ Turn this:
 
 Into this:
 
-![Screenshot 2024-01-25 171344](https://github.com/inkdrop-org/inkdrop-visualizer/assets/86591160/94868db2-19da-4be4-9ae3-d5b558e6bbc5)
+![output-onlinejpgtools](https://github.com/inkdrop-org/inkdrop-visualizer/assets/86591160/38eaae22-9d68-430c-99ab-a2d2dd49085c)
 
 # Usage and Deployment
 Using Inkdrop is simple:
