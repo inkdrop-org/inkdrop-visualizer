@@ -7,6 +7,11 @@ We built Inkdrop because keeping track of large Terraform configs is hard. Seein
 Inkdrop takes your Terraform and renders it as an SVG image.
 It works entirely locally - just point it at your Terraform directory and you'll get a clean architecture overview in seconds. No messy setup needed.
 
+Turn this:
+![CreateaNewPen-GoogleChrome2024-01-2518-05-55-ezgif com-optimize](https://github.com/inkdrop-org/inkdrop-visualizer/assets/86591160/073fbeb8-d67c-449d-adce-3426bddc9276)
+Into this:
+![Screenshot 2024-01-25 171344](https://github.com/inkdrop-org/inkdrop-visualizer/assets/86591160/94868db2-19da-4be4-9ae3-d5b558e6bbc5)
+
 # Usage and Deployment
 Using Inkdrop is simple:
 
