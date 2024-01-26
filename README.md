@@ -35,7 +35,7 @@ This will generate an SVG image of your resources.
 For a full diff view, run it on a plan file:
 
 ```
-terraform plan -out=plan.out
+terraform plan -out plan.out
 inkdrop --from-plan plan.out
 ```
 
