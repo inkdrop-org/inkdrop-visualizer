@@ -44,8 +44,8 @@ const VarsAndOutputsPanel = ({
         >
             <Grid container>
                 <Grid item xs={4} className="p-2 border-r border-dashed border-black">
-                    <div>
-                        <Typography variant="h6" className="mb-2">External dependencies</Typography>
+                    <div className={"mb-3 max-w-full text-xl truncate"}>
+                        External dependencies
                     </div>
                     <div className="overflow-y-auto overflow-x-hidden h-40">
                         {
@@ -60,8 +60,8 @@ const VarsAndOutputsPanel = ({
                     </div>
                 </Grid>
                 <Grid item xs={4} className="p-2">
-                    <div>
-                        <Typography variant="h6" className="mb-2">Variables</Typography>
+                    <div className={"mb-3 max-w-full text-xl truncate"}>
+                        Variables
                     </div>
                     <div className="overflow-y-auto overflow-x-hidden h-40">
                         {
@@ -74,8 +74,8 @@ const VarsAndOutputsPanel = ({
                     </div>
                 </Grid>
                 <Grid item xs={4} className="border-l border-dashed border-black p-2">
-                    <div>
-                        <Typography variant="h6" className="mb-2">Outputs</Typography>
+                    <div className={"mb-3 max-w-full text-xl truncate"}>
+                        Outputs
                     </div>
                     <div className="overflow-y-auto overflow-x-hidden h-40">
 

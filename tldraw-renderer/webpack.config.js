@@ -58,10 +58,7 @@ module.exports = {
                 {
                     from: 'public',
                     filter: (resourcePath) => {
-                        if (resourcePath.includes('index.html')) {
-                            return true;
-                        }
-                        return false;
+                        return true
                     }
                 }
             ]

@@ -28,6 +28,14 @@
   display: none;
 }
 
+.tl-background {
+  background-color: #EEEDEF !important;
+}
+
+.tl-frame-label {
+  background-color: #EEEDEF;
+}
+
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',

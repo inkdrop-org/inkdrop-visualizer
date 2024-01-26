@@ -504,6 +504,7 @@ const TLDWrapper = () => {
             }).filter((s) => s !== undefined).flat(), showUnknown)
 
             setSidebarWidth(30)
+
             setDiffText(textToShow || "No changes detected")
         }
     }
@@ -638,7 +639,11 @@ const TLDWrapper = () => {
                 handleShapeSelectionChange={handleShapeSelectionChange} />
 
             {sidebarWidth > 0 &&
-                <Sidebar width={sidebarWidth} text={diffText} handleShowUnknownChange={handleShowUnknownChange} />
+                <Sidebar width={sidebarWidth}
+                    title={selectedNode?.name || ""}
+                    text={diffText}
+                    subtitle={selectedNode?.type || ""}
+                    handleShowUnknownChange={handleShowUnknownChange} />
             }
 
             {!storedData &&

@@ -16,12 +16,14 @@ import { runHeadlessBrowserAndExportSVG } from './renderer/renderer';
 const PORT = (argv as any).rendererPort || 3000
 const imagesPath = path.join(__dirname, 'Icons');
 const assetsPath = path.join(__dirname, 'assets');
+const inkdropLogoPath = path.join(__dirname, 'build/logo.png');
 const app = express();
 
 // Middleware to parse JSON bodies
 app.use(express.json({ limit: '50mb' }));
 app.use('/Icons', express.static(imagesPath));
 app.use('/', express.static(assetsPath));
+app.use('/logo.png', express.static(inkdropLogoPath));
 
 // Serve static files from the build directory
 app.use(express.static(path.resolve(__dirname, 'build')));
