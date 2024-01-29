@@ -1,14 +1,16 @@
-import { Checkbox, Drawer, FormControlLabel, FormGroup, Typography } from "@mui/material"
+import { Checkbox, Drawer, FormControlLabel, FormGroup, IconButton, Tooltip, Typography } from "@mui/material"
 import "./Sidebar.css"
+import CloseIcon from '@mui/icons-material/Close';
 
 interface SidebarProps {
     width: number;
     text: string;
     handleShowUnknownChange: (showHidden: boolean) => void;
+    closeSidebar: () => void;
     title: string
     subtitle: string
 }
-const Sidebar = ({ width, text, handleShowUnknownChange, title, subtitle }: SidebarProps) => {
+const Sidebar = ({ width, text, handleShowUnknownChange, title, subtitle, closeSidebar }: SidebarProps) => {
     return (
         <Drawer
             anchor={"right"}
@@ -20,6 +22,13 @@ const Sidebar = ({ width, text, handleShowUnknownChange, title, subtitle }: Side
                 }
             }}
         >
+            <div className="absolute top-4 right-4">
+                <Tooltip title="Close sidebar" placement="bottom">
+                    <IconButton onClick={() => closeSidebar()} >
+                        <CloseIcon />
+                    </IconButton>
+                </Tooltip>
+            </div>
             <div className="top-5 pl-4 pt-4 max-w-[20rem]">
                 <div className={"mb-1 max-w-full text-2xl truncate"}>
                     {title}

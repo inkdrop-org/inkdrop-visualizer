@@ -26,6 +26,7 @@ export type NodeShape = TLBaseShape<
         name: string
         iconPath: string
         state: string
+        numberOfChanges: number
         resourceType: string
     }
 >
@@ -59,6 +60,7 @@ export class NodeShapeUtil extends BaseBoxShapeUtil<NodeShape> {
         h: T.number,
         borderColor: T.string,
         backgroundColor: T.string,
+        numberOfChanges: T.number,
         name: T.string,
         iconPath: T.string,
         state: T.string,
@@ -77,6 +79,7 @@ export class NodeShapeUtil extends BaseBoxShapeUtil<NodeShape> {
             h: 120,
             borderColor: "black",
             backgroundColor: "white",
+            numberOfChanges: 0,
             name: "AWS Service",
             iconPath: "",
             state: "no-op",
@@ -101,7 +104,7 @@ export class NodeShapeUtil extends BaseBoxShapeUtil<NodeShape> {
                         backgroundColor: shape.props.backgroundColor,
                     }}
                 >
-                    <div className={`absolute top-0 left-0 text-center max-w-full p-1 pt-[2px] text-sm text-black truncate rounded-br`}
+                    <div className={`absolute top-0 left-0 text-center max-w-[88%] p-1 pt-[2px] text-sm text-black truncate rounded-br`}
                     >
                         {shape.props.name}
                     </div>
@@ -117,9 +120,12 @@ export class NodeShapeUtil extends BaseBoxShapeUtil<NodeShape> {
                                 backgroundColor: shape.props.state === "create" ? "#dcfce7" :
                                     shape.props.state === "delete" ? "#fee2e2" : "#fef9c3",
                                 borderColor: shape.props.state === "create" ? "#22c55e" :
-                                    shape.props.state === "delete" ? "#ef4444" : "#eab208"
+                                    shape.props.state === "delete" ? "#ef4444" : "#eab208",
+                                fontSize: "10px"
                             }}
-                            className='absolute top-0 right-0 rounded-full border-2 translate-y-[-50%] translate-x-[50%] h-7 w-7' />
+                            className='absolute top-1 right-1 rounded-full border h-4 w-4 text-center leading-[14px]'>
+                            {shape.props.numberOfChanges}
+                        </div>
                     }
                 </HTMLContainer>
 
@@ -166,7 +172,7 @@ export class NodeShapeUtil extends BaseBoxShapeUtil<NodeShape> {
         typeText.setAttributeNS(null, 'dominant-baseline', 'middle');
 
         // Truncate the text if it's too long
-        truncateText(nameText, shape.props.w - 10); // Assume 5 padding on each side
+        truncateText(nameText, shape.props.w - 25); // Assume 5 padding on each side
         truncateText(typeText, shape.props.w - 10); // Assume 5 padding on each side
 
         // Append the text element to the main group
@@ -220,10 +226,11 @@ export class NodeShapeUtil extends BaseBoxShapeUtil<NodeShape> {
         g.appendChild(icon);
 
         // Calculate the position for diff indicator
-        const indicatorDiameter = 28; // since the dot is 7x7, diameter would be double that
+        const indicatorDiameter = 16; // since the dot is 7x7, diameter would be double that
         const indicatorRadius = indicatorDiameter / 2;
-        const indicatorX = shape.props.w
-        const indicatorY = 0; // Positioned from top edge plus half its diameter
+        const indicatorX = shape.props.w - indicatorRadius - 4
+        const indicatorY = indicatorRadius + 4
+        const fontSize = 10;
 
         if (!["no-op", "read"].includes(shape.props.state)) {
             // Create the validity indicator circle
@@ -236,9 +243,20 @@ export class NodeShapeUtil extends BaseBoxShapeUtil<NodeShape> {
                     shape.props.state === "delete" ? "#fee2e2" : "#fef9c3"); // Using colors for green or red indicators
             indicator.setAttributeNS(null, 'stroke', shape.props.state === "create" ? "#22c55e" :
                 shape.props.state === "delete" ? "#ef4444" : "#eab208"); // Set stroke (border) color to black
-            indicator.setAttributeNS(null, 'stroke-width', "2"); // Set stroke width to 2
+            indicator.setAttributeNS(null, 'stroke-width', "1"); // Set stroke width to 2
             // Append the indicator to the main group
             g.appendChild(indicator);
+
+            // Create the text element for numberOfChanges
+            const changesText = document.createElementNS(xmlns, 'text');
+            changesText.textContent = shape.props.numberOfChanges.toString();
+            changesText.setAttributeNS(null, 'x', indicatorX.toString());
+            changesText.setAttributeNS(null, 'y', (indicatorY + 1).toString()); // Adjust the Y position slightly to center the text vertically
+            changesText.setAttributeNS(null, 'style', `font-family: sans-serif; font-size: ${fontSize}px; fill: black;`);
+            changesText.setAttributeNS(null, 'text-anchor', 'middle'); // Centers the text horizontally on X
+            changesText.setAttributeNS(null, 'dominant-baseline', 'central'); // Centers the text vertically
+
+            g.appendChild(changesText);
         }
 
         // Return the SVG element <g>

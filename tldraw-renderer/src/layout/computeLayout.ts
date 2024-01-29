@@ -62,6 +62,7 @@ export const computeLayout = (nodeGroups: Map<string, NodeGroup>, computeTerrafo
                     name: node.label,
                     iconPath: nodeGroups.get(id)?.iconPath,
                     resourceType: nodeGroups.get(id)?.type.split("_").slice(1).map(r => r.charAt(0).toUpperCase() + r.slice(1)).join(" "),
+                    numberOfChanges: nodeGroups.get(id)?.numberOfChanges,
                     state: nodeGroups.get(id)?.state,
                 },
                 opacity: computeTerraformPlan && (["no-op", "read"].includes(nodeGroups.get(id)?.state || "no-op") &&

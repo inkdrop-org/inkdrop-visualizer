@@ -1,5 +1,6 @@
 import { Editor, useValue } from "@tldraw/tldraw";
 import { useEffect } from "react";
+import { NodeGroup } from "../TLDWrapper";
 
 interface EditorHandlerProps {
     editor: Editor | null;

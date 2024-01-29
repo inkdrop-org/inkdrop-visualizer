@@ -33,6 +33,7 @@ export type NodeGroup = {
     connectionsIn: string[],
     variableRefs?: string[],
     outputRefs?: string[],
+    numberOfChanges: number,
     name: string,
     type: string,
     category: string,
@@ -199,14 +200,18 @@ const TLDWrapper = () => {
                         })
                     }
 
+                    let numberOfChanges = 0
+
                     // Determine a general state, given all the actions
                     let generalState = "no-op"
                     resourceChanges?.forEach((resourceChange) => {
                         const newState = resourceChange.change.actions.join("-")
+                        numberOfChanges += ["no-op", "read"].includes(newState) ? 0 : 1
                         generalState = newState !== generalState ?
                             (["no-op", "read"].includes(newState) && ["no-op", "read"].includes(generalState)) ? "read" :
                                 ["no-op", "read"].includes(generalState) ? newState : "update" : newState
                     })
+
 
                     jsonArray.data.forEach((row: any) => {
                         if (row[mainBlock ? "Main Diagram Blocks" : "Missing Resources"].split(",").some((s: string) => s === resourceType)) {
@@ -222,6 +227,7 @@ const TLDWrapper = () => {
                                 name: resourceName,
                                 state: resourceChanges.length > 0 ? generalState as ResourceState : "no-op",
                                 type: resourceType,
+                                numberOfChanges: numberOfChanges,
                                 serviceName: row["Service Name"],
                                 iconPath: row["Icon Path"].trim(),
                                 connectionsIn: [],
@@ -430,13 +436,19 @@ const TLDWrapper = () => {
                                     return resource.address === newNode.id.split(" ")[1] || resource.address.startsWith(newNode.id.split(" ")[1] + "[")
                                 })
                             }
+
+                            let numberOfChanges = 0
+
                             // Determine a general state, given all the actions
                             let generalState = "no-op"
                             resourceChanges?.forEach((resourceChange) => {
                                 const newState = resourceChange.change.actions.join("-")
+                                numberOfChanges += ["no-op", "read"].includes(newState) ? 0 : 1
                                 generalState = newState !== generalState ?
                                     (["no-op", "read"].includes(newState) && ["no-op", "read"].includes(generalState)) ? "read" : "update" : newState
                             })
+
+                            nodeGroup.numberOfChanges += numberOfChanges
 
                             nodeGroup.nodes.push({
                                 nodeModel: newNode,
@@ -568,6 +580,11 @@ const TLDWrapper = () => {
         refreshWhiteboard()
     }
 
+    const closeSidebar = () => {
+        handleShapeSelectionChange("")
+        editor?.selectNone()
+    }
+
 
     return (
         <div style={{
@@ -643,6 +660,7 @@ const TLDWrapper = () => {
                     title={selectedNode?.name || ""}
                     text={diffText}
                     subtitle={selectedNode?.type || ""}
+                    closeSidebar={() => closeSidebar()}
                     handleShowUnknownChange={handleShowUnknownChange} />
             }
 
