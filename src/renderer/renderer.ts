@@ -37,6 +37,10 @@ async function performActionsToDownloadFile(page: Page) {
         const selectAllButton = await page.$('[data-testid="menu-item.select-all"]');
         if (selectAllButton) {
             await selectAllButton.click();
+        } else {
+            console.error("No AWS Terraform resources found in graph.")
+            console.error("Please ensure that you have run Inkdrop inside your Terraform project directory, or specify the path to your Terraform project using the --path argument.")
+            process.exit(1)
         }
         await page.mouse.click(0, 0, { button: 'right' });
         const exportAsButton = await page.$('[data-testid="menu-item.export-as"]');

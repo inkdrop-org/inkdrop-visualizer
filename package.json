@@ -1,6 +1,6 @@
 {
   "name": "inkdrop-visualizer",
-  "version": "1.1.9",
+  "version": "1.1.10",
   "description": "",
   "main": "src/index.js",
   "scripts": {
