@@ -50,11 +50,13 @@ No credentials needed - it works anywhere terraform init does. It runs locally &
 | (no argument)      | Generates an SVG image of your Terraform resources. Automatically launches a browser tab to display the diagram interactively. | `inkdrop`                                   |
 | `--detailed`       | Includes comprehensive details for all rendered resources.            | `inkdrop --detailed`                        |
 | `--disable-ui`     | Saves the SVG diagram locally without opening the interactive renderer in a browser. | `inkdrop --disable-ui`                     |
+| `--debug`         | Enables debug mode.   | `inkdrop --from-plan plan.out --debug` |
 | `--from-plan`      | Visualizes the impact of changes defined in a specified Terraform plan file. | `inkdrop --from-plan plan.out`              |
 | `--path`           | Sets the working directory to a specified Terraform project path.     | `inkdrop --path ./repos/my-tf-project`      |
 | `--renderer-port`  | Defines the port for the local diagram rendering service (default: `3000`). | `inkdrop --renderer-port 8080`             |
 | `--show-inactive`  | Displays both active and inactive resources within a Terraform plan.  | `inkdrop --from-plan plan.out --show-inactive` |
-
+| `--help`, `-h`     | Displays help information about the CLI tool and its commands/options. | `inkdrop --help`                           |
+| `--version`, `-v`  | Shows the current version number of the CLI tool.                     | `inkdrop --version`                        |
 
 # Troubleshooting
 

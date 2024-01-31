@@ -33,12 +33,12 @@ function openUrl(url: string) {
 
 async function performActionsToDownloadFile(page: Page) {
     page.waitForSelector('.tlui-layout').then(async () => {
-        await page.mouse.click(0, 0, { button: 'right' }); // Update x, y coordinates as needed
+        await page.mouse.click(0, 0, { button: 'right' });
         const selectAllButton = await page.$('[data-testid="menu-item.select-all"]');
         if (selectAllButton) {
             await selectAllButton.click();
         }
-        await page.mouse.click(0, 0, { button: 'right' }); // Update x, y coordinates as needed
+        await page.mouse.click(0, 0, { button: 'right' });
         const exportAsButton = await page.$('[data-testid="menu-item.export-as"]');
         if (exportAsButton) {
             await exportAsButton.click();
@@ -56,14 +56,22 @@ export async function runHeadlessBrowserAndExportSVG(graphVizText: string, planO
     console.log("Processing raw graph...")
     const browser = await puppeteer.launch({ headless: "new" });
     const page = await browser.newPage();
+    const debug = (argv as any).debug || false
     const PORT = (argv as any).rendererPort || 3000
-    // check if the argument "--no-ui" is passed
     const noUi = (argv as any).disableUi || false
-    // check if the argument "--detailed" is passed
     const detailed = (argv as any).detailed || false
     const showInactive = (argv as any).showInactive || false
 
-    await page.goto(`http://127.0.0.1:${PORT}/index.html`);
+    await page.goto(`http://localhost:${PORT}/index.html`);
+
+    page
+        .on('console', (message) => {
+            // TODO: This is a workaround, as I can't figure out how to suppress this error message. To be fixed.
+            if (!message.text().startsWith("Error: <path> attribute d: Expected number")) {
+                console.log(`${message.type().substr(0, 3).toUpperCase()} ${message.text()}`)
+            }
+        })
+        .on('pageerror', ({ message }) => console.log(message))
 
     const client = await page.target().createCDPSession();
 
@@ -79,13 +87,10 @@ export async function runHeadlessBrowserAndExportSVG(graphVizText: string, planO
     })
 
     client.on('Browser.downloadWillBegin', async (event) => {
-        //some logic here to determine the filename
-        //the event provides event.suggestedFilename and event.url
         suggestedFilename = event.suggestedFilename;
     });
 
     client.on('Browser.downloadProgress', async (event) => {
-        // when the file has been downloaded, locate the file by guid and rename it
 
         if (event.state === 'completed') {
             fs.renameSync(path.resolve(downloadFolder, suggestedFilename), path.resolve(downloadFolder, suggestedFilename.replace("shapes", "inkdrop-diagram")));
@@ -95,13 +100,13 @@ export async function runHeadlessBrowserAndExportSVG(graphVizText: string, planO
                 server.close();
             } else {
                 console.log("Opening Inkdrop...")
-                openUrl(`http://127.0.0.1:${PORT}/`);
+                openUrl(`http://localhost:${PORT}/`);
             }
         }
     });
 
     page.waitForSelector('.tlui-layout').then(async () => {
-        await page.evaluate((graphData, planData, detailed, showInactive) => {
+        await page.evaluate((graphData, planData, detailed, showInactive, debug) => {
             const graphTextArea = document.getElementById('inkdrop-graphviz-textarea');
             if (graphTextArea && graphTextArea instanceof HTMLTextAreaElement) {
                 graphTextArea.value = graphData;
@@ -118,15 +123,18 @@ export async function runHeadlessBrowserAndExportSVG(graphVizText: string, planO
             if (showInactiveTextArea && showInactiveTextArea instanceof HTMLTextAreaElement) {
                 showInactiveTextArea.value = showInactive
             }
+            const debugTextArea = document.getElementById('debug-textarea');
+            if (debugTextArea && debugTextArea instanceof HTMLTextAreaElement) {
+                debugTextArea.value = debug
+            }
             const button = document.getElementById('render-button');
             if (button) {
                 button.click()
             }
-        }, graphVizText, planOutput, detailed, showInactive); // Pass graphVizText as an argument here
-        await sleep(3000);
+        }, graphVizText, planOutput, detailed, showInactive, debug);
         await performActionsToDownloadFile(page)
     }).catch(async () => {
-        console.log("Error rendering graph")
+        console.error("Error rendering graph")
         server.close()
         await browser.close()
     });

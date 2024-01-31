@@ -29,16 +29,11 @@ export const computeLayout = (nodeGroups: Map<string, NodeGroup>, computeTerrafo
             return g.children(id) && g.children(id)!.length > 0
         }).map((id) => {
             const node = g.node(id);
-            const opacity = !computeTerraformPlan || (g.children(id) as any).some((childId: string) => {
-                const nodeGroup = nodeGroups.get(childId)
-                return nodeGroup && !["no-op", "read"].includes(nodeGroup.state)
-            }) ? 1 : 0.2
             return {
                 id: "shape:" + id + ":" + date as TLShapeId,
                 type: "frame",
                 x: node.x - node.width / 2,
                 y: node.y - node.height / 2,
-                opacity: opacity,
                 props: {
                     name: id,
                     w: node.width,
@@ -96,7 +91,7 @@ export const computeLayout = (nodeGroups: Map<string, NodeGroup>, computeTerrafo
                                         x: 0.5,
                                         y: 0.5
                                     },
-                                    isExact: false
+                                    isExact: false,
                                 },
                                 end: {
                                     type: "binding",
@@ -105,11 +100,12 @@ export const computeLayout = (nodeGroups: Map<string, NodeGroup>, computeTerrafo
                                         x: 0.5,
                                         y: 0.5
                                     },
-                                    isExact: false
+                                    isExact: false,
                                 }
                             }
                         }
                     )
+
                 }
             }
         })

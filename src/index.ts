@@ -1,23 +1,38 @@
 #!/usr/bin/env node
 
 import path from 'path';
-import yargs from 'yargs';
-import { hideBin } from 'yargs/helpers';
+import fs from 'fs';
 
 import { exec } from 'child_process';
 import util from 'util';
-
-const execAsync = util.promisify(exec); // This will allow us to await the command
-const argv = yargs(hideBin(process.argv)).argv
-
 import express from 'express';
 import { runHeadlessBrowserAndExportSVG } from './renderer/renderer';
+import { argv } from './arguments/arguments';
+
+const MAX_BUFFER_SIZE = 10 * 1024 * 1024; // 10 MB
+
+const execAsync = util.promisify(exec);
 
 const PORT = (argv as any).rendererPort || 3000
-const imagesPath = path.join(__dirname, 'Icons');
-const assetsPath = path.join(__dirname, 'assets');
-const inkdropLogoPath = path.join(__dirname, 'build/logo.png');
+const imagesPath = path.join(__dirname, '..', 'Icons');
+const assetsPath = path.join(__dirname, '..', 'assets');
+const inkdropLogoPath = path.join(__dirname, '..', 'build/logo.png');
 const app = express();
+
+// Check if the argument "--from-plan" contains a path to a plan file
+if ((argv as any).fromPlan) {
+    if (!fs.existsSync((argv as any).fromPlan) || !fs.lstatSync((argv as any).fromPlan).isFile()) {
+        console.error(`The path to the plan file is invalid: ${(argv as any).fromPlan}`);
+        process.exit(1);
+    }
+}
+//Check if the argument "--path" contains a path to a Terraform project
+if ((argv as any).path) {
+    if (!fs.existsSync((argv as any).path) || !fs.lstatSync((argv as any).path).isDirectory()) {
+        console.error(`The path to the Terraform project is invalid: ${(argv as any).path}`);
+        process.exit(1);
+    }
+}
 
 // Middleware to parse JSON bodies
 app.use(express.json({ limit: '50mb' }));
@@ -26,7 +41,7 @@ app.use('/', express.static(assetsPath));
 app.use('/logo.png', express.static(inkdropLogoPath));
 
 // Serve static files from the build directory
-app.use(express.static(path.resolve(__dirname, 'build')));
+app.use(express.static(path.resolve(__dirname, '..', 'build')));
 
 let state: any = {}
 
@@ -47,7 +62,7 @@ app.get('/getdata', (req, res) => {
 });
 
 // Start the server
-const server = app.listen(PORT, '127.0.0.1', () => {
+const server = app.listen(PORT, 'localhost', () => {
     console.log(`Diagram renderer running on localhost:${PORT}`);
 });
 
@@ -57,18 +72,36 @@ async function runTerraformGraph(): Promise<void> {
     let planJson = ""
 
     if ((argv as any).fromPlan) {
-        const { stdout: showStdout, stderr: showStderr } = await execAsync(`terraform show -json ${path.resolve((argv as any).fromPlan)}`, { cwd: path.resolve((argv as any).path || ".") });
+        const { stdout: showStdout, stderr: showStderr } = await execAsync(`terraform show -json ${path.resolve((argv as any).fromPlan)}`, {
+            cwd: path.resolve((argv as any).path || "."),
+            maxBuffer: MAX_BUFFER_SIZE
+        })
+            .catch((err) => {
+                console.error("Error while running 'terraform show -json':\n"
+                    + err)
+                process.exit(1);
+            })
         if (showStderr) {
-            throw new Error(`Error running terraform show: ${showStderr}`);
+            console.error(`${showStderr}`);
+            process.exit(1);
         }
         planJson = showStdout
     }
 
     console.log("Computing raw graph...")
-    const { stdout: graphStdout, stderr: graphStderr } = await execAsync('terraform graph', { cwd: path.resolve((argv as any).path || ".") });
+    const { stdout: graphStdout, stderr: graphStderr } = await execAsync('terraform graph', {
+        cwd: path.resolve((argv as any).path || "."),
+        maxBuffer: MAX_BUFFER_SIZE
+    })
+        .catch((err) => {
+            console.error("Error while running 'terraform graph':\n"
+                + err)
+            process.exit(1);
+        })
 
     if (graphStderr) {
-        throw new Error(`Error running computing graph: ${graphStderr}`);
+        console.error(`${graphStderr}`);
+        process.exit(1);
     }
 
     runHeadlessBrowserAndExportSVG(graphStdout, planJson, server, argv)

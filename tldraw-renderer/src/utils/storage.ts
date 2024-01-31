@@ -1,5 +1,5 @@
 export const sendData = (data: Object) => {
-    fetch('http://127.0.0.1:3000/senddata', {
+    fetch('http://localhost:3000/senddata', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -10,7 +10,7 @@ export const sendData = (data: Object) => {
 }
 
 export const getData = async () => {
-    const response = await fetch('http://127.0.0.1:3000/getdata', {
+    const response = await fetch('http://localhost:3000/getdata', {
         method: 'GET',
         headers: {
             'Content-Type': 'application/json',

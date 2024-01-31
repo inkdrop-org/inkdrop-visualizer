@@ -278,8 +278,6 @@ export class NodeShapeTool extends BaseBoxShapeTool {
     props = {
         w: T.number,
         h: T.number,
-        // You can re-use tldraw built-in styles...
         color: DefaultColorStyle,
-        // ...or your own custom styles.
     }
 }

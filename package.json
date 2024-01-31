@@ -1,12 +1,12 @@
 {
   "name": "inkdrop-visualizer",
-  "version": "1.1.8",
+  "version": "1.1.9",
   "description": "",
-  "main": "index.js",
+  "main": "src/index.js",
   "scripts": {
     "build": "cd tldraw-renderer && npm install && npm run build && cd .. && tsc && ncp public/Icons dist/Icons && ncp public/assets dist/assets && ncp tldraw-renderer/build dist/build",
     "build-renderer": "tsc",
-    "test": "cd test-project && terraform init && terraform plan --out plan.out && cd .. && node dist/index.js --path test-project --from-plan test-project/plan.out",
+    "test": "cd test-project && terraform init && terraform plan --out plan.out && cd .. && node dist/src/index.js --path test-project --from-plan test-project/plan.out",
     "pkg": "pkg package.json"
   },
   "repository": {
@@ -29,7 +29,7 @@
     "typescript": "^5.3.3"
   },
   "bin": {
-    "inkdrop": "./dist/index.js"
+    "inkdrop": "./dist/src/index.js"
   },
   "dependencies": {
     "dotenv": "^16.3.1",

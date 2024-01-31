@@ -86,6 +86,7 @@ const TLDWrapper = () => {
     const selectedTagsRef = useRef<string[]>([])
     const [initialized, setInitialized] = useState<boolean>(false)
     const categoriesRef = useRef<string[]>([])
+    const showDebugRef = useRef<boolean>(false)
     const deselectedCategoriesRef = useRef<string[]>([])
     const [showUnknown, setShowUnknown] = useState<boolean>(false)
 
@@ -157,6 +158,11 @@ const TLDWrapper = () => {
         getStoredData()
     }, [])
 
+    const debugLog = (message: string) => {
+        if (!showDebugRef.current) return
+        console.log(message)
+    }
+
     const checkHclBlockType = (blockId: string) => {
         let moduleName = ""
         if (blockId.startsWith("module.")) {
@@ -215,7 +221,7 @@ const TLDWrapper = () => {
 
                     jsonArray.data.forEach((row: any) => {
                         if (row[mainBlock ? "Main Diagram Blocks" : "Missing Resources"].split(",").some((s: string) => s === resourceType)) {
-
+                            debugLog("Adding main resource: " + node.id.split(" ")[1])
                             nodeGroups.set(node.id.split(" ")[1], {
                                 nodes: [{
                                     nodeModel: node,
@@ -284,22 +290,28 @@ const TLDWrapper = () => {
 
     const parseModel = (model: RootGraphModel, firstRender: boolean, planJson?: string | Object, detailed?: boolean, showInactive?: boolean) => {
         const computeTerraformPlan = (planJson && planJson !== "") ? true : false
+        debugLog(computeTerraformPlan ? "Terraform plan detected." : "No Terraform plan detected. Using static data.")
         const planJsonObj = computeTerraformPlan ?
             typeof planJson === "string" ? JSON.parse(planJson!) : planJson : undefined
         const nodeGroups = new Map<string, NodeGroup>()
         const jsonArray = Papa.parse(terraformResourcesCsv, { delimiter: ",", header: true })
+        debugLog("Adding main resources...")
         model.subgraphs.forEach((subgraph) => {
             subgraph.nodes.forEach((node) => {
                 addNodeToGroup(node, nodeGroups, true, jsonArray, planJsonObj, computeTerraformPlan)
             })
         })
+        debugLog("Adding main resources... Done.")
 
+        debugLog("Aggregating secondary resources...")
         nodeGroups.forEach((nodeGroup) => {
             getConnectedNodes(nodeGroup.mainNode, nodeGroup, nodeGroups, model.subgraphs[0], true, jsonArray, planJsonObj)
             getConnectedNodes(nodeGroup.mainNode, nodeGroup, nodeGroups, model.subgraphs[0], false, jsonArray, planJsonObj)
         })
+        debugLog("Aggregating secondary resources... Done.")
 
         if (storedData?.detailed || detailed) {
+            debugLog("Adding unconnected resources (detailed view)...")
             // Add a nodeGroup for each node that is not connected to any other node
             model.subgraphs[0].nodes.forEach((node) => {
                 if (!Array.from(nodeGroups.values()).some((group) => {
@@ -310,22 +322,30 @@ const TLDWrapper = () => {
                     addNodeToGroup(node, nodeGroups, false, jsonArray, planJsonObj, computeTerraformPlan)
                 }
             })
+            debugLog("Adding unconnected resources (detailed view)... Done.")
         }
 
         if ((!storedData?.showInactive && !showInactive) && computeTerraformPlan) {
+            debugLog("Removing inactive resources...")
             // Remove nodeGroups whose first node has no resourceChanges
             Array.from(nodeGroups.keys()).forEach((key) => {
                 const nodeGroup = nodeGroups.get(key)
                 if (nodeGroup && nodeGroup.nodes[0].resourceChanges && nodeGroup.nodes[0].resourceChanges.length === 0) {
+                    debugLog("Removing inactive main resource: " + nodeGroup.id)
                     nodeGroups.delete(key)
                 }
             })
             // Remove nodes whose resourceChanges are empty
             nodeGroups.forEach((nodeGroup) => {
                 nodeGroup.nodes = nodeGroup.nodes.filter((node) => {
+                    const keep = node.resourceChanges && node.resourceChanges.length > 0
+                    if (!keep) {
+                        debugLog("Removing inactive secondary resource: " + node.nodeModel.id.split(" ")[1])
+                    }
                     return node.resourceChanges && node.resourceChanges.length > 0
                 })
             })
+            debugLog("Removing inactive resources... Done.")
         }
 
         findAndSetCategories(nodeGroups)
@@ -357,6 +377,7 @@ const TLDWrapper = () => {
         setInitialized(true)
 
 
+        debugLog("Computing connections...")
         // Compute connections between groups
         model.subgraphs[0].edges.forEach((edge) => {
             const edgeFromId = (edge.targets[0] as any).id
@@ -381,6 +402,7 @@ const TLDWrapper = () => {
                 }
             }
         })
+        debugLog("Computing connections... Done.")
 
         const { variables, outputs } = computeTerraformPlan ? getVariablesAndOutputs(nodeGroups, planJsonObj) :
             { variables: undefined, outputs: undefined }
@@ -450,6 +472,8 @@ const TLDWrapper = () => {
 
                             nodeGroup.numberOfChanges += numberOfChanges
 
+                            debugLog("Aggregating resource: " + newNode.id.split(" ")[1] + "\t->\t" + nodeGroup.id)
+
                             nodeGroup.nodes.push({
                                 nodeModel: newNode,
                                 resourceChanges: resourceChanges
@@ -480,12 +504,19 @@ const TLDWrapper = () => {
     const inactiveTextAreaRef = useRef<
         HTMLTextAreaElement | null
     >(null)
+    const debugTextAreaRef = useRef<
+        HTMLTextAreaElement | null
+    >(null)
 
 
     const handleRenderButtonClick = () => {
         if (graphTextAreaRef.current && graphTextAreaRef.current.value) {
+            showDebugRef.current = debugTextAreaRef.current?.value === "true"
             const detailed = detailedTextAreaRef.current?.value === "true"
+            debugLog("Detailed view is " + (detailed ? "on" : "off") + ".")
             const showInactive = inactiveTextAreaRef.current?.value === "true"
+            planTextAreaRef.current?.value &&
+                debugLog("Inactive resources are " + (showInactive ? "shown" : "hidden") + ".")
             const model = fromDot(graphTextAreaRef.current.value)
             parseModel(model, true, planTextAreaRef.current?.value, detailed, showInactive)
         }
@@ -681,6 +712,10 @@ const TLDWrapper = () => {
                     <textarea
                         ref={inactiveTextAreaRef}
                         id='show-inactive-textarea'
+                    />
+                    <textarea
+                        ref={debugTextAreaRef}
+                        id='debug-textarea'
                     />
                     <button
                         onClick={handleRenderButtonClick}
