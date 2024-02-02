@@ -71,7 +71,6 @@ If you'd like to run inkdrop from your CI process you can just let the runner cr
 | `--disable-ui`     | Saves the SVG diagram locally without opening the interactive renderer in a browser. | `inkdrop --disable-ui`                     |
 | `--show-inactive`  | Displays both active and inactive resources within a Terraform plan.  | `inkdrop --from-plan plan.out --show-inactive` |
 | `--detailed`       | Includes comprehensive details for all rendered resources.            | `inkdrop --detailed`                        |
-| `--filter`       | Let's you select certain filters (resource type or tags) to reduce complexity of the SVG          | `inkdrop --filter "networking, compute"`                        |
 
 We will soon add a more complete guide on how to implement it in Github, Gitlab and using Atlantis.
 
