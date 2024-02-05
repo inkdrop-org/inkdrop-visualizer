@@ -1,15 +1,19 @@
 import { Grid, Typography } from "@mui/material"
 import { NodeGroup, TFVariable } from "../TLDWrapper"
 import { useEffect, useState } from "react"
+import { getVarOutDependencies } from "../utils/varOut"
 
 interface VarsAndOutputsPanelProps {
     selectedNode: NodeGroup
     sidebarWidth: number
     variables: { [moduleName: string]: TFVariable[] } | undefined
+    selectedVarOutput: string
+    setSelectedOutput: (output: string, module: string) => void
+    setSelectedVar: (variable: string, module: string) => void
 }
 
 const VarsAndOutputsPanel = ({
-    selectedNode, sidebarWidth, variables
+    selectedNode, sidebarWidth, variables, setSelectedOutput, setSelectedVar
 }: VarsAndOutputsPanelProps) => {
 
     const [dependencies, setDependencies] = useState<{
@@ -19,27 +23,13 @@ const VarsAndOutputsPanel = ({
     }[]>([])
 
     useEffect(() => {
-        const deps: {
-            type: "output" | "variable" | "unknown";
-            module: string;
-            name: string;
-        }[] = []
-        selectedNode.variableRefs?.forEach((variableRef) => {
-            const moduleName = selectedNode.moduleName || "root_module"
-            const variable = variables?.[moduleName]?.find((variable) => variable.name === variableRef)
-            if (variable) {
-                variable.expressionReferences.forEach((dep) => {
-                    if (!deps.some((d) => d.name === dep.name && d.type === dep.type && d.module === dep.module)) {
-                        deps.push(dep)
-                    }
-                })
-            }
-        })
+        if (!variables) return
+        const deps = getVarOutDependencies(selectedNode, variables)
         setDependencies(deps)
     }, [selectedNode])
 
     return (
-        <div className="absolute bottom-0 left-0 bg-white z-200 w-full border-t border-dashed border-black"
+        <div className="absolute bottom-0 left-0 bg-[#F7F7F8] z-200 w-full border-t border-dashed border-black"
             style={{ paddingRight: sidebarWidth + "rem" }}
         >
             <Grid container>
@@ -50,13 +40,21 @@ const VarsAndOutputsPanel = ({
                     <div className="overflow-y-auto overflow-x-hidden h-40">
                         {
                             dependencies.map((dep, index) => (
-                                <span key={index} className="inline-block border border-black text-black py-1 px-2 mr-1 text-[10px] rounded truncate"
-                                    style={{ backgroundColor: dep.type === "output" ? "#F9F4FB" : "#FEF5E7" }}
+                                <button
+                                    key={index + "-dep"}
+                                    className="inline-block border border-black text-black py-1 px-2 mr-1 text-[10px] rounded truncate"
+                                    type="button"
+                                    style={{ backgroundColor: "white" }}
+                                    onClick={() => {
+                                        dep.type === "output" ? setSelectedOutput(dep.name, dep.module) : setSelectedVar(dep.name, dep.module)
+                                    }}
                                 >
                                     {"(" + dep.module + ") " + dep.name}
-                                </span>
+                                </button>
                             ))
+
                         }
+
                     </div>
                 </Grid>
                 <Grid item xs={4} className="p-2">
@@ -66,10 +64,18 @@ const VarsAndOutputsPanel = ({
                     <div className="overflow-y-auto overflow-x-hidden h-40">
                         {
                             selectedNode.variableRefs?.map((variableRef, index) => (
-                                <span key={index} className="inline-block bg-[#FEF5E7] border border-black text-black py-1 px-2 mr-1 text-[10px] rounded truncate">
+                                <button
+                                    key={index + "-var"}
+                                    className="inline-block bg-white border border-black text-black py-1 px-2 mr-1 text-[10px] rounded truncate"
+                                    type="button"
+                                    onClick={() => {
+                                        setSelectedVar(variableRef, selectedNode.moduleName || "root_module")
+                                    }}
+                                >
                                     {variableRef}
-                                </span>
+                                </button>
                             ))
+
                         }
                     </div>
                 </Grid>
@@ -78,12 +84,18 @@ const VarsAndOutputsPanel = ({
                         Outputs
                     </div>
                     <div className="overflow-y-auto overflow-x-hidden h-40">
-
                         {
                             selectedNode.outputRefs?.map((outputRef, index) => (
-                                <span key={index} className="inline-block bg-[#F9F4FB] border border-black text-black py-1 px-2 mr-1 text-[10px] rounded truncate">
+                                <button
+                                    key={index + "-output"}
+                                    className="inline-block bg-white border border-black text-black py-1 px-2 mr-1 text-[10px] rounded truncate"
+                                    type="button"
+                                    onClick={() => {
+                                        setSelectedOutput(outputRef, selectedNode.moduleName || "root_module")
+                                    }}
+                                >
                                     {outputRef}
-                                </span>
+                                </button>
                             ))
                         }
                     </div>

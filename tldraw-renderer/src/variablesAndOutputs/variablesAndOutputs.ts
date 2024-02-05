@@ -13,6 +13,7 @@ export const getVariablesAndOutputs = (nodeGroups: Map<string, NodeGroup>, planJ
         variables["root_module"] = Object.keys(planJson?.configuration?.root_module?.variables || {}).map((key) => {
             return {
                 name: key,
+                module: "root_module",
                 expressionReferences: []
             }
         })
@@ -20,6 +21,7 @@ export const getVariablesAndOutputs = (nodeGroups: Map<string, NodeGroup>, planJ
             const thisModule = "root_module"
             return {
                 name: key,
+                module: "root_module",
                 outputReferences: planJson?.configuration?.root_module?.outputs?.[key]?.expression?.references?.map((r: any) => {
                     const type = r.startsWith("var.") ? "variable" : r.startsWith("module.") ? "output" : "resource"
                     const module = type === "variable" || type === "resource" ? thisModule : type === "output" ? r.split(".")[1] : ""
@@ -67,6 +69,7 @@ export const getVariablesAndOutputs = (nodeGroups: Map<string, NodeGroup>, planJ
                 variables[moduleName] = Object.keys(planJson?.configuration?.root_module?.module_calls?.[moduleName]?.module?.variables || {}).map((key) => {
                     return {
                         name: key,
+                        module: moduleName,
                         expressionReferences: planJson?.configuration?.root_module?.module_calls?.[moduleName]?.expressions?.[key]?.references?.map((r: any) => {
                             const type = r.startsWith("var.") ? "variable" : r.startsWith("module.") ? "output" : "unknown"
                             const module = type === "variable" ? parentModule : type === "output" ? r.split(".")[1] : ""
@@ -84,6 +87,7 @@ export const getVariablesAndOutputs = (nodeGroups: Map<string, NodeGroup>, planJ
                     const thisModule = moduleName
                     return {
                         name: key,
+                        module: moduleName,
                         outputReferences: planJson?.configuration?.root_module?.module_calls?.[moduleName]?.module?.outputs?.[key]?.expression?.references?.map((r: any) => {
                             const type = r.startsWith("var.") ? "variable" : r.startsWith("module.") ? "output" : "resource"
                             const module = type === "variable" || type === "resource" ? thisModule : type === "output" ? r.split(".")[1] : ""

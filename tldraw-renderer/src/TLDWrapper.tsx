@@ -45,6 +45,7 @@ export type NodeGroup = {
 
 export type TFVariable = {
     name: string,
+    module: string,
     expressionReferences: {
         type: "variable" | "output" | "unknown",
         module: string,
@@ -54,6 +55,7 @@ export type TFVariable = {
 
 export type TFOutput = {
     name: string,
+    module: string,
     outputReferences: {
         type: "variable" | "output" | "resource",
         module: string,
@@ -89,6 +91,7 @@ const TLDWrapper = () => {
     const showDebugRef = useRef<boolean>(false)
     const deselectedCategoriesRef = useRef<string[]>([])
     const [showUnknown, setShowUnknown] = useState<boolean>(false)
+    const [selectedVarOutput, setSelectedVarOutput] = useState<TFVariable | TFOutput | undefined>()
 
     useEffect(() => {
         if (!storedData || initialized) return
@@ -522,8 +525,20 @@ const TLDWrapper = () => {
         }
     }
 
+    const handleNodeSelectionChange = (node: NodeGroup) => {
+        const shapeStartId = "shape:" + node.id
+        console.log("shapeStartId", shapeStartId)
+        editor?.getCurrentPageShapeIds().forEach((shapeId) => {
+            if (shapeId.startsWith(shapeStartId + ":")) {
+                console.log("shapeId", shapeId)
+                handleShapeSelectionChange(shapeId)
+            }
+        })
+    }
+
     const handleShapeSelectionChange = (shapeId: string) => {
         const element = document.querySelector(".tlui-navigation-zone") as HTMLElement
+        setSelectedVarOutput(undefined)
         if (!storedData?.planJson || shapeId === "") {
             setSelectedNode(undefined)
             setSidebarWidth(0)
@@ -616,6 +631,12 @@ const TLDWrapper = () => {
         editor?.selectNone()
     }
 
+    const handleVarOutputSelectionChange = (varOutput: string, module: string, type: "variable" | "output") => {
+        console.log(varOutput)
+        setSelectedVarOutput(type === "variable" ? variables?.[module]?.find((variable) => variable.name === varOutput) :
+            outputs?.[module]?.find((output) => output.name === varOutput))
+    }
+
 
     return (
         <div style={{
@@ -633,7 +654,13 @@ const TLDWrapper = () => {
             </div>
             {
                 selectedNode &&
-                <VarsAndOutputsPanel selectedNode={selectedNode} sidebarWidth={sidebarWidth} variables={variables} />
+                <VarsAndOutputsPanel
+                    selectedNode={selectedNode}
+                    sidebarWidth={sidebarWidth}
+                    selectedVarOutput={selectedVarOutput?.name || ""}
+                    setSelectedVar={(variable, module) => handleVarOutputSelectionChange(variable, module, "variable")}
+                    setSelectedOutput={(output, module) => handleVarOutputSelectionChange(output, module, "output")}
+                    variables={variables} />
             }
 
             {initialized &&
@@ -688,11 +715,18 @@ const TLDWrapper = () => {
 
             {sidebarWidth > 0 &&
                 <Sidebar width={sidebarWidth}
-                    title={selectedNode?.name || ""}
+                    nodeGroups={storedNodeGroups!}
+                    handleNodeSelectionChange={handleNodeSelectionChange}
+                    title={selectedVarOutput?.name || selectedNode?.name || ""}
                     text={diffText}
-                    subtitle={selectedNode?.type || ""}
+                    subtitle={selectedVarOutput ? selectedVarOutput.hasOwnProperty("outputReferences") ? "Output" : "Variable" : selectedNode?.type || ""}
                     closeSidebar={() => closeSidebar()}
-                    handleShowUnknownChange={handleShowUnknownChange} />
+                    handleShowUnknownChange={handleShowUnknownChange}
+                    selectedVarOutput={selectedVarOutput}
+                    handleVarOutputSelectionChange={handleVarOutputSelectionChange}
+                    variables={variables || {}}
+                    outputs={outputs || {}}
+                />
             }
 
             {!storedData &&

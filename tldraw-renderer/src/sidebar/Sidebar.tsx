@@ -1,16 +1,37 @@
 import { Checkbox, Drawer, FormControlLabel, FormGroup, IconButton, Tooltip, Typography } from "@mui/material"
 import "./Sidebar.css"
 import CloseIcon from '@mui/icons-material/Close';
+import ResourceDrilldown from "./ResourceDrilldown";
+import VariableOutputDrilldown from "./VariableOutputDrilldown";
+import { NodeGroup, TFOutput, TFVariable } from "../TLDWrapper";
 
 interface SidebarProps {
     width: number;
     text: string;
+    selectedVarOutput: TFVariable | TFOutput | undefined;
     handleShowUnknownChange: (showHidden: boolean) => void;
+    handleVarOutputSelectionChange: (varOutput: string, module: string, type: "variable" | "output") => void;
+    nodeGroups: NodeGroup[];
+    handleNodeSelectionChange: (node: NodeGroup) => void;
     closeSidebar: () => void;
     title: string
     subtitle: string
+    variables: { [moduleName: string]: TFVariable[] };
+    outputs: { [moduleName: string]: TFOutput[] };
 }
-const Sidebar = ({ width, text, handleShowUnknownChange, title, subtitle, closeSidebar }: SidebarProps) => {
+const Sidebar = ({ width,
+    text,
+    handleShowUnknownChange,
+    title,
+    subtitle,
+    closeSidebar,
+    selectedVarOutput,
+    handleVarOutputSelectionChange,
+    nodeGroups,
+    handleNodeSelectionChange,
+    variables,
+    outputs
+}: SidebarProps) => {
     return (
         <Drawer
             anchor={"right"}
@@ -18,6 +39,7 @@ const Sidebar = ({ width, text, handleShowUnknownChange, title, subtitle, closeS
             open={true}
             sx={{
                 "& .MuiPaper-root": {
+                    backgroundColor: "#F7F7F8",
                     borderLeft: "1px dashed"
                 }
             }}
@@ -43,23 +65,21 @@ const Sidebar = ({ width, text, handleShowUnknownChange, title, subtitle, closeS
                 style={{
                     width: width + "rem",
                 }}>
-                <div className="bg-[#302B35] text-white overflow-scroll h-full p-4 grow rounded text-xs"
-                    style={{ fontFamily: '"Cascadia Code", sans-serif', }}
-                    dangerouslySetInnerHTML={{ __html: text }}
-                />
-                <div className="w-[28rem] my-4 h-[1px] bg-[#B2AEB6]" />
-                <div className="mb-6">
-                    <FormGroup>
-                        <FormControlLabel sx={{
-                            margin: 0,
-                            "& .MuiCheckbox-root": {
-                                padding: 0,
-                                paddingRight: "0.25rem",
-                            }
-                        }} onChange={(e, checked) => handleShowUnknownChange(checked)} control={<Checkbox />} label="Show unknown attributes" />
-                    </FormGroup>
-                </div>
+                {selectedVarOutput ?
+                    <VariableOutputDrilldown
+                        nodeGroups={nodeGroups}
+                        handleNodeSelectionChange={handleNodeSelectionChange}
+                        selectedVarOutput={selectedVarOutput}
+                        handleVarOutputSelectionChange={handleVarOutputSelectionChange}
+                        variables={variables}
+                        outputs={outputs}
+                    /> :
+                    <ResourceDrilldown
+                        text={text}
+                        handleShowUnknownChange={handleShowUnknownChange}
+                    />}
             </div>
+
         </Drawer >
     )
 }
