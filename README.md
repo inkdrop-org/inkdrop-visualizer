@@ -19,7 +19,7 @@ Into this:
 
 ![output-onlinejpgtools](https://github.com/inkdrop-org/inkdrop-visualizer/assets/86591160/38eaae22-9d68-430c-99ab-a2d2dd49085c)
 
-# Usage and Deployment
+## Usage and Deployment
 Using Inkdrop is simple:
 
 **Install via NPM:**
@@ -38,7 +38,7 @@ This will launch an interactive WebUI showing you exactly what resources will ch
 
 Note: You can also run inkdrop without a plan but it will currently be missing tags, variables and feature toggles.
 
-# Command Line Arguments
+## Command Line Arguments
 
 | Argument           | Description                                                           | Example Usage                               |
 |--------------------|-----------------------------------------------------------------------|---------------------------------------------|
@@ -49,7 +49,7 @@ Note: You can also run inkdrop without a plan but it will currently be missing t
 | `--help`, `-h`     | Displays help information about the CLI tool and its commands/options. | `inkdrop --help`                           |
 | `--version`, `-v`  | Shows the current version number of the CLI tool.                     | `inkdrop --version`                        |
 
-# Troubleshooting
+## Troubleshooting
 
 If you encounter any issues while using command line arguments, make sure you are using the latest version of Inkdrop by updating it via npm:
 
@@ -59,15 +59,15 @@ npm update -g inkdrop-visualizer
 
 Should the issues persist, please use the `--debug` flag and report the issue. We're looking forward to help.
 
-# Configuration
+## Configuration
 No configuration required! As long as you can run terraform init, Inkdrop will work.
 In the UI you can also filter by resource type or tags. 
 
 ## Telemetry
 As this is a local CLI tool we have no information about your setup. The only telemetry we collect is a simple ping to our server, to estimate usage of the CLI tool. 
-To turn it off simply use the flag "--telemetry-off"
+To turn it off simply use the flag `--telemetry-off`
 
-# Running Inkdrop in CI Process
+## Running Inkdrop in CI Process
 
 If you'd like to run inkdrop from your CI process you can just let the runner create an SVG image. 
 | Argument           | Description                                                           | Example Usage                               |
@@ -78,7 +78,7 @@ If you'd like to run inkdrop from your CI process you can just let the runner cr
 
 We will soon add a more complete guide on how to implement it in Github, Gitlab and using Atlantis.
 
-# Development
+## Development
 We welcome contributions and feedback! Feel free to open GitHub issues for bugs or feature requests.
 
 We are currently working on multi repo environments and making improvements according to user feedback.
