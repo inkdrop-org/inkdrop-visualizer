@@ -63,6 +63,10 @@ Should the issues persist, please use the `--debug` flag and report the issue. W
 No configuration required! As long as you can run terraform init, Inkdrop will work.
 In the UI you can also filter by resource type or tags. 
 
+## Telemetry
+As this is a local CLI tool we have no information about your setup. The only telemetry we collect is a simple ping to our server, to estimate usage of the CLI tool. 
+To turn it off simply use the flag "--telemetry-off"
+
 # Running Inkdrop in CI Process
 
 If you'd like to run inkdrop from your CI process you can just let the runner create an SVG image. 
