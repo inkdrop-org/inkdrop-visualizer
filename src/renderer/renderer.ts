@@ -113,11 +113,11 @@ export async function runHeadlessBrowserAndExportSVG(graphVizText: string, planO
         await page.evaluate((graphData, planData, detailed, showInactive, debug) => {
             const graphTextArea = document.getElementById('inkdrop-graphviz-textarea');
             if (graphTextArea && graphTextArea instanceof HTMLTextAreaElement) {
-                graphTextArea.value = graphData;
+                graphTextArea.value = graphData
             }
             const planTextArea = document.getElementById('inkdrop-plan-textarea');
             if (planTextArea && planTextArea instanceof HTMLTextAreaElement) {
-                planTextArea.value = planData;
+                planTextArea.value = planData
             }
             const detailedTextArea = document.getElementById('detailed-textarea');
             if (detailedTextArea && detailedTextArea instanceof HTMLTextAreaElement) {

@@ -527,10 +527,8 @@ const TLDWrapper = () => {
 
     const handleNodeSelectionChange = (node: NodeGroup) => {
         const shapeStartId = "shape:" + node.id
-        console.log("shapeStartId", shapeStartId)
         editor?.getCurrentPageShapeIds().forEach((shapeId) => {
             if (shapeId.startsWith(shapeStartId + ":")) {
-                console.log("shapeId", shapeId)
                 handleShapeSelectionChange(shapeId)
             }
         })
@@ -632,7 +630,6 @@ const TLDWrapper = () => {
     }
 
     const handleVarOutputSelectionChange = (varOutput: string, module: string, type: "variable" | "output") => {
-        console.log(varOutput)
         setSelectedVarOutput(type === "variable" ? variables?.[module]?.find((variable) => variable.name === varOutput) :
             outputs?.[module]?.find((output) => output.name === varOutput))
     }

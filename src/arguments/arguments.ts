@@ -39,6 +39,10 @@ export const argv = yargs(hideBin(process.argv))
         describe: 'Displays both active and inactive resources within a Terraform plan.',
         type: 'boolean',
     })
+    .option('telemetry-off', {
+        describe: 'Disables telemetry data collection.',
+        type: 'boolean',
+    })
     .version('version', 'Show version number', version)
     .alias('version', 'v')
     .example([
@@ -49,7 +53,8 @@ export const argv = yargs(hideBin(process.argv))
         ['$0 --from-plan plan.out', 'Uses a Terraform plan file to visualize changes.'],
         ['$0 --path ./repos/my-tf-project', 'Sets the working directory.'],
         ['$0 --renderer-port 8080', 'Sets a custom rendering service port.'],
-        ['$0 --from-plan plan.out --show-inactive', 'Visualizes changes including inactive resources.']
+        ['$0 --from-plan plan.out --show-inactive', 'Visualizes changes including inactive resources.'],
+        ['$0 --telemetry-off', 'Disables telemetry data collection.'],
     ])
     .help()
     .alias('help', 'h')

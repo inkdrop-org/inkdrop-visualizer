@@ -78,7 +78,6 @@ const VariableOutputDrilldown = ({
         name: string;
         type: "variable" | "output" | "resource" | "unknown";
     }[]) => {
-        console.log("references", references)
         return <>
             {
                 references.filter((dep) => {
@@ -308,7 +307,6 @@ const VariableOutputDrilldown = ({
                 )).map((output) => output.name) || []
             }
         })
-        console.log("affectedResources", affectedResources)
         return affectedResources
     }
 

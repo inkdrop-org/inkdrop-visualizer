@@ -2,12 +2,12 @@
 
 import path from 'path';
 import fs from 'fs';
-
 import { exec } from 'child_process';
 import util from 'util';
 import express from 'express';
 import { runHeadlessBrowserAndExportSVG } from './renderer/renderer';
 import { argv } from './arguments/arguments';
+import { sendPing } from './ping/sendPing';
 
 const MAX_BUFFER_SIZE = 10 * 1024 * 1024; // 10 MB
 
@@ -18,6 +18,11 @@ const imagesPath = path.join(__dirname, '..', 'Icons');
 const assetsPath = path.join(__dirname, '..', 'assets');
 const inkdropLogoPath = path.join(__dirname, '..', 'build/logo.png');
 const app = express();
+
+// Send a ping to the telemetry server, containing the used version of inkdrop
+if (!(argv as any).telemetryOff) {
+    sendPing()
+}
 
 // Check if the argument "--from-plan" contains a path to a plan file
 if ((argv as any).fromPlan) {
