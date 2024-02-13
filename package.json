@@ -4,7 +4,7 @@
   "description": "",
   "main": "src/index.js",
   "scripts": {
-    "build": "cd tldraw-renderer && npm install && npm run build && cd .. && tsc && ncp public/Icons dist/Icons && ncp public/assets dist/assets && ncp tldraw-renderer/build dist/build",
+    "build": "cd tldraw-renderer && npm install && npm run build && cd .. && tsc && ncp tldraw-renderer/public/Icons dist/Icons && ncp tldraw-renderer/public/assets dist/assets && ncp tldraw-renderer/build dist/build",
     "build-renderer": "tsc",
     "test": "cd test-project && terraform init && terraform plan --out plan.out && cd .. && node dist/src/index.js --path test-project --from-plan test-project/plan.out",
     "pkg": "pkg package.json"

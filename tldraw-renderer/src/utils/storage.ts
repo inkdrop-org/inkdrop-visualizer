@@ -10,14 +10,23 @@ export const sendData = (data: Object) => {
 }
 
 export const getData = async () => {
-    const response = await fetch('http://localhost:3000/getdata', {
-        method: 'GET',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-    })
-    if (response.status !== 200) {
-        return null
+    let response
+    if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
+        response = await chrome.runtime.sendMessage({ action: "getData" })
+        console.log("response", response)
+        if (response.error) {
+            console.error(response.error);
+        };
+    } else {
+        response = await fetch('http://localhost:3000/getdata', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        })
+        if (response.status !== 200) {
+            return null
+        }
     }
     return response.json()
 }
