@@ -2,8 +2,8 @@ name: Build and Release for Linux and Alpine
 
 on:
   push:
-    branches:
-      - linux-release
+    tags:
+      - 'v*'
 
 jobs:
   create_release:
@@ -16,7 +16,7 @@ jobs:
         
       - name: Get the version tag
         id: get_version
-        run: echo ::set-output name=VERSION::0.0.1
+        run: echo ::set-output name=VERSION::${GITHUB_REF#refs/tags/}
 
       - name: Create GitHub Release
         id: create_release
