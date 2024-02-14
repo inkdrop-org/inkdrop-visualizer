@@ -6,13 +6,32 @@ on:
       - linux-release
 
 jobs:
-  release:
+  create_release:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        target: [linux, alpine]
     outputs:
-      tag_name: ${{ steps.get_version.outputs.VERSION }}
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+        
+      - name: Get the version tag
+        id: get_version
+        run: echo ::set-output name=VERSION::0.0.1
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.get_version.outputs.VERSION }}
+          release_name: Release ${{ steps.get_version.outputs.VERSION }}
+          draft: false
+          prerelease: false
+
+  build_and_upload_linux:
+    needs: create_release
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
@@ -22,42 +41,62 @@ jobs:
         with:
           node-version: '18'
 
-      - name: Install project dependencies
-        run: npm install
-
-      - name: Run build script
-        run: npm run build
-
       - name: Install pkg globally
         run: npm install -g pkg
 
-      - name: Build executable for ${{ matrix.target }} 
-        run: pkg -t node18-${{ matrix.target }}-x64 package.json -o release/inkdrop
+      - name: Install dependencies
+        run: npm install
 
-      - name: Get the version tag
-        id: get_version
-        run: echo ::set-output name=VERSION::0.0.1
+      - name: Build Linux package
+        run: |
+          npm run build
+          pkg -t node18-linux-x64 package.json -o release/inkdrop
+          
+      - name: Archive the Linux package
+        run: tar -czvf release/inkdrop-linux-x64-${{ needs.create_release.outputs.upload_url_VERSION }}.tar.gz -C release inkdrop
 
-      - name: Archive the executable
-        run: tar -czvf release/inkdrop-${{ matrix.target }}-x64-${{ steps.get_version.outputs.VERSION }}.tar.gz -C release inkdrop
-
-      - name: Create GitHub Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ steps.get_version.outputs.VERSION }}
-          release_name: inkdrop-${{ matrix.target }}-${{ steps.get_version.outputs.VERSION }}
-          draft: false
-          prerelease: false
-
-      - name: Upload executable to GitHub Release
+      - name: Upload Linux package to Release
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: release/inkdrop-${{ matrix.target }}-x64-${{ steps.get_version.outputs.VERSION }}.tar.gz
-          asset_name: inkdrop-${{ matrix.target }}-x64-${{ steps.get_version.outputs.VERSION }}.tar.gz
+          upload_url: ${{ needs.create_release.outputs.upload_url }}
+          asset_path: ./release/inkdrop-linux-x64-${{ needs.create_release.outputs.upload_url_VERSION }}.tar.gz
+          asset_name: inkdrop-linux-x64-${{ needs.create_release.outputs.upload_url_VERSION }}.tar.gz
+          asset_content_type: application/gzip
+
+  build_and_upload_alpine:
+    needs: create_release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install pkg globally
+        run: npm install -g pkg
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build Alpine package
+        run: |
+          npm run build
+          pkg -t node18-alpine-x64 package.json -o release/inkdrop
+          
+      - name: Archive the Alpine package
+        run: tar -czvf release/inkdrop-alpine-x64-${{ needs.create_release.outputs.upload_url_VERSION }}.tar.gz -C release inkdrop
+
+      - name: Upload Alpine package to Release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create_release.outputs.upload_url }}
+          asset_path: ./release/inkdrop-alpine-x64-${{ needs.create_release.outputs.upload_url_VERSION }}.tar.gz
+          asset_name: inkdrop-alpine-x64-${{ needs.create_release.outputs.upload_url_VERSION }}.tar.gz
           asset_content_type: application/gzip
