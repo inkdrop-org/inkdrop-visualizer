@@ -8,6 +8,7 @@ import express from 'express';
 import { runHeadlessBrowserAndExportSVG } from './renderer/renderer';
 import { argv } from './arguments/arguments';
 import { sendPing } from './ping/sendPing';
+import semver from 'semver';
 
 const MAX_BUFFER_SIZE = 10 * 1024 * 1024; // 10 MB
 
@@ -93,8 +94,28 @@ async function runTerraformGraph(): Promise<void> {
         planJson = showStdout
     }
 
+    const { stdout: versionStdout, stderr: versionStderr } = await execAsync('terraform -v -json', {
+        cwd: path.resolve((argv as any).path || "."),
+        maxBuffer: MAX_BUFFER_SIZE
+    })
+        .catch((err) => {
+            console.error("Error while running 'terraform version':\n"
+                + err)
+            process.exit(1);
+        })
+
+    if (versionStderr) {
+        console.error(`${versionStderr}`);
+        process.exit(1);
+    }
+
+    const version = JSON.parse(versionStdout).terraform_version
+    const addGraphPlanFlag = semver.gte(version, "1.7.0")
+
+    const graphCommand = addGraphPlanFlag ? 'terraform graph -type=plan' : 'terraform graph'
+
     console.log("Computing raw graph...")
-    const { stdout: graphStdout, stderr: graphStderr } = await execAsync('terraform graph', {
+    const { stdout: graphStdout, stderr: graphStderr } = await execAsync(graphCommand, {
         cwd: path.resolve((argv as any).path || "."),
         maxBuffer: MAX_BUFFER_SIZE
     })
