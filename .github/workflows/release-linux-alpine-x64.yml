@@ -2,8 +2,8 @@ name: Build and Release for Linux and Alpine
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - linux-release
 
 jobs:
   release:
@@ -36,7 +36,7 @@ jobs:
 
       - name: Get the version tag
         id: get_version
-        run: echo ::set-output name=VERSION::${GITHUB_REF#refs/tags/}
+        run: echo ::set-output name=VERSION::0.0.1
 
       - name: Archive the executable
         run: tar -czvf release/inkdrop-${{ matrix.target }}-x64-${{ steps.get_version.outputs.VERSION }}.tar.gz -C release inkdrop
