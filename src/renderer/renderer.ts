@@ -1,10 +1,14 @@
 import path from "path";
 import puppeteer, { Page } from "puppeteer";
+import { install, getInstalledBrowsers, Browser } from "@puppeteer/browsers"
 import { sleep } from "../utils/time";
 import { Server } from "http";
 import fs from "fs";
+import ProgressBar from "progress"
 
 import { exec } from "child_process";
+
+const chromeRevision = "119.0.6045.105"
 
 function openUrl(url: string) {
     let startCommand;
@@ -54,10 +58,34 @@ async function performActionsToDownloadFile(page: Page) {
     });
 }
 
+let bar: ProgressBar
 // Main Puppeteer logic for extracting SVG
 export async function runHeadlessBrowserAndExportSVG(graphVizText: string, planOutput: string, server: Server, argv: any) {
 
     console.log("Processing raw graph...")
+    const installDir = path.join(process.env.HOME || "", '.cache', 'puppeteer')
+    const installedBrowsers = await getInstalledBrowsers({ cacheDir: installDir })
+    if (installedBrowsers.length === 0 || !installedBrowsers.some(b => b.browser === Browser.CHROME && b.buildId === chromeRevision)) {
+        console.log("Chromium not found in cache, downloading...")
+        await install({
+            browser: Browser.CHROME,
+            cacheDir: installDir,
+            buildId: chromeRevision,
+            downloadProgressCallback: (downloadedBytes, totalBytes) => {
+                if (!bar) {
+                    bar = new ProgressBar('Downloading Chromium [:bar] :percent :etas', {
+                        complete: '=',
+                        incomplete: ' ',
+                        width: 40,
+                        total: totalBytes,
+                    });
+                }
+
+                // Update the progress bar
+                bar.tick(downloadedBytes - bar.curr);
+            }
+        })
+    }
     const browser = await puppeteer.launch({ headless: "new" });
     const page = await browser.newPage();
     const debug = (argv as any).debug || false
