@@ -56,7 +56,7 @@ jobs:
 
   inkdrop-run:
     needs: plan
-    uses: inkdrop-org/inkdrop-visualizer/ci/inkdrop-plan.yml@main
+    uses: inkdrop-org/inkdrop-visualizer/.github/workflows/inkdrop-plan.yml@main
     with:
       terraform_version: 1.7.0 # Mandatory
       plan_artifact: plan

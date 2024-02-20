@@ -1,6 +1,6 @@
 # Reusable GitHub Action: Visualize Your Terraform Plan in Pull Requests
 
-This GitHub Action is designed to streamline the Terraform planning and visualization processes. It integrates Terraform plan execution with Inkdrop.
+[Inkdrop GitHub Action](/.github/workflows/inkdrop-plan.yml) is designed to streamline the Terraform planning and visualization processes. It integrates Terraform plan execution with Inkdrop.
 This action generates an Inkdrop diagram of your Terraform plan and automatically publishes it to the pull request.
 To maximize benefits, installation of the Inkdrop Chrome extension is recommended. This enables you to open the interactive version of the diagram, which runs locally on your Chrome browser, by simply clicking on the commented image in the PR.
 
@@ -17,4 +17,4 @@ To maximize benefits, installation of the Inkdrop Chrome extension is recommende
 
 ## Usage
 
-Refer to the [example](examples/plan-and-run-inkdrop.yml).
+Refer to the [example](example-plan-and-run-inkdrop.yml).
