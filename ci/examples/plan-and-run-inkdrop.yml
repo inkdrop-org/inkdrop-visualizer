@@ -1,0 +1,65 @@
+name: Pull Request Main
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.7.0
+          terraform_wrapper: false
+            
+      - name: Terraform Init and Plan
+        id: plan
+        working-directory: ./test-project
+        run: |
+          terraform init
+          plan_output=$(terraform plan -out plan.out -no-color)
+          echo "::set-output name=plan::${plan_output}"
+          echo "${plan_output}" > plan.txt
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+      - name: Upload Terraform Plan out as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: plan
+          path: ./test-project/plan.out
+
+      - name: Comment PR with Terraform Plan
+        uses: actions/github-script@v6
+        if: github.event_name == 'pull_request'
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          script: |
+            const fs = require('fs');
+            const planOutput = fs.readFileSync('${{ github.workspace }}/test-project/plan.txt', 'utf8');
+            github.rest.issues.createComment({
+              ...context.repo,
+              issue_number: context.issue.number,
+              body: "### Terraform Plan Output\n" + "```\n" + planOutput + "\n```"
+            });
+
+  ############################ RUN INKDROP ##################################
+  # This job will run Inkdrop using the plan generated in the previous job  #
+  ###########################################################################
+
+  inkdrop-run:
+    needs: plan
+    uses: inkdrop-org/inkdrop-visualizer/ci/inkdrop-plan.yml@main
+    with:
+      terraform_version: 1.7.0 # Mandatory
+      plan_artifact: plan
+      terraform_relative_dir: ./test-project
+      plan_file_name: plan.out
+      inkdrop_version: v1.1.13 # Defaults to latest

@@ -7,6 +7,11 @@ export const argv = yargs(hideBin(process.argv))
     .scriptName("inkdrop")
     .usage('$0 <cmd> [args]')
     .command('$0', 'Generates an SVG image of your Terraform resources. Automatically launches a browser tab to display the diagram interactively.', () => { })
+    .option('ci', {
+        describe: 'Enables CI mode, which does not open the browser and logs extra details, that are used by the Inkdrop Chrome extension',
+        type: 'boolean',
+        example: "inkdrop --ci",
+    })
     .option('detailed', {
         describe: 'Includes comprehensive details for all rendered resources.',
         type: 'boolean',
@@ -47,6 +52,7 @@ export const argv = yargs(hideBin(process.argv))
     .alias('version', 'v')
     .example([
         ['$0', 'Generates an SVG and opens the interactive renderer in a browser.'],
+        ['$0 --ci', 'Enables CI mode, which does not open the browser and logs extra details.'],
         ['$0 --detailed', 'Generates a diagram with comprehensive details for all resources.'],
         ['$0 --debug', 'Enables debug mode.'],
         ['$0 --disable-ui', 'Saves the SVG locally without launching the browser.'],

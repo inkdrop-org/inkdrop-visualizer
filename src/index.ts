@@ -51,12 +51,18 @@ app.use(express.static(path.resolve(__dirname, '..', 'build')));
 
 let state: any = {}
 
-app.post('/senddata', (req, res) => {
+const ci = (argv as any).ci || false
+
+app.post('/senddata', async (req, res) => {
     const receivedData = req.body;
     Object.keys(receivedData).forEach(key => {
         state[key] = receivedData[key]
     })
     res.status(200).json({ message: 'Data stored', yourData: receivedData });
+    if (ci) {
+        console.log("Writing 'inkdrop-ci-data.json'...")
+        fs.writeFileSync(path.resolve(((argv as any).path || "."), 'inkdrop-ci-data.json'), JSON.stringify(state))
+    }
 });
 
 app.get('/getdata', (req, res) => {

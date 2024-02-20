@@ -129,22 +129,9 @@ const TLDWrapper = () => {
                 } catch (error: any) {
                     setLoadingState({ status: 'error', error: error.message }) // Something went wrong
                 }
+                editor?.zoomToContent()
             } else {
                 setLoadingState({ status: 'ready' }) // Nothing persisted, continue with the empty store
-            }
-
-            // Each time the store changes, run the (debounced) persist function
-            const cleanupFn = store.listen(
-                throttle(() => {
-                    const snapshot = store.getSnapshot()
-                    sendData({
-                        editor: JSON.stringify(snapshot),
-                    })
-                }, 500)
-            )
-
-            return () => {
-                cleanupFn()
             }
         }
         getAndUpdateState()
@@ -510,6 +497,9 @@ const TLDWrapper = () => {
     const debugTextAreaRef = useRef<
         HTMLTextAreaElement | null
     >(null)
+    const contextTextAreaRef = useRef<
+        HTMLTextAreaElement | null
+    >(null)
 
 
     const handleRenderButtonClick = () => {
@@ -747,6 +737,10 @@ const TLDWrapper = () => {
                     <textarea
                         ref={debugTextAreaRef}
                         id='debug-textarea'
+                    />
+                    <textarea
+                        ref={contextTextAreaRef}
+                        id='context-textarea'
                     />
                     <button
                         onClick={handleRenderButtonClick}
