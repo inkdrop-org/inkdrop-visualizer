@@ -63,7 +63,7 @@ let bar: ProgressBar
 export async function runHeadlessBrowserAndExportSVG(graphVizText: string, planOutput: string, server: Server, argv: any) {
 
     console.log("Processing raw graph...")
-    const installDir = path.join(process.env.HOME || "", '.cache', 'puppeteer')
+    const installDir = path.resolve(path.join(process.env.HOME || "", '.cache', 'puppeteer'))
     const installedBrowsers = await getInstalledBrowsers({ cacheDir: installDir })
     if (installedBrowsers.length === 0 || !installedBrowsers.some(b => b.browser === Browser.CHROME && b.buildId === chromeRevision)) {
         console.log("Chromium not found in cache, downloading...")
