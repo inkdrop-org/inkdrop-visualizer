@@ -88,11 +88,13 @@ export async function runHeadlessBrowserAndExportSVG(graphVizText: string, planO
     }
     const browser = await puppeteer.launch({ headless: "new" });
     const page = await browser.newPage();
+    const ci = (argv as any).ci || false
     const debug = (argv as any).debug || false
     const PORT = (argv as any).rendererPort || 3000
     const noUi = (argv as any).disableUi || false
     const detailed = (argv as any).detailed || false
     const showInactive = (argv as any).showInactive || false
+    const context = ci ? "ci" : "interactive"
 
     await page.goto(`http://localhost:${PORT}/index.html`);
 
@@ -128,7 +130,7 @@ export async function runHeadlessBrowserAndExportSVG(graphVizText: string, planO
             fs.renameSync(path.resolve(downloadFolder, suggestedFilename), path.resolve(downloadFolder, suggestedFilename.replace("shapes", "inkdrop-diagram")));
             console.log(`Downloaded diagram -> ${path.resolve(downloadFolder, suggestedFilename.replace("shapes", "inkdrop-diagram"))}`)
             await browser.close();
-            if (noUi) {
+            if (noUi || ci) {
                 server.close();
             } else {
                 console.log("Opening Inkdrop...")

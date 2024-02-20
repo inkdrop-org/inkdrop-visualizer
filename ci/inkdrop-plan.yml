@@ -1,0 +1,175 @@
+on:
+  workflow_call:
+    inputs:
+      terraform_version:
+        type: string
+        required: true
+        description: The version of Terraform to use
+      plan_artifact:
+        type: string
+        default: plan-artifact
+        required: false
+        description: The name of the artifact containing the plan file
+      plan_file_name:
+        type: string
+        default: plan.out
+        required: false
+        description: The name of the plan file
+      terraform_relative_dir:
+        type: string
+        default: .
+        required: false
+        description: The relative directory of the Terraform configuration
+      images_branch:
+        type: string
+        default: inkdrop-ci-images
+        required: false
+        description: The name of the branch to store the Inkdrop images
+      inkdrop_version:
+        type: string
+        default: latest
+        required: false
+        description: The version of Inkdrop to use (vX.Y.Z format)
+      
+      
+jobs:
+  run_inkdrop:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: ${{ inputs.terraform_version }}
+          terraform_wrapper: false
+
+      - name: Terraform
+        working-directory: ${{ inputs.terraform_relative_dir }}
+        run: |
+          terraform init
+
+      - name: Configure git
+        run: |
+          git config --global user.email "github-actions@example.com"
+          git config --global user.name "GitHub Actions"  
+
+      - name: Create Orphan Branch (if necessary)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Checking if '${{ inputs.images_branch }}' branch exists..."
+          EXISTS=$(git ls-remote --heads origin ${{ inputs.images_branch }} | wc -l)
+          if [ "$EXISTS" -eq "0" ]; then
+            TEMP_DIR=$(mktemp -d)
+            cd $TEMP_DIR
+            git init
+            git remote add origin ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git
+            git config http.${GITHUB_SERVER_URL}/.extraheader "AUTHORIZATION: basic $(echo -n x-access-token:${{ secrets.GITHUB_TOKEN }} | base64)"            
+            touch README.md
+            echo "### Branch used to store Inkdrop CI images" > README.md
+            git add .
+            git commit -m "Initial commit on orphan branch ${{ inputs.images_branch }}"
+            
+            git push --set-upstream origin master:refs/heads/${{ inputs.images_branch }}
+            
+            cd -
+            rm -rf $TEMP_DIR
+          else
+            echo "'${{ inputs.images_branch }}' branch already exists."
+          fi
+          
+      - name: Download and install Inkdrop
+        run: |
+          if [ "${{ inputs.inkdrop_version }}" = "latest" ]; then
+            wget https://github.com/inkdrop-org/inkdrop-visualizer/releases/latest/download/inkdrop-linux-x64.tar.gz
+          else
+            wget https://github.com/inkdrop-org/inkdrop-visualizer/releases/download/${{ inputs.inkdrop_version }}/inkdrop-linux-x64.tar.gz
+          fi
+          tar -xzf inkdrop-linux-x64.tar.gz
+          chmod +x inkdrop
+          mv inkdrop /usr/local/bin/
+
+      - name: Download the artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.plan_artifact }}
+          path: ${{ inputs.terraform_relative_dir }}
+
+      - name: Run Inkdrop
+        run: |
+          inkdrop --ci --from-plan ${{inputs.plan_file_name}}
+        working-directory: ${{ inputs.terraform_relative_dir }}
+
+      ################################# INKDROP DATA COMMENT ################################
+      # The Inkdrop chrome extension needs this comment to render the interactive diagram.  #
+      # By activating the extension, this comment will be hidden from the UI.               #
+      # Don't manually change the following, or the chrome extension might stop working.    #
+      #######################################################################################
+
+      - name: Comment PR with Inkdrop JSON Data
+        uses: actions/github-script@v6
+        if: github.event_name == 'pull_request'
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          script: |
+            const fs = require('fs');
+            const jsonData = fs.readFileSync('${{ inputs.terraform_relative_dir }}/inkdrop-ci-data.json', 'utf8');
+            github.rest.issues.createComment({
+              ...context.repo,
+              issue_number: context.issue.number,
+              body: "### Inkdrop Data Output\n" + "```json\n" + jsonData + "\n```"
+            });
+
+      - name: Capture SVG File Name
+        id: find_svg
+        working-directory: ${{ inputs.terraform_relative_dir }}
+        run: |
+          SVG_FILE=$(ls -Art *.svg | tail -n 1)
+          echo "Found SVG: $SVG_FILE"
+          echo "::set-output name=svg_file_name::${SVG_FILE}"
+
+
+      - name: Commit and push SVG to inkdrop images branch
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const path = process.env.SVG_FILE_PATH;
+            const svgContent = fs.readFileSync(path, { encoding: 'utf-8' });
+            const branch = '${{ inputs.images_branch }}';
+            const filePath = `images/PR${process.env.PR_ID}/${path.split('/').pop()}`;
+            
+            // Encode SVG content to Base64 for the GitHub API
+            const contentBase64 = Buffer.from(svgContent).toString('base64');
+            
+            // Commit and push the file
+            await github.rest.repos.createOrUpdateFileContents({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              path: filePath,
+              message: `Add SVG for PR ${process.env.PR_ID}`,
+              content: contentBase64,
+              branch,
+            }).catch(error => core.setFailed(`Failed to commit SVG: ${error.message}`));
+        env:
+          SVG_FILE_PATH: ${{ inputs.terraform_relative_dir }}/${{ steps.find_svg.outputs.svg_file_name }}
+          PR_ID: ${{ github.event.pull_request.number }}
+
+      - name: Comment PR with Inkdrop SVG Image Link
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          script: |
+            const prId = ${{ github.event.pull_request.number }};
+            const svgFileName = '${{ steps.find_svg.outputs.svg_file_name }}'.split('/').pop();
+            const svgUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/blob/${{ inputs.images_branch }}/images/PR${prId}/${encodeURIComponent(svgFileName)}?raw=true`;
+
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prId,
+              body: `### Inkdrop Diagram\n![Inkdrop Diagram SVG](${svgUrl})`
+            });

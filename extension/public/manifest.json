@@ -1,0 +1,34 @@
+{
+  "name": "Visualize your Terraform - Inkdrop",
+  "description": "View interactive Terraform Plans directly in your CI pipeline. Document your Code automatically and onboard new Engineers faster.",
+  "version": "0.1.0",
+  "manifest_version": 3,
+  "background": {
+    "service_worker": "js/background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://github.com/*"
+      ],
+      "js": [
+        "js/actionScript.js"
+      ]
+    }
+  ],
+  "icons": {
+    "16": "logo.png",
+    "48": "logo.png",
+    "128": "logo.png"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "tldraw-renderer/*"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
+    }
+  ]
+}
