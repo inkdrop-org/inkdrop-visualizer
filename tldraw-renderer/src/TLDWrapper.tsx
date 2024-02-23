@@ -40,6 +40,7 @@ export type NodeGroup = {
     iconPath: string,
     serviceName: string
     moduleName?: string
+    parentModules: string[]
     state: ResourceState
 }
 
@@ -154,12 +155,21 @@ const TLDWrapper = () => {
     }
 
     const checkHclBlockType = (blockId: string) => {
+        let parentModules: string[] = []
         let moduleName = ""
-        if (blockId.startsWith("module.")) {
-            moduleName = blockId.split(".")[1]
-            blockId = blockId.split(".").slice(2).join(".")
+
+        let splitBlockId = blockId.split(".")
+        for (let i = 0; i < splitBlockId.length; i++) {
+            if (splitBlockId[i] === "module") {
+                if (moduleName !== "") {
+                    parentModules.push(moduleName)
+                }
+                moduleName = splitBlockId[i + 1]
+                blockId = splitBlockId.slice(i + 2).join(".")
+            }
         }
         const isModule = !blockId && moduleName
+
 
         const isData = blockId.startsWith("data.")
         const isVariable = blockId.startsWith("var.")
@@ -172,18 +182,19 @@ const TLDWrapper = () => {
         if (!isData && !isVariable && !isLocal && !isOutput && !isProvider && !isResource && !isModule) {
             console.warn("Unknown block type", blockId)
         }
-        const splitBlockId = blockId.split(".")
+
+        splitBlockId = blockId.split(".")
         const isResourceWithName = isResource && splitBlockId.length > 1
         if (!isResource && !isModule) {
             blockId = splitBlockId.slice(1).join(".")
         }
-        return { processedBlockId: blockId, isData, isVariable, isResource, isLocal, isOutput, isProvider, isModule, isResourceWithName, moduleName }
+        return { processedBlockId: blockId, isData, isVariable, isResource, isLocal, isOutput, isProvider, isModule, isResourceWithName, moduleName, parentModules }
     }
 
     const addNodeToGroup = (node: NodeModel, nodeGroups: Map<string, NodeGroup>, mainBlock: boolean, jsonArray?: Papa.ParseResult<unknown>, planJsonObj?: any, computeTerraformPlan?: boolean) => {
         let centralPart = node.id.split(" ")[1]
         if (centralPart) {
-            const { processedBlockId, isResourceWithName, moduleName } = checkHclBlockType(centralPart)
+            const { processedBlockId, isResourceWithName, moduleName, parentModules } = checkHclBlockType(centralPart)
 
             if (isResourceWithName) {
                 const { resourceType, resourceName } = getResourceNameAndType(processedBlockId)
@@ -223,6 +234,7 @@ const TLDWrapper = () => {
                                 name: resourceName,
                                 state: resourceChanges.length > 0 ? generalState as ResourceState : "no-op",
                                 type: resourceType,
+                                parentModules: parentModules,
                                 numberOfChanges: numberOfChanges,
                                 serviceName: row["Service Name"],
                                 iconPath: row["Icon Path"].trim(),

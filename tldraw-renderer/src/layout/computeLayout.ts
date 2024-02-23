@@ -15,8 +15,18 @@ export const computeLayout = (nodeGroups: Map<string, NodeGroup>, computeTerrafo
             g.setEdge(key, connection)
         })
         if (nodeGroup.moduleName) {
+            nodeGroup.parentModules.forEach((parentModule, index) => {
+                if (!g.hasNode("module." + parentModule)) {
+                    g.setNode("module." + parentModule, { label: parentModule })
+                }
+                if (index !== 0) {
+                    g.setParent("module." + parentModule, "module." + nodeGroup.parentModules[index - 1])
+                }
+            })
             if (!g.hasNode("module." + nodeGroup.moduleName)) {
                 g.setNode("module." + nodeGroup.moduleName, { label: nodeGroup.moduleName })
+                if (nodeGroup.parentModules.length > 0)
+                    g.setParent("module." + nodeGroup.moduleName, "module." + nodeGroup.parentModules[nodeGroup.parentModules.length - 1])
             }
             g.setParent(key, "module." + nodeGroup.moduleName)
         }
