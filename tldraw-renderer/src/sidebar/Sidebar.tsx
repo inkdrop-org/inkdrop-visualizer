@@ -10,8 +10,12 @@ interface SidebarProps {
     text: string;
     selectedVarOutput: TFVariable | TFOutput | undefined;
     handleShowUnknownChange: (showHidden: boolean) => void;
+    handleShowUnchangedChange: (showHidden: boolean) => void;
     handleVarOutputSelectionChange: (varOutput: string, module: string, type: "variable" | "output") => void;
     nodeGroups: NodeGroup[];
+    resourceId: string;
+    showUnknown: boolean;
+    showUnchanged: boolean;
     handleNodeSelectionChange: (node: NodeGroup) => void;
     closeSidebar: () => void;
     title: string
@@ -22,6 +26,10 @@ interface SidebarProps {
 const Sidebar = ({ width,
     text,
     handleShowUnknownChange,
+    handleShowUnchangedChange,
+    showUnknown,
+    resourceId,
+    showUnchanged,
     title,
     subtitle,
     closeSidebar,
@@ -75,8 +83,12 @@ const Sidebar = ({ width,
                         outputs={outputs}
                     /> :
                     <ResourceDrilldown
+                        showUnchanged={showUnchanged}
+                        showUnknown={showUnknown}
                         text={text}
+                        resourceId={resourceId}
                         handleShowUnknownChange={handleShowUnknownChange}
+                        handleShowUnchangedChange={handleShowUnchangedChange}
                     />}
             </div>
 

@@ -10,6 +10,10 @@
     color: rgb(234 179 8 / var(--tw-bg-opacity));
 }
 
+.gray-text {
+    color: rgb(121 113 129 / var(--tw-bg-opacity));
+}
+
 .blue-text {
     color: rgb(59 130 246 / var(--tw-bg-opacity));
 }

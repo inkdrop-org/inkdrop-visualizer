@@ -92,7 +92,9 @@ const TLDWrapper = () => {
     const showDebugRef = useRef<boolean>(false)
     const deselectedCategoriesRef = useRef<string[]>([])
     const [showUnknown, setShowUnknown] = useState<boolean>(false)
+    const [showUnchanged, setShowUnchanged] = useState<boolean>(false)
     const [selectedVarOutput, setSelectedVarOutput] = useState<TFVariable | TFOutput | undefined>()
+    const [selectedResourceId, setSelectedResourceId] = useState<string>("")
 
     useEffect(() => {
         if (!storedData || initialized) return
@@ -136,7 +138,6 @@ const TLDWrapper = () => {
             }
         }
         getAndUpdateState()
-
     }, [store])
 
     useEffect(() => {
@@ -557,29 +558,41 @@ const TLDWrapper = () => {
             if (element)
                 element.style.display = "none"
 
-            const textToShow = nodeChangesToString(selectedNodeGroup.nodes.map((node) => {
+            const { textToShow, resourceId } = nodeChangesToString(selectedNodeGroup.nodes.map((node) => {
                 return node.resourceChanges || undefined
-            }).filter((s) => s !== undefined).flat(), showUnknown)
+            }).filter((s) => s !== undefined).flat(), showUnknown, showUnchanged)
 
             setSidebarWidth(30)
 
             setDiffText(textToShow || "No changes detected")
+            setSelectedResourceId(resourceId || "")
+        }
+    }
+
+    const refreshChangesDrilldown = (showUnknown: boolean, showUnchanged: boolean) => {
+        if (storedNodeGroups) {
+            const shapeIdWithoutPrefixAndSuffix = editor?.getSelectedShapeIds()[0].split(":")[1]
+
+            const { textToShow, resourceId } = nodeChangesToString(storedNodeGroups?.filter((nodeGroup) => {
+                return nodeGroup.id === shapeIdWithoutPrefixAndSuffix
+            })[0].nodes.map((node) => {
+                return node.resourceChanges || undefined
+            }).filter((s) => s !== undefined).flat(), showUnknown, showUnchanged)
+
+            setDiffText(textToShow || "No changes detected")
+            setSelectedResourceId(resourceId || "")
+
         }
     }
 
     const handleShowUnknownChange = (showUnknown: boolean) => {
-        if (storedNodeGroups) {
-            setShowUnknown(showUnknown)
-            const shapeIdWithoutPrefixAndSuffix = editor?.getSelectedShapeIds()[0].split(":")[1]
+        setShowUnknown(showUnknown)
+        refreshChangesDrilldown(showUnknown, showUnchanged)
+    }
 
-            const textToShow = nodeChangesToString(storedNodeGroups?.filter((nodeGroup) => {
-                return nodeGroup.id === shapeIdWithoutPrefixAndSuffix
-            })[0].nodes.map((node) => {
-                return node.resourceChanges || undefined
-            }).filter((s) => s !== undefined).flat(), showUnknown)
-
-            setDiffText(textToShow || "No changes detected")
-        }
+    const handleShowUnchangedChange = (showUnchanged: boolean) => {
+        setShowUnchanged(showUnchanged)
+        refreshChangesDrilldown(showUnknown, showUnchanged)
     }
 
     const refreshWhiteboard = () => {
@@ -716,11 +729,15 @@ const TLDWrapper = () => {
                 <Sidebar width={sidebarWidth}
                     nodeGroups={storedNodeGroups!}
                     handleNodeSelectionChange={handleNodeSelectionChange}
+                    showUnknown={showUnknown}
+                    showUnchanged={showUnchanged}
                     title={selectedVarOutput?.name || selectedNode?.name || ""}
                     text={diffText}
+                    resourceId={selectedResourceId}
                     subtitle={selectedVarOutput ? selectedVarOutput.hasOwnProperty("outputReferences") ? "Output" : "Variable" : selectedNode?.type || ""}
                     closeSidebar={() => closeSidebar()}
                     handleShowUnknownChange={handleShowUnknownChange}
+                    handleShowUnchangedChange={handleShowUnchangedChange}
                     selectedVarOutput={selectedVarOutput}
                     handleVarOutputSelectionChange={handleVarOutputSelectionChange}
                     variables={variables || {}}
