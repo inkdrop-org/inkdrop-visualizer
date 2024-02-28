@@ -6,6 +6,12 @@
   "background": {
     "service_worker": "js/background.js"
   },
+  "permissions": [
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://github.com/*"
+  ],
   "content_scripts": [
     {
       "matches": [
@@ -24,7 +30,8 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "tldraw-renderer/*"
+        "tldraw-renderer/*",
+        "js/inkdropCiDataReader.js"
       ],
       "matches": [
         "<all_urls>"

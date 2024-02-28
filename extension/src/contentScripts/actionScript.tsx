@@ -1,6 +1,6 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
-import InkdropDataReader from "./data-reader/InkdropDataReader";
+import PullRequestReader from "./data-reader/PullRequestReader";
 
 const app = document.createElement("div");
 
@@ -17,7 +17,7 @@ const renderBody = () => {
 
         root.render(
             <React.StrictMode>
-                <InkdropDataReader />
+                <PullRequestReader />
             </React.StrictMode>
         );
     }

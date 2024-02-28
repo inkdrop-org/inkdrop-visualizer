@@ -7,6 +7,7 @@ module.exports = {
     entry: {
         background: path.resolve(__dirname, "..", "src", "background.ts"),
         actionScript: path.resolve(__dirname, "..", "src", "contentScripts", "actionScript.tsx"),
+        inkdropCiDataReader: path.resolve(__dirname, "..", "src", "contentScripts", "inkdropCiDataReader.ts"),
     },
     output: {
         path: path.join(__dirname, "../build/js"),
