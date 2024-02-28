@@ -55,12 +55,10 @@ const PullRequestReader = () => {
                 mutation.addedNodes.forEach((node) => {
                     if (node.nodeType === Node.ELEMENT_NODE) {
                         const element = node as Element;
-                        console.log("New element found", element)
                         const isNewComment = element.classList.contains("js-timeline-item")
 
                         // Refresh the image data if a new image is found
                         if (isNewComment) {
-                            console.log("New comment found", element)
                             newImgsWithData = getImgsWithData();
                         }
                     }
