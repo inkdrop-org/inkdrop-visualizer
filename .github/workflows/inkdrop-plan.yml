@@ -20,11 +20,11 @@ on:
         default: .
         required: false
         description: The relative directory of the Terraform configuration
-      images_branch:
+      data_branch_name:
         type: string
-        default: inkdrop-ci-images
+        default: inkdrop-ci-data
         required: false
-        description: The name of the branch to store the Inkdrop images
+        description: The name of the branch to store the Inkdrop images and CI data
       inkdrop_version:
         type: string
         default: latest
@@ -59,8 +59,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "Checking if '${{ inputs.images_branch }}' branch exists..."
-          EXISTS=$(git ls-remote --heads origin ${{ inputs.images_branch }} | wc -l)
+          echo "Checking if '${{ inputs.data_branch_name }}' branch exists..."
+          EXISTS=$(git ls-remote --heads origin ${{ inputs.data_branch_name }} | wc -l)
           if [ "$EXISTS" -eq "0" ]; then
             TEMP_DIR=$(mktemp -d)
             cd $TEMP_DIR
@@ -68,16 +68,16 @@ jobs:
             git remote add origin ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git
             git config http.${GITHUB_SERVER_URL}/.extraheader "AUTHORIZATION: basic $(echo -n x-access-token:${{ secrets.GITHUB_TOKEN }} | base64)"            
             touch README.md
-            echo "### Branch used to store Inkdrop CI images" > README.md
+            echo "### Branch used to store Inkdrop CI images and data" > README.md
             git add .
-            git commit -m "Initial commit on orphan branch ${{ inputs.images_branch }}"
+            git commit -m "Initial commit on orphan branch ${{ inputs.data_branch_name }}"
             
-            git push --set-upstream origin master:refs/heads/${{ inputs.images_branch }}
+            git push --set-upstream origin master:refs/heads/${{ inputs.data_branch_name }}
             
             cd -
             rm -rf $TEMP_DIR
           else
-            echo "'${{ inputs.images_branch }}' branch already exists."
+            echo "'${{ inputs.data_branch_name }}' branch already exists."
           fi
           
       - name: Download and install Inkdrop
@@ -108,20 +108,6 @@ jobs:
       # Don't manually change the following, or the chrome extension might stop working.    #
       #######################################################################################
 
-      - name: Comment PR with Inkdrop JSON Data
-        uses: actions/github-script@v6
-        if: github.event_name == 'pull_request'
-        with:
-          github-token: ${{secrets.GITHUB_TOKEN}}
-          script: |
-            const fs = require('fs');
-            const jsonData = fs.readFileSync('${{ inputs.terraform_relative_dir }}/inkdrop-ci-data.json', 'utf8');
-            github.rest.issues.createComment({
-              ...context.repo,
-              issue_number: context.issue.number,
-              body: "### Inkdrop Data Output\n" + "```json\n" + jsonData + "\n```"
-            });
-
       - name: Capture SVG File Name
         id: find_svg
         working-directory: ${{ inputs.terraform_relative_dir }}
@@ -131,31 +117,71 @@ jobs:
           echo "::set-output name=svg_file_name::${SVG_FILE}"
 
 
-      - name: Commit and push SVG to inkdrop images branch
+      - name: Commit and push SVG and inkdrop-ci-data.json to inkdrop data branch
         uses: actions/github-script@v6
         with:
           script: |
             const fs = require('fs');
-            const path = process.env.SVG_FILE_PATH;
-            const svgContent = fs.readFileSync(path, { encoding: 'utf-8' });
-            const branch = '${{ inputs.images_branch }}';
-            const filePath = `images/PR${process.env.PR_ID}/${path.split('/').pop()}`;
-            
-            // Encode SVG content to Base64 for the GitHub API
+            const svgPath = process.env.SVG_FILE_PATH;
+            const inkdropDataPath = process.env.INKDROP_DATA_PATH;
+            const svgContent = fs.readFileSync(svgPath, { encoding: 'utf-8' });
+            const inkdropDataContent = fs.readFileSync(inkdropDataPath, { encoding: 'utf-8' });
+            const branch = '${{ inputs.data_branch_name }}';
+            const svgName = svgPath.split('/').pop();
+            const noExtensionSvgName = svgName.split('.svg')[0];
+            const svgFilePath = `inkdrop-data/PR${process.env.PR_ID}/${svgPath.split('/').pop()}`;
+            const inkdropDataFilePath = `inkdrop-data/PR${process.env.PR_ID}/${noExtensionSvgName}-${inkdropDataPath.split('/').pop()}`;
+
+            // Encode content to Base64 for the GitHub API
             const contentBase64 = Buffer.from(svgContent).toString('base64');
-            
+            const inkdropDataContentBase64 = Buffer.from(inkdropDataContent).toString('base64');
+
             // Commit and push the file
             await github.rest.repos.createOrUpdateFileContents({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              path: filePath,
-              message: `Add SVG for PR ${process.env.PR_ID}`,
-              content: contentBase64,
-              branch,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                path: svgFilePath,
+                message: `Add SVG for PR ${process.env.PR_ID}`,
+                content: contentBase64,
+                branch,
             }).catch(error => core.setFailed(`Failed to commit SVG: ${error.message}`));
+
+            await github.rest.repos.createOrUpdateFileContents({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                path: inkdropDataFilePath,
+                message: `Add Inkdrop data JSON for PR ${process.env.PR_ID}`,
+                content: inkdropDataContentBase64,
+                branch,
+            }).catch(error => core.setFailed(`Failed to commit Inkdrop data JSON: ${error.message}`));
         env:
           SVG_FILE_PATH: ${{ inputs.terraform_relative_dir }}/${{ steps.find_svg.outputs.svg_file_name }}
+          INKDROP_DATA_PATH: ${{ inputs.terraform_relative_dir }}/inkdrop-ci-data.json
           PR_ID: ${{ github.event.pull_request.number }}
+
+      ################################# INKDROP DATA COMMENT ################################
+      # The Inkdrop chrome extension needs this comment to render the interactive diagram.  #
+      # By activating the extension, this comment will be hidden from the UI.               #
+      # Don't manually change the following, or the chrome extension might stop working.    #
+      #######################################################################################
+
+      - name: Comment PR with Inkdrop CI JSON Data
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          script: |
+            const prId = ${{ github.event.pull_request.number }};
+            const inkdropDataFileName = '${{ steps.find_svg.outputs.svg_file_name }}'.split('.svg')[0] + '-' + process.env.INKDROP_DATA_NAME;
+            const inkdropDataUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/blob/${{ inputs.data_branch_name }}/inkdrop-data/PR${prId}/${encodeURIComponent(inkdropDataFileName)}`;
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prId,
+              body: `Install the [Inkdrop Chrome Extension](https://chromewebstore.google.com/detail/visualize-your-terraform/pddpcicnnongifmhilbamagnhiiibkki) to hide this comment and enable interactive mode.\n### Inkdrop Data\n[Inkdrop Data JSON](${inkdropDataUrl})`
+            });
+        env:
+          INKDROP_DATA_NAME: inkdrop-ci-data.json
 
       - name: Comment PR with Inkdrop SVG Image Link
         if: github.event_name == 'pull_request'
@@ -165,7 +191,7 @@ jobs:
           script: |
             const prId = ${{ github.event.pull_request.number }};
             const svgFileName = '${{ steps.find_svg.outputs.svg_file_name }}'.split('/').pop();
-            const svgUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/blob/${{ inputs.images_branch }}/images/PR${prId}/${encodeURIComponent(svgFileName)}?raw=true`;
+            const svgUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/blob/${{ inputs.data_branch_name }}/inkdrop-data/PR${prId}/${encodeURIComponent(svgFileName)}?raw=true`;
 
             github.rest.issues.createComment({
               owner: context.repo.owner,
