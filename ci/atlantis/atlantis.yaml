@@ -1,0 +1,20 @@
+repos:
+- id: /.*/
+  apply_requirements: [mergeable]
+  allowed_overrides: [apply_requirements, workflow]
+  allow_custom_workflows: true
+  workflow: inkdrop
+  post_workflow_hooks:
+    - commands: plan
+      description: Run Inkdrop and comment on PR
+      run: inkdrop --ci --from-plan plan.out &&
+        /home/atlantis/comment-pr.sh
+
+
+workflows:
+  inkdrop:
+    plan:
+      steps:
+      - init
+      - plan:
+          extra_args: ["-out", "plan.out"]
