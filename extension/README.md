@@ -1,6 +1,6 @@
 # Inkdrop Chrome Extension
 
-The Inkdrop Chrome Extension complements our [GitHub Action for visualizing Terraform plans](/ci). It enables users to seamlessly transition from static diagrams in pull request comments into interactive, exploratory visualizations within their Chrome browser. 
+The Inkdrop Chrome Extension complements our [GitHub Action for visualizing Terraform plans](/github-action-integration) and [Atlantis integration](/atlantis-integration). It enables users to seamlessly transition from static diagrams in pull request comments into interactive, exploratory visualizations within their Chrome browser. 
 
 ## Key Functionality
 
