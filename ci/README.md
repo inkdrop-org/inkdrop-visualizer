@@ -12,7 +12,7 @@ To maximize benefits, installation of the Inkdrop Chrome extension is recommende
 | `plan_artifact`        | Defines the name of the artifact containing the Terraform plan file. | string | `plan-artifact`     | No       |
 | `plan_file_name`       | Specifies the name of the Terraform plan file to be visualized.| string | `plan.out`          | No       |
 | `terraform_relative_dir` | Indicates the relative directory of your Terraform configuration. | string | `.`               | No       |
-| `images_branch`        | Names the branch to store the Inkdrop images.                  | string | `inkdrop-ci-images` | No       |
+| `data_branch_name`        | Names the branch to store the Inkdrop images.                  | string | `inkdrop-ci-data` | No       |
 | `inkdrop_version`      | Specifies the version of Inkdrop to use (in the format vX.Y.Z).| string | `latest`            | No       |
 
 ## Usage

@@ -67,13 +67,19 @@ const getColoredAction = (action: string) => {
     }
 }
 
-const getChanges = (result: string, before: any, after: any, after_unknown: any, showKnownAfterApply: boolean) => {
+const getChanges = (result: string, before: any, after: any, after_unknown: any, showKnownAfterApply: boolean, showUnchanged: boolean) => {
     before && Object.entries(before).forEach(([key, value]) => {
         const valueString = getValueString(value);
-        if (isValid(value) && after && isValid(after[key]) && !isEqual(after[key], value)) {
-            const afterValueString = getValueString(after[key]);
-            if (afterValueString !== '') {
-                result += `<span class="yellow-text">~</span> ${key} = ${valueString} <span class="yellow-text">-></span> ${afterValueString}<br>`;
+        if (isValid(value) && after && isValid(after[key])) {
+            if (!isEqual(after[key], value)) {
+                const afterValueString = getValueString(after[key]);
+                if (afterValueString !== '') {
+                    result += `<span class="yellow-text">~</span> ${key} = ${valueString} <span class="yellow-text">-></span> ${afterValueString}<br>`;
+                }
+            } else {
+                if (valueString !== '' && showUnchanged) {
+                    result += `<span class="gray-text">#</span> ${key} = ${valueString}<br>`;
+                }
             }
         } else if (isValid(value) && showKnownAfterApply && after_unknown && after_unknown[key] === true) {
             result += `<span class="yellow-text">~</span> ${key} = ${valueString} <span class="yellow-text">-></span> (known after apply)<br>`;
@@ -107,17 +113,22 @@ const getChanges = (result: string, before: any, after: any, after_unknown: any,
     return result.replace(/\n/g, '<br>'); // Convert newline characters to <br> for HTML display
 };
 
-export const nodeChangesToString = (nodeChanges: Object[], showKnownAfterApply: boolean) => {
+const getResourceId = (mainNodeChange: any) => {
+    return mainNodeChange.change.before?.id || mainNodeChange.change.after?.id;
+}
+
+export const nodeChangesToString = (nodeChanges: Object[], showKnownAfterApply: boolean, showUnchanged: boolean) => {
     let result = "";
     nodeChanges.forEach((nodeChange: any, index) => {
         result += `${nodeChange.address}:<br>\
         actions: ${nodeChange.change.actions.map((action: string) => {
             return getColoredAction(action);
         }).join(", ")}<br>`;
-        result = getChanges(result, nodeChange.change.before, nodeChange.change.after, nodeChange.change.after_unknown, showKnownAfterApply)
+        result = getChanges(result, nodeChange.change.before, nodeChange.change.after, nodeChange.change.after_unknown, showKnownAfterApply, showUnchanged)
         if (index !== nodeChanges.length - 1) {
             result += "<br><br>"
         }
     });
-    return result;
+    const resourceId = getResourceId(nodeChanges[0])
+    return { textToShow: result, resourceId };
 };

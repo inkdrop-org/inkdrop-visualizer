@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 
-const InkdropDataReader = () => {
+const PullRequestReader = () => {
 
     const getImgsWithData = () => {
-        const clipboardCopyElements = document.querySelectorAll('clipboard-copy');
+        const inkdropDataLinks = document.querySelectorAll('a[href$="-inkdrop-ci-data.json"]');
+
         return Array.from(document.querySelectorAll('img'))
             .filter((img) => {
                 const alt = img.getAttribute('alt');
@@ -17,19 +18,19 @@ const InkdropDataReader = () => {
                 const imgComment = img.closest(".js-timeline-item")
                 const parent = imgComment?.parentElement
                 const imgIndex = Array.from(parent?.children || []).indexOf(imgComment as Element)
-                let closest = clipboardCopyElements[0]
-                Array.from(clipboardCopyElements).forEach((c) => {
-                    // get the closest clipboard-copy element above the img
-                    const clipboardCopyComment = c.closest(".js-timeline-item")
-                    const index = Array.from(parent?.children || []).indexOf(clipboardCopyComment as Element)
+                let closest = inkdropDataLinks[0]
+                Array.from(inkdropDataLinks).forEach((l) => {
+                    // get the closest inkdrop data element above the img
+                    const inkdropDataComment = l.closest(".js-timeline-item")
+                    const index = Array.from(parent?.children || []).indexOf(inkdropDataComment as Element)
                     if (index < imgIndex && index > Array.from(parent?.children || []).indexOf(closest as Element)) {
-                        closest = c
+                        closest = l
                     }
                 })
                 closest.closest(".js-timeline-item")!.setAttribute("style", "display: none")
                 return {
                     img,
-                    inkdropData: closest.getAttribute('value')
+                    inkdropDataLink: closest.getAttribute('href')
                 }
             })
     }
@@ -42,10 +43,9 @@ const InkdropDataReader = () => {
             if (targetImg) {
                 e.stopPropagation();
                 e.preventDefault();
-                // Send message to background script
                 chrome.runtime.sendMessage({
-                    action: "imgClicked",
-                    inkdropData: targetImg.inkdropData
+                    action: "openNewTab",
+                    url: targetImg.inkdropDataLink
                 });
             }
         };
@@ -55,10 +55,10 @@ const InkdropDataReader = () => {
                 mutation.addedNodes.forEach((node) => {
                     if (node.nodeType === Node.ELEMENT_NODE) {
                         const element = node as Element;
-                        const isInterestedImage = element.nodeName === "IMG" && element.getAttribute('alt') === "Inkdrop Diagram SVG";
+                        const isNewComment = element.classList.contains("js-timeline-item")
 
                         // Refresh the image data if a new image is found
-                        if (isInterestedImage) {
+                        if (isNewComment) {
                             newImgsWithData = getImgsWithData();
                         }
                     }
@@ -80,4 +80,4 @@ const InkdropDataReader = () => {
     return null
 }
 
-export default InkdropDataReader;
+export default PullRequestReader;

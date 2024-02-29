@@ -9,6 +9,6 @@ The Inkdrop Chrome Extension complements our [GitHub Action for visualizing Terr
 
 ## Installation and Usage
 
-1. Install the extension from the [Chrome Web Store](https://chrome.google.com/webstore/detail/inkdrop-chrome-extension/not-live-yet).
+1. Install the extension from the [Chrome Web Store](https://chromewebstore.google.com/detail/visualize-your-terraform/pddpcicnnongifmhilbamagnhiiibkki).
 2. Navigate to a pull request within your project that includes a commented diagram from the Inkdrop GH Action.
 3. Click on the diagram image commented in the PR to open its interactive version.
