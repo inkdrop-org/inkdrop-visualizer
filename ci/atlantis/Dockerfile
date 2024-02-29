@@ -7,10 +7,9 @@ RUN apt update
 COPY deb-dependencies.txt /home/atlantis
 RUN apt install -y $(cat /home/atlantis/deb-dependencies.txt)
 
-RUN apt install -y tar jq
 RUN tar -xvf inkdrop-linux-x64.tar.gz
 RUN chmod +x inkdrop
 RUN mv inkdrop /usr/local/bin
 COPY atlantis.yaml /home/atlantis
-COPY create_branch.sh /home/atlantis
+COPY comment-pr.sh /home/atlantis
 USER atlantis

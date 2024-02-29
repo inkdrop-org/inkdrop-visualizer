@@ -34,3 +34,5 @@ libxtst6
 lsb-release
 wget
 xdg-utils
+tar
+jq
