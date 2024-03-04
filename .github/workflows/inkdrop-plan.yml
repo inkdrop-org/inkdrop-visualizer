@@ -102,11 +102,6 @@ jobs:
           inkdrop --ci --from-plan ${{inputs.plan_file_name}}
         working-directory: ${{ inputs.terraform_relative_dir }}
 
-      ################################# INKDROP DATA COMMENT ################################
-      # The Inkdrop chrome extension needs this comment to render the interactive diagram.  #
-      # By activating the extension, this comment will be hidden from the UI.               #
-      # Don't manually change the following, or the chrome extension might stop working.    #
-      #######################################################################################
 
       - name: Capture SVG File Name
         id: find_svg
@@ -159,6 +154,23 @@ jobs:
           INKDROP_DATA_PATH: ${{ inputs.terraform_relative_dir }}/inkdrop-ci-data.json
           PR_ID: ${{ github.event.pull_request.number }}
 
+      - name: Comment PR with Inkdrop SVG Image Link
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          script: |
+            const prId = ${{ github.event.pull_request.number }};
+            const svgFileName = '${{ steps.find_svg.outputs.svg_file_name }}'.split('/').pop();
+            const svgUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/blob/${{ inputs.data_branch_name }}/inkdrop-data/PR${prId}/${encodeURIComponent(svgFileName)}?raw=true`;
+
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prId,
+              body: `### Inkdrop Diagram\n![Inkdrop Diagram SVG](${svgUrl})`
+            });
+
       ################################# INKDROP DATA COMMENT ################################
       # The Inkdrop chrome extension needs this comment to render the interactive diagram.  #
       # By activating the extension, this comment will be hidden from the UI.               #
@@ -182,20 +194,3 @@ jobs:
             });
         env:
           INKDROP_DATA_NAME: inkdrop-ci-data.json
-
-      - name: Comment PR with Inkdrop SVG Image Link
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@v6
-        with:
-          github-token: ${{secrets.GITHUB_TOKEN}}
-          script: |
-            const prId = ${{ github.event.pull_request.number }};
-            const svgFileName = '${{ steps.find_svg.outputs.svg_file_name }}'.split('/').pop();
-            const svgUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/blob/${{ inputs.data_branch_name }}/inkdrop-data/PR${prId}/${encodeURIComponent(svgFileName)}?raw=true`;
-
-            github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: prId,
-              body: `### Inkdrop Diagram\n![Inkdrop Diagram SVG](${svgUrl})`
-            });
