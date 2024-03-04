@@ -74,7 +74,14 @@ const assetUrls = getAssetUrls()
 const TLDWrapper = () => {
 
     const [editor, setEditor] = useState<Editor | null>(null)
-    const [storedData, setStoredData] = useState<{ editor: Editor | null, planJson?: any, graph?: string, detailed?: boolean, showInactive?: boolean }>()
+    const [storedData, setStoredData] = useState<{
+        editor: Editor | null,
+        planJson?: any,
+        graph?: string,
+        detailed?: boolean,
+        showInactive?: boolean,
+        showUnchanged?: boolean
+    }>()
     const [storedNodeGroups, setStoredNodeGroups] = useState<NodeGroup[]>()
     const [selectedNode, setSelectedNode] = useState<NodeGroup | undefined>()
     const [variables, setVariables] = useState<{
@@ -291,7 +298,7 @@ const TLDWrapper = () => {
         tagsRef.current = tags
     }
 
-    const parseModel = (model: RootGraphModel, firstRender: boolean, planJson?: string | Object, detailed?: boolean, showInactive?: boolean) => {
+    const parseModel = (model: RootGraphModel, firstRender: boolean, planJson?: string | Object, detailed?: boolean, showInactive?: boolean, showUnchanged?: boolean) => {
         const computeTerraformPlan = (planJson && planJson !== "") ? true : false
         debugLog(computeTerraformPlan ? "Terraform plan detected." : "No Terraform plan detected. Using static data.")
         const planJsonObj = computeTerraformPlan ?
@@ -345,10 +352,36 @@ const TLDWrapper = () => {
                     if (!keep) {
                         debugLog("Removing inactive secondary resource: " + node.nodeModel.id.split(" ")[1])
                     }
-                    return node.resourceChanges && node.resourceChanges.length > 0
+                    return keep
                 })
             })
             debugLog("Removing inactive resources... Done.")
+        }
+
+        if (!storedData?.showUnchanged && !showUnchanged && computeTerraformPlan) {
+            debugLog("Removing unchanged resources...")
+            // Remove nodeGroups whose first node has no resourceChanges
+            Array.from(nodeGroups.keys()).forEach((key) => {
+                const nodeGroup = nodeGroups.get(key)
+                if (nodeGroup && nodeGroup.numberOfChanges === 0) {
+                    debugLog("Removing unchanged main resource: " + nodeGroup.id)
+                    nodeGroups.delete(key)
+                }
+            })
+            // Remove nodes whose resourceChanges are empty
+            nodeGroups.forEach((nodeGroup) => {
+                nodeGroup.nodes = nodeGroup.nodes.filter((node) => {
+                    const keep = node.resourceChanges && node.resourceChanges.some((resourceChange) => {
+                        const actions = resourceChange.change.actions
+                        return actions.length > 0 && actions.some((action: string) => action !== "no-op" && action !== "read")
+                    })
+                    if (!keep) {
+                        debugLog("Removing unchanged secondary resource: " + node.nodeModel.id.split(" ")[1])
+                    }
+                    return keep
+                })
+            })
+            debugLog("Removing unchanged resources... Done.")
         }
 
         findAndSetCategories(nodeGroups)
@@ -422,6 +455,7 @@ const TLDWrapper = () => {
                 planJson: planJsonObj,
                 detailed: detailed,
                 showInactive: showInactive,
+                showUnchanged: showUnchanged,
                 graph: graphTextAreaRef.current?.value,
             })
         setStoredNodeGroups(Array.from(nodeGroups.values()))
@@ -507,6 +541,9 @@ const TLDWrapper = () => {
     const inactiveTextAreaRef = useRef<
         HTMLTextAreaElement | null
     >(null)
+    const unchangedTextAreaRef = useRef<
+        HTMLTextAreaElement | null
+    >(null)
     const debugTextAreaRef = useRef<
         HTMLTextAreaElement | null
     >(null)
@@ -521,10 +558,13 @@ const TLDWrapper = () => {
             const detailed = detailedTextAreaRef.current?.value === "true"
             debugLog("Detailed view is " + (detailed ? "on" : "off") + ".")
             const showInactive = inactiveTextAreaRef.current?.value === "true"
+            const showUnchanged = unchangedTextAreaRef.current?.value === "true"
             planTextAreaRef.current?.value &&
                 debugLog("Inactive resources are " + (showInactive ? "shown" : "hidden") + ".")
+            planTextAreaRef.current?.value &&
+                debugLog("Unchanged resources are " + (showUnchanged ? "shown" : "hidden") + ".")
             const model = fromDot(graphTextAreaRef.current.value)
-            parseModel(model, true, planTextAreaRef.current?.value, detailed, showInactive)
+            parseModel(model, true, planTextAreaRef.current?.value, detailed, showInactive, showUnchanged)
         }
     }
 
@@ -617,6 +657,14 @@ const TLDWrapper = () => {
         })
     }
 
+    const toggleShowUnchanged = () => {
+        storedData!.showUnchanged = !storedData?.showUnchanged
+        refreshWhiteboard()
+        sendData({
+            showUnchanged: storedData?.showUnchanged
+        })
+    }
+
     const toggleCategory = (category: string) => {
         if (deselectedCategoriesRef.current.includes(category)) {
             deselectedCategoriesRef.current = deselectedCategoriesRef.current.filter((cat) => {
@@ -680,14 +728,24 @@ const TLDWrapper = () => {
                     <ToggleLayers items={
                         [
                             {
-                                name: "Inactive resources",
-                                value: storedData?.showInactive || false,
-                                action: toggleShowUnplanned
-                            },
-                            {
-                                name: "Detailed diagram",
-                                value: storedData?.detailed || false,
-                                action: toggleDetailed
+                                name: "Debug",
+                                items: [
+                                    {
+                                        name: "Unchanged resources",
+                                        value: storedData?.showUnchanged || false,
+                                        action: toggleShowUnchanged
+                                    },
+                                    {
+                                        name: "Inactive resources",
+                                        value: storedData?.showInactive || false,
+                                        action: toggleShowUnplanned
+                                    },
+                                    {
+                                        name: "Detailed diagram",
+                                        value: storedData?.detailed || false,
+                                        action: toggleDetailed
+                                    },
+                                ]
                             },
                             {
                                 name: "Categories",
@@ -762,6 +820,10 @@ const TLDWrapper = () => {
                     <textarea
                         ref={inactiveTextAreaRef}
                         id='show-inactive-textarea'
+                    />
+                    <textarea
+                        ref={unchangedTextAreaRef}
+                        id='show-unchanged-textarea'
                     />
                     <textarea
                         ref={debugTextAreaRef}

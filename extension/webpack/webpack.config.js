@@ -6,7 +6,7 @@ module.exports = {
     mode: "production",
     entry: {
         background: path.resolve(__dirname, "..", "src", "background.ts"),
-        actionScript: path.resolve(__dirname, "..", "src", "contentScripts", "actionScript.tsx"),
+        actionScript: path.resolve(__dirname, "..", "src", "contentScripts", "pullRequestScript.ts"),
         inkdropCiDataReader: path.resolve(__dirname, "..", "src", "contentScripts", "inkdropCiDataReader.ts"),
     },
     output: {

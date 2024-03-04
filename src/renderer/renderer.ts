@@ -94,7 +94,7 @@ export async function runHeadlessBrowserAndExportSVG(graphVizText: string, planO
     const noUi = (argv as any).disableUi || false
     const detailed = (argv as any).detailed || false
     const showInactive = (argv as any).showInactive || false
-    const context = ci ? "ci" : "interactive"
+    const showUnchanged = (argv as any).showUnchanged || false
 
     await page.goto(`http://localhost:${PORT}/index.html`);
 
@@ -140,7 +140,7 @@ export async function runHeadlessBrowserAndExportSVG(graphVizText: string, planO
     });
 
     page.waitForSelector('.tlui-layout').then(async () => {
-        await page.evaluate((graphData, planData, detailed, showInactive, debug) => {
+        await page.evaluate((graphData, planData, detailed, showInactive, debug, showUnchanged) => {
             const graphTextArea = document.getElementById('inkdrop-graphviz-textarea');
             if (graphTextArea && graphTextArea instanceof HTMLTextAreaElement) {
                 graphTextArea.value = graphData
@@ -157,6 +157,10 @@ export async function runHeadlessBrowserAndExportSVG(graphVizText: string, planO
             if (showInactiveTextArea && showInactiveTextArea instanceof HTMLTextAreaElement) {
                 showInactiveTextArea.value = showInactive
             }
+            const showUnchangedTextArea = document.getElementById('show-unchanged-textarea');
+            if (showUnchangedTextArea && showUnchangedTextArea instanceof HTMLTextAreaElement) {
+                showUnchangedTextArea.value = showUnchanged
+            }
             const debugTextArea = document.getElementById('debug-textarea');
             if (debugTextArea && debugTextArea instanceof HTMLTextAreaElement) {
                 debugTextArea.value = debug
@@ -165,7 +169,7 @@ export async function runHeadlessBrowserAndExportSVG(graphVizText: string, planO
             if (button) {
                 button.click()
             }
-        }, graphVizText, planOutput, detailed, showInactive, debug);
+        }, graphVizText, planOutput, detailed, showInactive, debug, showUnchanged);
         await performActionsToDownloadFile(page)
     }).catch(async () => {
         console.error("Error rendering graph")

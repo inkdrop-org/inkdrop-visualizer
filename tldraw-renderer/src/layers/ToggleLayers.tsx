@@ -1,5 +1,6 @@
 import { Accordion, AccordionDetails, AccordionSummary, Checkbox, FormControlLabel, FormGroup } from "@mui/material"
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import { useState } from "react";
 
 type FilterCheckBox = {
     name: string,
@@ -17,6 +18,19 @@ interface ToggleLayersProps {
 }
 
 const ToggleLayers = ({ items }: ToggleLayersProps) => {
+
+    const [expanded, setExpanded] = useState<number[]>([]);
+
+    const handleChange = (panelIndex: number) => {
+        const exp = [...expanded];
+        if (exp.indexOf(panelIndex) === -1) {
+            exp.push(panelIndex);
+        } else {
+            exp.splice(exp.indexOf(panelIndex), 1);
+        }
+        setExpanded(exp);
+    };
+
     return (
         <Accordion
             disableGutters
@@ -44,6 +58,7 @@ const ToggleLayers = ({ items }: ToggleLayersProps) => {
             <AccordionDetails sx={{
                 backgroundColor: "white",
                 borderRadius: "5px",
+                padding: 0,
                 marginTop: "10px",
                 border: "1px solid black",
                 maxHeight: "65vh",
@@ -56,6 +71,8 @@ const ToggleLayers = ({ items }: ToggleLayersProps) => {
                                 <>
                                     <Accordion
                                         disableGutters
+                                        expanded={expanded.indexOf(index) !== -1}
+                                        onChange={() => handleChange(index)}
                                         sx={{
 
                                             "&.MuiAccordion-root:before": {
@@ -75,7 +92,10 @@ const ToggleLayers = ({ items }: ToggleLayersProps) => {
                                             expandIcon={<ExpandMoreIcon />}
                                             aria-controls="panel1-content"
                                             id="panel1-header"
-                                            sx={{ flexDirection: "row-reverse" }}
+                                            sx={{
+                                                flexDirection: "row-reverse",
+                                                borderBottom: expanded.indexOf(index) !== -1 ? "1px solid #B3AEB6" : "none",
+                                            }}
                                         >
                                             {item.name}
                                         </AccordionSummary>
