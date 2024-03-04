@@ -85,16 +85,6 @@ EOF
 
 echo "Inkdrop data JSON uploaded."
 
-# Post comment with JSON on the PR
-INKDROP_DATA_URL="https://github.com/${HEAD_REPO_OWNER}/${HEAD_REPO_NAME}/blob/${CI_DATA_BRANCH}/${INKDROP_DATA_CONTENT_PATH}"
-INKDROP_DATA_COMMENT="Install the [Inkdrop Chrome Extension](https://chromewebstore.google.com/detail/visualize-your-terraform/pddpcicnnongifmhilbamagnhiiibkki) to hide this comment and enable interactive mode.\n### Inkdrop Data\n[Inkdrop Data JSON](${INKDROP_DATA_URL})"
-
-echo "Posting Inkdrop data on PR #${PULL_NUM}..."
-curl -s -X POST "${GITHUB_API_URL}/repos/${HEAD_REPO_OWNER}/${HEAD_REPO_NAME}/issues/${PULL_NUM}/comments" \
-     -H "Authorization: token ${GITHUB_TOKEN}" \
-     -H "Content-Type: application/json" \
-     -d "{\"body\": \"${INKDROP_DATA_COMMENT}\" }"
-
 # Post comment with SVG on the PR
 SVG_URL="https://github.com/${HEAD_REPO_OWNER}/${HEAD_REPO_NAME}/blob/${CI_DATA_BRANCH}/${SVG_CONTENT_PATH}?raw=true"
 COMMENT_BODY="### Inkdrop Diagram\n![Inkdrop Diagram SVG](${SVG_URL})"
@@ -106,3 +96,13 @@ curl -s -X POST "${GITHUB_API_URL}/repos/${HEAD_REPO_OWNER}/${HEAD_REPO_NAME}/is
     -d "{\"body\": \"${COMMENT_BODY}\" }"
 
 echo "Comment posted."
+
+# Post comment with JSON on the PR
+INKDROP_DATA_URL="https://github.com/${HEAD_REPO_OWNER}/${HEAD_REPO_NAME}/blob/${CI_DATA_BRANCH}/${INKDROP_DATA_CONTENT_PATH}"
+INKDROP_DATA_COMMENT="Install the [Inkdrop Chrome Extension](https://chromewebstore.google.com/detail/visualize-your-terraform/pddpcicnnongifmhilbamagnhiiibkki) to hide this comment and enable interactive mode.\n### Inkdrop Data\n[Inkdrop Data JSON](${INKDROP_DATA_URL})"
+
+echo "Posting Inkdrop data on PR #${PULL_NUM}..."
+curl -s -X POST "${GITHUB_API_URL}/repos/${HEAD_REPO_OWNER}/${HEAD_REPO_NAME}/issues/${PULL_NUM}/comments" \
+     -H "Authorization: token ${GITHUB_TOKEN}" \
+     -H "Content-Type: application/json" \
+     -d "{\"body\": \"${INKDROP_DATA_COMMENT}\" }"

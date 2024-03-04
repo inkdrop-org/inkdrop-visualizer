@@ -1,7 +1,7 @@
 {
   "name": "Visualize your Terraform - Inkdrop",
   "description": "View interactive Terraform Plans directly in your CI pipeline. Document your Code automatically and onboard new Engineers faster.",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "manifest_version": 3,
   "background": {
     "service_worker": "js/background.js"

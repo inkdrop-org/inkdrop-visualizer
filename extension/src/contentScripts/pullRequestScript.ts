@@ -8,9 +8,8 @@ export const getImgsWithData = () => {
             const imgComment = imgLink.closest(".js-timeline-item")
             const parent = imgComment?.parentElement
             const imgIndex = Array.from(parent?.children || []).indexOf(imgComment as Element)
-            let closest = inkdropDataLinks[0]
+            let closest = inkdropDataLinks[inkdropDataLinks.length - 1]
             Array.from(inkdropDataLinks).reverse().forEach((l) => {
-                // get the closest inkdrop data element above the img
                 const inkdropDataComment = l.closest(".js-timeline-item")
                 const index = Array.from(parent?.children || []).indexOf(inkdropDataComment as Element)
                 if (index > imgIndex && index < Array.from(parent?.children || []).indexOf(closest as Element)) {
