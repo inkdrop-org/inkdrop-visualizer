@@ -114,7 +114,7 @@ const getChanges = (result: string, before: any, after: any, after_unknown: any,
 };
 
 const getResourceId = (mainNodeChange: any) => {
-    return mainNodeChange.change.before?.id || mainNodeChange.change.after?.id;
+    return mainNodeChange?.change?.before?.id || mainNodeChange?.change?.after?.id;
 }
 
 export const nodeChangesToString = (nodeChanges: Object[], showKnownAfterApply: boolean, showUnchanged: boolean) => {

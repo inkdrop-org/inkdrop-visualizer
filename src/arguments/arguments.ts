@@ -40,10 +40,6 @@ export const argv = yargs(hideBin(process.argv))
         describe: 'Defines the port for the local diagram rendering service.',
         type: 'number',
     })
-    .option('show-inactive', {
-        describe: 'Displays both active and inactive resources within a Terraform plan.',
-        type: 'boolean',
-    })
     .option('show-unchanged', {
         describe: 'Displays also resources with no changes in a Terraform plan.',
         type: 'boolean',
@@ -63,7 +59,6 @@ export const argv = yargs(hideBin(process.argv))
         ['$0 --from-plan plan.out', 'Uses a Terraform plan file to visualize changes.'],
         ['$0 --path ./repos/my-tf-project', 'Sets the working directory.'],
         ['$0 --renderer-port 8080', 'Sets a custom rendering service port.'],
-        ['$0 --from-plan plan.out --show-inactive', 'Visualizes changes including inactive resources.'],
         ['$0 --from-plan plan.out --show-unchanged', 'Visualizes changes including resources with no changes.'],
         ['$0 --telemetry-off', 'Disables telemetry data collection.'],
     ])

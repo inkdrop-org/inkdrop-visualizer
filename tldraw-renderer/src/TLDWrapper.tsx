@@ -79,7 +79,6 @@ const TLDWrapper = () => {
         planJson?: any,
         graph?: string,
         detailed?: boolean,
-        showInactive?: boolean,
         showUnchanged?: boolean
     }>()
     const [storedNodeGroups, setStoredNodeGroups] = useState<NodeGroup[]>()
@@ -298,7 +297,7 @@ const TLDWrapper = () => {
         tagsRef.current = tags
     }
 
-    const parseModel = (model: RootGraphModel, firstRender: boolean, planJson?: string | Object, detailed?: boolean, showInactive?: boolean, showUnchanged?: boolean) => {
+    const parseModel = (model: RootGraphModel, firstRender: boolean, planJson?: string | Object, detailed?: boolean, showUnchanged?: boolean) => {
         const computeTerraformPlan = (planJson && planJson !== "") ? true : false
         debugLog(computeTerraformPlan ? "Terraform plan detected." : "No Terraform plan detected. Using static data.")
         const planJsonObj = computeTerraformPlan ?
@@ -335,7 +334,7 @@ const TLDWrapper = () => {
             debugLog("Adding unconnected resources (detailed view)... Done.")
         }
 
-        if ((!storedData?.showInactive && !showInactive) && computeTerraformPlan) {
+        if (computeTerraformPlan) {
             debugLog("Removing inactive resources...")
             // Remove nodeGroups whose first node has no resourceChanges
             Array.from(nodeGroups.keys()).forEach((key) => {
@@ -454,7 +453,6 @@ const TLDWrapper = () => {
                 nodeGroups: Array.from(nodeGroups.values()),
                 planJson: planJsonObj,
                 detailed: detailed,
-                showInactive: showInactive,
                 showUnchanged: showUnchanged,
                 graph: graphTextAreaRef.current?.value,
             })
@@ -538,9 +536,6 @@ const TLDWrapper = () => {
     const detailedTextAreaRef = useRef<
         HTMLTextAreaElement | null
     >(null)
-    const inactiveTextAreaRef = useRef<
-        HTMLTextAreaElement | null
-    >(null)
     const unchangedTextAreaRef = useRef<
         HTMLTextAreaElement | null
     >(null)
@@ -557,14 +552,11 @@ const TLDWrapper = () => {
             showDebugRef.current = debugTextAreaRef.current?.value === "true"
             const detailed = detailedTextAreaRef.current?.value === "true"
             debugLog("Detailed view is " + (detailed ? "on" : "off") + ".")
-            const showInactive = inactiveTextAreaRef.current?.value === "true"
             const showUnchanged = unchangedTextAreaRef.current?.value === "true"
-            planTextAreaRef.current?.value &&
-                debugLog("Inactive resources are " + (showInactive ? "shown" : "hidden") + ".")
             planTextAreaRef.current?.value &&
                 debugLog("Unchanged resources are " + (showUnchanged ? "shown" : "hidden") + ".")
             const model = fromDot(graphTextAreaRef.current.value)
-            parseModel(model, true, planTextAreaRef.current?.value, detailed, showInactive, showUnchanged)
+            parseModel(model, true, planTextAreaRef.current?.value, detailed, showUnchanged)
         }
     }
 
@@ -639,14 +631,6 @@ const TLDWrapper = () => {
         editor?.deleteShapes(Array.from(editor.getPageShapeIds(editor.getCurrentPageId())))
         const model = fromDot(storedData?.graph || "")
         parseModel(model, false, storedData?.planJson)
-    }
-
-    const toggleShowUnplanned = () => {
-        storedData!.showInactive = !storedData?.showInactive
-        refreshWhiteboard()
-        sendData({
-            showInactive: storedData?.showInactive
-        })
     }
 
     const toggleDetailed = () => {
@@ -736,11 +720,6 @@ const TLDWrapper = () => {
                                         action: toggleShowUnchanged
                                     },
                                     {
-                                        name: "Inactive resources",
-                                        value: storedData?.showInactive || false,
-                                        action: toggleShowUnplanned
-                                    },
-                                    {
                                         name: "Detailed diagram",
                                         value: storedData?.detailed || false,
                                         action: toggleDetailed
@@ -816,10 +795,6 @@ const TLDWrapper = () => {
                     <textarea
                         ref={detailedTextAreaRef}
                         id='detailed-textarea'
-                    />
-                    <textarea
-                        ref={inactiveTextAreaRef}
-                        id='show-inactive-textarea'
                     />
                     <textarea
                         ref={unchangedTextAreaRef}
