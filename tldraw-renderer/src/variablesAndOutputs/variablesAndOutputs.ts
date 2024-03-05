@@ -47,9 +47,9 @@ export const getVariablesAndOutputs = (nodeGroups: Map<string, NodeGroup>, planJ
                 planJson?.configuration?.root_module?.module_calls?.[moduleName!].module :
                 planJson?.configuration?.root_module
 
-            Object.entries(basePath?.resources.filter((r: any) => {
+            Object.entries(basePath?.resources?.filter((r: any) => {
                 return r.type === resourceType && r.name === resourceName
-            })[0].expressions).forEach(([key, value]) => {
+            })[0]?.expressions || []).forEach(([key, value]) => {
                 if ((value as any).references) {
                     (value as any).references.forEach((ref: string) => {
                         if (ref.startsWith("var.") && !nodeVariableRefs.includes(ref.split(".")[1])) {
