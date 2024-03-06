@@ -9,6 +9,7 @@ import { runHeadlessBrowserAndExportSVG } from './renderer/renderer';
 import { argv } from './arguments/arguments';
 import { sendPing } from './ping/sendPing';
 import semver from 'semver';
+import { warnUserIfNotLatestVersion } from './utils/fetchLatestVersion';
 
 const MAX_BUFFER_SIZE = 10 * 1024 * 1024; // 10 MB
 
@@ -25,10 +26,14 @@ if (!(argv as any).telemetryOff) {
     sendPing()
 }
 
-// Check if the argument "--from-plan" contains a path to a plan file
-if ((argv as any).fromPlan) {
-    if (!fs.existsSync((argv as any).fromPlan) || !fs.lstatSync((argv as any).fromPlan).isFile()) {
-        console.error(`The path to the plan file is invalid: ${(argv as any).fromPlan}`);
+if ((argv as any).debug) {
+    warnUserIfNotLatestVersion()
+}
+
+
+if ((argv as any).planfile) {
+    if (!fs.existsSync((argv as any).planfile) || !fs.lstatSync((argv as any).planfile).isFile()) {
+        console.error(`The path to the plan file is invalid: ${(argv as any).planfile}`);
         process.exit(1);
     }
 }
@@ -83,8 +88,8 @@ async function runTerraformGraph(): Promise<void> {
 
     let planJson = ""
 
-    if ((argv as any).fromPlan) {
-        const { stdout: showStdout, stderr: showStderr } = await execAsync(`terraform show -json ${path.resolve((argv as any).fromPlan)}`, {
+    if ((argv as any).planfile) {
+        const { stdout: showStdout, stderr: showStderr } = await execAsync(`terraform show -json ${path.resolve((argv as any).planfile)}`, {
             cwd: path.resolve((argv as any).path || "."),
             maxBuffer: MAX_BUFFER_SIZE
         })

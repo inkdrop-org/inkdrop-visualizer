@@ -7,7 +7,7 @@ repos:
   post_workflow_hooks:
     - commands: plan
       description: Run Inkdrop and comment on PR
-      run: inkdrop --ci --from-plan plan.out &&
+      run: inkdrop --ci plan.out &&
         /home/atlantis/comment-pr.sh
 
 

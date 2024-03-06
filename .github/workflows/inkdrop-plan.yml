@@ -7,13 +7,11 @@ on:
         description: The version of Terraform to use
       plan_artifact:
         type: string
-        default: plan-artifact
-        required: false
+        required: true
         description: The name of the artifact containing the plan file
       plan_file_name:
         type: string
-        default: plan.out
-        required: false
+        required: true
         description: The name of the plan file
       terraform_relative_dir:
         type: string
@@ -99,7 +97,7 @@ jobs:
 
       - name: Run Inkdrop
         run: |
-          inkdrop --ci --from-plan ${{inputs.plan_file_name}}
+          inkdrop --ci ${{inputs.plan_file_name}}
         working-directory: ${{ inputs.terraform_relative_dir }}
 
 
