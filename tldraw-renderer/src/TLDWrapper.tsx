@@ -16,6 +16,7 @@ import { computeLayout } from './layout/computeLayout';
 import { getVariablesAndOutputs } from './variablesAndOutputs/variablesAndOutputs';
 import { getResourceNameAndType } from './utils/resources';
 import VarsAndOutputsPanel from './variablesAndOutputs/VarsAndOutputsPanel';
+import { filterOutNotNeededArgs } from './utils/filterPlanJson';
 
 
 const customShapeUtils = [NodeShapeUtil]
@@ -300,8 +301,8 @@ const TLDWrapper = () => {
     const parseModel = (model: RootGraphModel, firstRender: boolean, planJson?: string | Object, detailed?: boolean, showUnchanged?: boolean) => {
         const computeTerraformPlan = (planJson && planJson !== "") ? true : false
         debugLog(computeTerraformPlan ? "Terraform plan detected." : "No Terraform plan detected. Using static data.")
-        const planJsonObj = computeTerraformPlan ?
-            typeof planJson === "string" ? JSON.parse(planJson!) : planJson : undefined
+        const planJsonObj = filterOutNotNeededArgs(computeTerraformPlan ?
+            typeof planJson === "string" ? JSON.parse(planJson!) : planJson : undefined)
         const nodeGroups = new Map<string, NodeGroup>()
         const jsonArray = Papa.parse(terraformResourcesCsv, { delimiter: ",", header: true })
         debugLog("Adding main resources...")
