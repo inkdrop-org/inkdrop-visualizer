@@ -94,6 +94,7 @@ export async function runHeadlessBrowserAndExportSVG(graphVizText: string, planO
     const noUi = (argv as any).disableUi || false
     const detailed = (argv as any).detailed || false
     const showUnchanged = (argv as any).showUnchanged || false
+    const isDemo = process.env.INKDROP_DEMO === "true"
 
     await page.goto(`http://localhost:${PORT}/index.html`);
 
@@ -139,7 +140,7 @@ export async function runHeadlessBrowserAndExportSVG(graphVizText: string, planO
     });
 
     page.waitForSelector('.tlui-layout').then(async () => {
-        await page.evaluate((graphData, planData, detailed, debug, showUnchanged) => {
+        await page.evaluate((graphData, planData, detailed, debug, showUnchanged, isDemo) => {
             const graphTextArea = document.getElementById('inkdrop-graphviz-textarea');
             if (graphTextArea && graphTextArea instanceof HTMLTextAreaElement) {
                 graphTextArea.value = graphData
@@ -160,11 +161,15 @@ export async function runHeadlessBrowserAndExportSVG(graphVizText: string, planO
             if (debugTextArea && debugTextArea instanceof HTMLTextAreaElement) {
                 debugTextArea.value = debug
             }
+            const isDemoTextArea = document.getElementById('is-demo-textarea');
+            if (isDemoTextArea && isDemoTextArea instanceof HTMLTextAreaElement) {
+                isDemoTextArea.value = isDemo + ""
+            }
             const button = document.getElementById('render-button');
             if (button) {
                 button.click()
             }
-        }, graphVizText, planOutput, detailed, debug, showUnchanged);
+        }, graphVizText, planOutput, detailed, debug, showUnchanged, isDemo);
         await performActionsToDownloadFile(page)
     }).catch(async () => {
         console.error("Error rendering graph")
