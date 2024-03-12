@@ -9,6 +9,7 @@ import { runHeadlessBrowserAndExportSVG } from './renderer/renderer';
 import { argv } from './arguments/arguments';
 import { sendPing } from './ping/sendPing';
 import semver from 'semver';
+import cors from 'cors';
 import { warnUserIfNotLatestVersion } from './utils/fetchLatestVersion';
 
 const MAX_BUFFER_SIZE = 10 * 1024 * 1024; // 10 MB
@@ -20,6 +21,10 @@ const imagesPath = path.join(__dirname, '..', 'Icons');
 const assetsPath = path.join(__dirname, '..', 'assets');
 const inkdropLogoPath = path.join(__dirname, '..', 'build/logo.png');
 const app = express();
+
+if (process.env.INKDROP_DEMO === "true") {
+    app.use(cors());
+}
 
 // Send a ping to the telemetry server, containing the used version of inkdrop
 if (!(argv as any).telemetryOff) {
