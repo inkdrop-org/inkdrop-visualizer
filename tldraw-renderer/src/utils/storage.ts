@@ -1,6 +1,5 @@
 export const sendData = async (data: Object) => {
-    const isDemo = await fetchIsDemo()
-    fetch(isDemo ? 'https://demo.inkdrop.ai/senddata' : 'http://localhost:3000/senddata', {
+    fetch('/senddata', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -11,9 +10,8 @@ export const sendData = async (data: Object) => {
 }
 
 export const getData = async () => {
-    const isDemo = await fetchIsDemo()
     let response
-    if (!isDemo && typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
+    if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
         const r = await chrome.runtime.sendMessage({ action: "getData" })
         response = {
             message: "Current state",
@@ -21,7 +19,7 @@ export const getData = async () => {
         }
         return response
     } else {
-        response = await fetch(isDemo ? 'https://demo.inkdrop.ai/getdata' : 'http://localhost:3000/getdata', {
+        response = await fetch('/getdata', {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
@@ -34,7 +32,7 @@ export const getData = async () => {
     }
 }
 
-export async function fetchIsDemo(): Promise<boolean> {
+export const fetchIsDemo = async () => {
     try {
         const response = await fetch('/is-demo');
         const data = await response.json();

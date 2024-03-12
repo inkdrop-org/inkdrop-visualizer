@@ -53,7 +53,7 @@ const ToggleLayers = ({ items }: ToggleLayersProps) => {
                     border: "1px solid black"
                 }}
             >
-                Show Layers
+                Show Filters
             </AccordionSummary>
             <AccordionDetails sx={{
                 backgroundColor: "white",
