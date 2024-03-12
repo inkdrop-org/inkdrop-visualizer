@@ -7,7 +7,7 @@ import { getAssetUrls } from '@tldraw/assets/selfHosted';
 import { NodeModel, RootGraphModel, SubgraphModel, fromDot } from "ts-graphviz"
 import { terraformResourcesCsv } from './terraformResourcesCsv';
 import '@tldraw/tldraw/tldraw.css'
-import { getData, sendData } from './utils/storage';
+import { fetchIsDemo, getData, sendData } from './utils/storage';
 import EditorHandler from './editorHandler/EditorHandler';
 import { nodeChangesToString } from './jsonPlanManager/jsonPlanManager';
 import Sidebar from './sidebar/Sidebar';
@@ -91,7 +91,6 @@ const TLDWrapper = () => {
         [moduleName: string]: TFOutput[]
     }>()
     const [sidebarWidth, setSidebarWidth] = useState<number>(0)
-    const [isDemo, setIsDemo] = useState<boolean>(false)
     const [diffText, setDiffText] = useState<string>("")
     const tagsRef = useRef<Tag[]>([])
     const selectedTagsRef = useRef<string[]>([])
@@ -299,7 +298,7 @@ const TLDWrapper = () => {
         tagsRef.current = tags
     }
 
-    const parseModel = (model: RootGraphModel, firstRender: boolean, planJson?: string | Object, detailed?: boolean, showUnchanged?: boolean, isDemo?: boolean) => {
+    const parseModel = (model: RootGraphModel, firstRender: boolean, planJson?: string | Object, detailed?: boolean, showUnchanged?: boolean) => {
         const computeTerraformPlan = (planJson && planJson !== "") ? true : false
         debugLog(computeTerraformPlan ? "Terraform plan detected." : "No Terraform plan detected. Using static data.")
         const planJsonObj = filterOutNotNeededArgs(computeTerraformPlan ?
@@ -457,7 +456,7 @@ const TLDWrapper = () => {
                 detailed: detailed,
                 showUnchanged: showUnchanged,
                 graph: graphTextAreaRef.current?.value,
-            }, isDemo)
+            })
         setStoredNodeGroups(Array.from(nodeGroups.values()))
     }
 
@@ -547,15 +546,10 @@ const TLDWrapper = () => {
     const contextTextAreaRef = useRef<
         HTMLTextAreaElement | null
     >(null)
-    const demoTextAreaRef = useRef<
-        HTMLTextAreaElement | null
-    >(null)
 
 
     const handleRenderButtonClick = () => {
         if (graphTextAreaRef.current && graphTextAreaRef.current.value) {
-            const isDemo = demoTextAreaRef.current?.value === "true"
-            setIsDemo(isDemo)
             showDebugRef.current = debugTextAreaRef.current?.value === "true"
             const detailed = detailedTextAreaRef.current?.value === "true"
             debugLog("Detailed view is " + (detailed ? "on" : "off") + ".")
@@ -563,7 +557,7 @@ const TLDWrapper = () => {
             planTextAreaRef.current?.value &&
                 debugLog("Unchanged resources are " + (showUnchanged ? "shown" : "hidden") + ".")
             const model = fromDot(graphTextAreaRef.current.value)
-            parseModel(model, true, planTextAreaRef.current?.value, detailed, showUnchanged, isDemo)
+            parseModel(model, true, planTextAreaRef.current?.value, detailed, showUnchanged)
         }
     }
 
@@ -640,19 +634,21 @@ const TLDWrapper = () => {
         parseModel(model, false, storedData?.planJson)
     }
 
-    const toggleDetailed = () => {
+    const toggleDetailed = async () => {
         storedData!.detailed = !storedData?.detailed
         refreshWhiteboard()
-        !isDemo &&
+        const isDemo = await fetchIsDemo()
+        if (!isDemo)
             sendData({
                 detailed: storedData?.detailed
             })
     }
 
-    const toggleShowUnchanged = () => {
+    const toggleShowUnchanged = async () => {
         storedData!.showUnchanged = !storedData?.showUnchanged
         refreshWhiteboard()
-        !isDemo &&
+        const isDemo = await fetchIsDemo()
+        if (!isDemo)
             sendData({
                 showUnchanged: storedData?.showUnchanged
             })
@@ -816,10 +812,6 @@ const TLDWrapper = () => {
                     <textarea
                         ref={contextTextAreaRef}
                         id='context-textarea'
-                    />
-                    <textarea
-                        ref={demoTextAreaRef}
-                        id='is-demo-textarea'
                     />
                     <button
                         onClick={handleRenderButtonClick}

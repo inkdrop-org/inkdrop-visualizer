@@ -52,6 +52,9 @@ if ((argv as any).path) {
 
 // Middleware to parse JSON bodies
 app.use(express.json({ limit: '50mb' }));
+app.use('/is-demo', (req, res) => {
+    res.status(200).json({ value: process.env.INKDROP_DEMO === "true" });
+})
 app.use('/Icons', express.static(imagesPath));
 app.use('/', express.static(assetsPath));
 app.use('/logo.png', express.static(inkdropLogoPath));
