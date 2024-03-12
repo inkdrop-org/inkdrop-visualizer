@@ -1,5 +1,6 @@
-import { Checkbox, FormControlLabel, FormGroup, Icon, IconButton } from "@mui/material";
+import { Checkbox, FormControlLabel, FormGroup, Icon, IconButton, Tooltip } from "@mui/material";
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import { useState } from "react";
 
 interface ResourceDrilldownProps {
     text: string;
@@ -18,6 +19,8 @@ const ResourceDrilldown = ({
     showUnknown,
     showUnchanged
 }: ResourceDrilldownProps) => {
+
+    const [justCopied, setJustCopied] = useState(false);
     return (
         <>
             <div className="bg-[#302B35] text-white overflow-scroll h-full p-4 grow rounded text-xs"
@@ -57,21 +60,26 @@ const ResourceDrilldown = ({
                 {resourceId &&
                     <div className="w-[45%] flex text-right">
                         <div className="text-sm text-ellipsis overflow-hidden whitespace-nowrap">{"AWS ID: " + resourceId}</div>
-                        <IconButton
-                            sx={{
-                                width: "25px",
-                                height: "25px",
-                            }}
-                            size="small"
-                            onClick={() => {
-                                navigator.clipboard.writeText(resourceId);
-                            }}
-                        >
-                            <ContentCopyIcon sx={{
-                                width: "18px",
-                                height: "18px"
-                            }} />
-                        </IconButton>
+                        <Tooltip title={justCopied ? "Copied!" : "Copy AWS ID"}
+                            onClose={() => setTimeout(() => setJustCopied(false), 500)}
+                            placement="top">
+                            <IconButton
+                                sx={{
+                                    width: "25px",
+                                    height: "25px",
+                                }}
+                                size="small"
+                                onClick={() => {
+                                    setJustCopied(true);
+                                    navigator.clipboard.writeText(resourceId);
+                                }}
+                            >
+                                <ContentCopyIcon sx={{
+                                    width: "18px",
+                                    height: "18px"
+                                }} />
+                            </IconButton>
+                        </Tooltip>
                     </div>
                 }
             </div>
