@@ -1,5 +1,7 @@
 Inkdrop is a CLI tool that creates interactive diagrams to visualize your Terraform configurations. It helps you to understand dependencies between resources and explore changes in your AWS architecture.
 
+### [Try the Inkdrop demo to see how it works](https://demo.inkdrop.ai/)
+
 ## Overview
 We built Inkdrop because keeping track of large Terraform configs is hard. Seeing a visual map of your resources helps you reason about the relationships and dependencies.
 
@@ -17,6 +19,8 @@ Turn this:
 Into this:
 
 ![output-onlinejpgtools](https://github.com/inkdrop-org/inkdrop-visualizer/assets/86591160/38eaae22-9d68-430c-99ab-a2d2dd49085c)
+
+### [Try the Inkdrop demo to see how it works](https://demo.inkdrop.ai/)
 
 ## Installation
 You can install Inkdrop with Brew, as a Linux binary or with NPM :
