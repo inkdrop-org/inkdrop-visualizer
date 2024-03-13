@@ -3,7 +3,7 @@
 }
 
 .red-text {
-    color: rgb(239 68 68 / var(--tw-border-opacity));
+    color: rgb(239 68 68 / var(--tw-bg-opacity));
 }
 
 .yellow-text {

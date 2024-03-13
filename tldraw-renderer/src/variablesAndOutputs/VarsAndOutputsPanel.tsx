@@ -37,7 +37,7 @@ const VarsAndOutputsPanel = ({
                     <div className={"mb-3 max-w-full text-xl truncate"}>
                         External dependencies
                     </div>
-                    <div className="overflow-y-auto overflow-x-hidden h-40">
+                    <div className="overflow-y-auto overflow-x-hidden h-24">
                         {
                             dependencies.map((dep, index) => (
                                 <button
@@ -61,7 +61,7 @@ const VarsAndOutputsPanel = ({
                     <div className={"mb-3 max-w-full text-xl truncate"}>
                         Variables
                     </div>
-                    <div className="overflow-y-auto overflow-x-hidden h-40">
+                    <div className="overflow-y-auto overflow-x-hidden h-24">
                         {
                             selectedNode.variableRefs?.map((variableRef, index) => (
                                 <button
@@ -83,7 +83,7 @@ const VarsAndOutputsPanel = ({
                     <div className={"mb-3 max-w-full text-xl truncate"}>
                         Outputs
                     </div>
-                    <div className="overflow-y-auto overflow-x-hidden h-40">
+                    <div className="overflow-y-auto overflow-x-hidden h-24">
                         {
                             selectedNode.outputRefs?.map((outputRef, index) => (
                                 <button

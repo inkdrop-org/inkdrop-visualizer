@@ -1,0 +1,16 @@
+name: Release Inkdrop Demo
+
+on:
+  push:
+    tags:
+      - 'v*'
+      
+jobs:
+  executeSSHCommand:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Setup SSH key and run remote command
+      run: |
+        echo "${{ secrets.DEMO_SSH_KEY }}" > id_rsa
+        chmod 600 id_rsa
+        ssh -o "StrictHostKeyChecking no" -i id_rsa ${{ vars.DEMO_SSH_USER }}@${{ vars.DEMO_SSH_HOST }} "${{ vars.DEMO_SSH_COMMAND }}"

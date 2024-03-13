@@ -1,7 +1,6 @@
 import path from "path";
 import puppeteer, { Page } from "puppeteer";
 import { install, getInstalledBrowsers, Browser } from "@puppeteer/browsers"
-import { sleep } from "../utils/time";
 import { Server } from "http";
 import fs from "fs";
 import ProgressBar from "progress"

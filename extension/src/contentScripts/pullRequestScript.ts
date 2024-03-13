@@ -47,8 +47,9 @@ const observer = new MutationObserver((mutations) => {
                 const element = node as Element;
                 const isNewComment = element.classList.contains("js-timeline-item")
                 const isNewDiscussion = element.classList.contains("new-discussion-timeline")
+                const isNewPRContainer = Array.from(element.children).some((c) => c.classList.contains("application-main"))
                 // Refresh the image data if a new image is found
-                if (isNewComment || isNewDiscussion) {
+                if (isNewComment || isNewDiscussion || isNewPRContainer) {
                     newImgsWithData = getImgsWithData();
                 }
             }
