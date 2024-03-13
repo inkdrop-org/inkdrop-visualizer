@@ -2,9 +2,9 @@ name: Release Inkdrop Demo
 
 on:
   push:
-    branches:
-      - dev
-
+    tags:
+      - 'v*'
+      
 jobs:
   executeSSHCommand:
     runs-on: ubuntu-latest
@@ -13,4 +13,4 @@ jobs:
       run: |
         echo "${{ secrets.DEMO_SSH_KEY }}" > id_rsa
         chmod 600 id_rsa
-        ssh -o StrictHostKeyChecking=no -i id_rsa ${DEMO_SSH_USER}@${DEMO_SSH_HOST} "${DEMO_SSH_COMMAND}"
+        ssh -o "StrictHostKeyChecking no" -i id_rsa ${{ vars.DEMO_SSH_USER }}@${{ vars.DEMO_SSH_HOST }} "${{ vars.DEMO_SSH_COMMAND }}"

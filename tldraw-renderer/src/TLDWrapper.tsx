@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { NodeShapeUtil } from './board/NodeShape';
-import { Editor, TLShapeId, TLStoreOptions, Tldraw, createTLStore, defaultShapeUtils, throttle } from '@tldraw/tldraw';
+import { Editor, TLShapeId, TLStoreOptions, Tldraw, createTLStore, defaultShapeUtils, throttle, TLParentId } from '@tldraw/tldraw';
 import dagre from "dagre"
 import Papa from "papaparse"
 import { getAssetUrls } from '@tldraw/assets/selfHosted';
@@ -17,6 +17,7 @@ import { getVariablesAndOutputs } from './variablesAndOutputs/variablesAndOutput
 import { getResourceNameAndType } from './utils/resources';
 import VarsAndOutputsPanel from './variablesAndOutputs/VarsAndOutputsPanel';
 import { filterOutNotNeededArgs } from './utils/filterPlanJson';
+import { demoShapes } from './layout/demoShapes';
 
 
 const customShapeUtils = [NodeShapeUtil]
@@ -298,7 +299,7 @@ const TLDWrapper = () => {
         tagsRef.current = tags
     }
 
-    const parseModel = (model: RootGraphModel, firstRender: boolean, planJson?: string | Object, detailed?: boolean, showUnchanged?: boolean) => {
+    const parseModel = async (model: RootGraphModel, firstRender: boolean, planJson?: string | Object, detailed?: boolean, showUnchanged?: boolean) => {
         const computeTerraformPlan = (planJson && planJson !== "") ? true : false
         debugLog(computeTerraformPlan ? "Terraform plan detected." : "No Terraform plan detected. Using static data.")
         const planJsonObj = filterOutNotNeededArgs(computeTerraformPlan ?
@@ -446,6 +447,11 @@ const TLDWrapper = () => {
         setOutputs(outputs)
 
         computeLayout(nodeGroups, computeTerraformPlan, editor)
+
+        const isDemo = await fetchIsDemo()
+        if (isDemo) {
+            editor?.createShapes(demoShapes as any)
+        }
 
         editor?.zoomToContent()
         if (firstRender)
