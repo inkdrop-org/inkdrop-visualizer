@@ -11,7 +11,7 @@ export const sendData = async (data: Object) => {
 
 export const getData = async () => {
     let response
-    if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
+    if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id && chrome.runtime.sendMessage) {
         const r = await chrome.runtime.sendMessage({ action: "getData" })
         response = {
             message: "Current state",
