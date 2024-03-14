@@ -106,7 +106,7 @@ const TLDWrapper = () => {
 
     useEffect(() => {
         if (!storedData || initialized) return
-        refreshWhiteboard()
+        refreshWhiteboard(false)
     }, [storedData])
 
     const setAppToState = useCallback((editor: Editor) => {
@@ -299,7 +299,7 @@ const TLDWrapper = () => {
         tagsRef.current = tags
     }
 
-    const parseModel = async (model: RootGraphModel, firstRender: boolean, planJson?: string | Object, detailed?: boolean, showUnchanged?: boolean) => {
+    const parseModel = async (model: RootGraphModel, firstRender: boolean, planJson?: string | Object, detailed?: boolean, showUnchanged?: boolean, refreshFromToggle?: boolean) => {
         const computeTerraformPlan = (planJson && planJson !== "") ? true : false
         debugLog(computeTerraformPlan ? "Terraform plan detected." : "No Terraform plan detected. Using static data.")
         const planJsonObj = filterOutNotNeededArgs(computeTerraformPlan ?
@@ -449,7 +449,7 @@ const TLDWrapper = () => {
         computeLayout(nodeGroups, computeTerraformPlan, editor)
 
         const isDemo = await fetchIsDemo()
-        if (isDemo) {
+        if (isDemo && !refreshFromToggle) {
             editor?.createShapes(demoShapes as any)
         }
 
@@ -634,15 +634,15 @@ const TLDWrapper = () => {
         refreshChangesDrilldown(showUnknown, showUnchanged)
     }
 
-    const refreshWhiteboard = () => {
+    const refreshWhiteboard = (fromToggle: boolean) => {
         editor?.deleteShapes(Array.from(editor.getPageShapeIds(editor.getCurrentPageId())))
         const model = fromDot(storedData?.graph || "")
-        parseModel(model, false, storedData?.planJson)
+        parseModel(model, false, storedData?.planJson, undefined, undefined, fromToggle)
     }
 
     const toggleDetailed = async () => {
         storedData!.detailed = !storedData?.detailed
-        refreshWhiteboard()
+        refreshWhiteboard(true)
         const isDemo = await fetchIsDemo()
         if (!isDemo)
             sendData({
@@ -652,7 +652,7 @@ const TLDWrapper = () => {
 
     const toggleShowUnchanged = async () => {
         storedData!.showUnchanged = !storedData?.showUnchanged
-        refreshWhiteboard()
+        refreshWhiteboard(true)
         const isDemo = await fetchIsDemo()
         if (!isDemo)
             sendData({
@@ -668,7 +668,7 @@ const TLDWrapper = () => {
         } else {
             deselectedCategoriesRef.current.push(category)
         }
-        refreshWhiteboard()
+        refreshWhiteboard(true)
     }
 
     const toggleTag = (tag: string) => {
@@ -679,7 +679,7 @@ const TLDWrapper = () => {
         } else {
             selectedTagsRef.current.push(tag)
         }
-        refreshWhiteboard()
+        refreshWhiteboard(true)
     }
 
     const closeSidebar = () => {
