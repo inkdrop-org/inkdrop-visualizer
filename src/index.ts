@@ -66,7 +66,7 @@ let state: any = {}
 
 const ci = (argv as any).ci || false
 
-app.post('/senddata', async (req, res) => {
+app.post('/send-ci-data', async (req, res) => {
     const receivedData = req.body;
     Object.keys(receivedData).forEach(key => {
         state[key] = receivedData[key]
@@ -78,23 +78,62 @@ app.post('/senddata', async (req, res) => {
     }
 });
 
-app.get('/getdata', (req, res) => {
-    if (!state) {
-        res.status(404).json({ message: 'No state found' });
-        return
-    }
-    res.status(200).json({ message: 'Current state', state: state });
-});
+app.post('/debug-log', (req, res) => {
+    console.log(req.body.log);
+    res.status(200).json({ message: 'Log received' });
+})
+
+let planJson = ""
+let graph = ""
+
+const debug: boolean = (argv as any).debug || false
+const detailed: boolean = (argv as any).detailed || false
+const showUnchanged: boolean = (argv as any).showUnchanged || false
+
+app.get('/get-render-input', (req, res) => {
+    res.status(200).json({
+        planJson,
+        graph,
+        detailed,
+        debug,
+        showUnchanged,
+        ci
+    });
+})
 
 // Start the server
 const server = app.listen(PORT, 'localhost', () => {
     console.log(`Diagram renderer running on localhost:${PORT}`);
 });
 
+export const openUrl = (url: string) => {
+    if (process.env.INKDROP_DEMO === "true") return;
 
-async function runTerraformGraph(): Promise<void> {
+    let startCommand;
 
-    let planJson = ""
+    switch (process.platform) {
+        case 'darwin': // macOS
+            startCommand = 'open';
+            break;
+        case 'win32': // Windows
+            startCommand = 'start';
+            break;
+        case 'linux': // Linux
+            startCommand = 'xdg-open';
+            break;
+        default:
+            throw new Error(`Unsupported platform: ${process.platform}`);
+    }
+
+    exec(`${startCommand} ${url}`, (err) => {
+        if (err) {
+            console.error(`Failed to open ${url}: ${err.message}`);
+            return;
+        }
+    });
+}
+
+const runTerraformGraph = async () => {
 
     if ((argv as any).planfile) {
         const { stdout: showStdout, stderr: showStderr } = await execAsync(`terraform show -json ${path.resolve((argv as any).planfile)}`, {
@@ -133,7 +172,7 @@ async function runTerraformGraph(): Promise<void> {
 
     const graphCommand = addGraphPlanFlag ? 'terraform graph -type=plan' : 'terraform graph'
 
-    console.log("Computing raw graph...")
+    console.log("Computing terraform graph...")
     const { stdout: graphStdout, stderr: graphStderr } = await execAsync(graphCommand, {
         cwd: path.resolve((argv as any).path || "."),
         maxBuffer: MAX_BUFFER_SIZE
@@ -149,7 +188,15 @@ async function runTerraformGraph(): Promise<void> {
         process.exit(1);
     }
 
-    runHeadlessBrowserAndExportSVG(graphStdout, planJson, server, argv)
+    graph = graphStdout
+    const ci = (argv as any).ci || false
+    const svg = (argv as any).svg || false
+
+    if (ci || svg) {
+        runHeadlessBrowserAndExportSVG(server, argv)
+    } else {
+        openUrl(`http://localhost:${PORT}/`);
+    }
 }
 
 runTerraformGraph()
