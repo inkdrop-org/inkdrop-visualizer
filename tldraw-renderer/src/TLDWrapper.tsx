@@ -1,13 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { NodeShapeUtil } from './board/NodeShape';
-import { Editor, TLShapeId, TLStoreOptions, Tldraw, createTLStore, defaultShapeUtils, throttle, TLParentId } from '@tldraw/tldraw';
-import dagre from "dagre"
+import { Editor, TLStoreOptions, Tldraw, createTLStore, defaultShapeUtils, throttle, TLParentId } from '@tldraw/tldraw';
 import Papa from "papaparse"
 import { getAssetUrls } from '@tldraw/assets/selfHosted';
 import { NodeModel, RootGraphModel, SubgraphModel, fromDot } from "ts-graphviz"
 import { terraformResourcesCsv } from './terraformResourcesCsv';
 import '@tldraw/tldraw/tldraw.css'
-import { fetchIsDemo, getData, sendData } from './utils/storage';
+import { fetchIsDemo, getRenderInput, sendData, sendDebugLog } from './utils/storage';
 import EditorHandler from './editorHandler/EditorHandler';
 import { nodeChangesToString } from './jsonPlanManager/jsonPlanManager';
 import Sidebar from './sidebar/Sidebar';
@@ -71,18 +70,21 @@ type Tag = {
     value: string
 }
 
+type RenderInput = {
+    planJson: string,
+    graph: string,
+    detailed: boolean,
+    debug: boolean,
+    showUnchanged: boolean,
+    ci: boolean
+}
+
 const assetUrls = getAssetUrls()
 
 const TLDWrapper = () => {
 
     const [editor, setEditor] = useState<Editor | null>(null)
-    const [storedData, setStoredData] = useState<{
-        editor: Editor | null,
-        planJson?: any,
-        graph?: string,
-        detailed?: boolean,
-        showUnchanged?: boolean
-    }>()
+    const [renderInput, setRenderInput] = useState<RenderInput>()
     const [storedNodeGroups, setStoredNodeGroups] = useState<NodeGroup[]>()
     const [selectedNode, setSelectedNode] = useState<NodeGroup | undefined>()
     const [variables, setVariables] = useState<{
@@ -95,7 +97,7 @@ const TLDWrapper = () => {
     const [diffText, setDiffText] = useState<string>("")
     const tagsRef = useRef<Tag[]>([])
     const selectedTagsRef = useRef<string[]>([])
-    const [initialized, setInitialized] = useState<boolean>(false)
+    const initializedRef = useRef<boolean>(false)
     const categoriesRef = useRef<string[]>([])
     const showDebugRef = useRef<boolean>(false)
     const deselectedCategoriesRef = useRef<string[]>([])
@@ -105,57 +107,68 @@ const TLDWrapper = () => {
     const [selectedResourceId, setSelectedResourceId] = useState<string>("")
 
     useEffect(() => {
-        if (!storedData || initialized) return
-        refreshWhiteboard(false)
-    }, [storedData])
+        if (!renderInput || !editor || initializedRef.current) return
+        showDebugRef.current = renderInput.debug
+        const detailed = renderInput.detailed
+        debugLog("Detailed view is " + (detailed ? "on" : "off") + ".")
+        const showUnchanged = renderInput.showUnchanged
+        renderInput.planJson &&
+            debugLog("Unchanged resources are " + (showUnchanged ? "shown" : "hidden") + ".")
+        const model = fromDot(renderInput.graph)
+        parseModel(model, false)
+    }, [renderInput, editor])
+
+    // Forward logs in --debug mode
+    useEffect(() => {
+        const originalConsoleLog = console.log;
+        const originalConsoleWarn = console.warn;
+        const originalConsoleError = console.error;
+
+        console.log = (...args: any[]) => {
+            if (showDebugRef.current && !initializedRef.current) {
+                sendDebugLog("LOG: " + args.join(" "))
+            }
+            originalConsoleLog.apply(console, args);
+        };
+
+        console.warn = (...args: any[]) => {
+            if (showDebugRef.current) {
+                sendDebugLog("WARN: " + args.join(" "))
+            }
+            originalConsoleWarn.apply(console, args);
+        };
+
+        console.error = (...args: any[]) => {
+            if (showDebugRef.current) {
+                sendDebugLog("ERR: " + args.join(" "))
+            }
+            originalConsoleError.apply(console, args);
+        };
+
+        return () => {
+            console.log = originalConsoleLog;
+            console.warn = originalConsoleWarn;
+            console.error = originalConsoleError;
+        };
+    }, []);
 
     const setAppToState = useCallback((editor: Editor) => {
         setEditor(editor)
-        editor?.zoomToContent()
     }, [])
 
     const [store] = useState(() => createTLStore({
         shapeUtils: [...customShapeUtils, ...defaultShapeUtils],
         history: undefined
     } as TLStoreOptions))
-    const [loadingState, setLoadingState] = useState<
-        { status: 'loading' } | { status: 'ready' } | { status: 'error'; error: string }
-    >({
-        status: 'loading',
-    })
 
     useEffect(() => {
-        const getAndUpdateState = async () => {
-            setLoadingState({ status: 'loading' })
-            const storedData = await getData()
-            const state = storedData.state
-            setStoredNodeGroups(storedData.state ? storedData.state.nodeGroups : [])
-            const editorValue = state ? state.editor : undefined
-            if (editorValue) {
-                try {
-                    const snapshot = JSON.parse(editorValue)
-                    store.loadSnapshot(snapshot)
-
-                    setLoadingState({ status: 'ready' })
-                } catch (error: any) {
-                    setLoadingState({ status: 'error', error: error.message }) // Something went wrong
-                }
-                editor?.zoomToContent()
-            } else {
-                setLoadingState({ status: 'ready' }) // Nothing persisted, continue with the empty store
+        const getStoredInput = async () => {
+            const data: RenderInput = await getRenderInput()
+            if (Object.keys(data).length > 0) {
+                setRenderInput(data)
             }
         }
-        getAndUpdateState()
-    }, [store])
-
-    useEffect(() => {
-        const getStoredData = async () => {
-            const data = await getData()
-            if (Object.keys(data.state).length > 0) {
-                setStoredData(data.state)
-            }
-        }
-        getStoredData()
+        getStoredInput()
     }, [])
 
     const debugLog = (message: string) => {
@@ -299,11 +312,11 @@ const TLDWrapper = () => {
         tagsRef.current = tags
     }
 
-    const parseModel = async (model: RootGraphModel, firstRender: boolean, planJson?: string | Object, detailed?: boolean, showUnchanged?: boolean, refreshFromToggle?: boolean) => {
-        const computeTerraformPlan = (planJson && planJson !== "") ? true : false
+    const parseModel = async (model: RootGraphModel, refreshFromToggle?: boolean) => {
+        const computeTerraformPlan = (renderInput?.planJson && renderInput?.planJson !== "") ? true : false
         debugLog(computeTerraformPlan ? "Terraform plan detected." : "No Terraform plan detected. Using static data.")
         const planJsonObj = filterOutNotNeededArgs(computeTerraformPlan ?
-            typeof planJson === "string" ? JSON.parse(planJson!) : planJson : undefined)
+            typeof renderInput?.planJson === "string" ? JSON.parse(renderInput?.planJson!) : renderInput?.planJson : undefined)
         const nodeGroups = new Map<string, NodeGroup>()
         const jsonArray = Papa.parse(terraformResourcesCsv, { delimiter: ",", header: true })
         debugLog("Adding main resources...")
@@ -321,7 +334,7 @@ const TLDWrapper = () => {
         })
         debugLog("Aggregating secondary resources... Done.")
 
-        if (storedData?.detailed || detailed) {
+        if (renderInput?.detailed) {
             debugLog("Adding unconnected resources (detailed view)...")
             // Add a nodeGroup for each node that is not connected to any other node
             model.subgraphs[0].nodes.forEach((node) => {
@@ -359,7 +372,7 @@ const TLDWrapper = () => {
             debugLog("Removing inactive resources... Done.")
         }
 
-        if (!storedData?.showUnchanged && !showUnchanged && computeTerraformPlan) {
+        if (!renderInput?.showUnchanged && !showUnchanged && computeTerraformPlan) {
             debugLog("Removing unchanged resources...")
             // Remove nodeGroups whose first node has no resourceChanges
             Array.from(nodeGroups.keys()).forEach((key) => {
@@ -411,9 +424,6 @@ const TLDWrapper = () => {
             })
         }
 
-        setInitialized(true)
-
-
         debugLog("Computing connections...")
         // Compute connections between groups
         model.subgraphs[0].edges.forEach((edge) => {
@@ -445,7 +455,6 @@ const TLDWrapper = () => {
             { variables: undefined, outputs: undefined }
         setVariables(variables)
         setOutputs(outputs)
-
         computeLayout(nodeGroups, computeTerraformPlan, editor)
 
         const isDemo = await fetchIsDemo()
@@ -454,15 +463,15 @@ const TLDWrapper = () => {
         }
 
         editor?.zoomToContent()
-        if (firstRender)
+        initializedRef.current = true
+
+        if (renderInput?.ci) {
             sendData({
-                editor: JSON.stringify(store.getSnapshot()),
-                nodeGroups: Array.from(nodeGroups.values()),
-                planJson: planJsonObj,
-                detailed: detailed,
-                showUnchanged: showUnchanged,
-                graph: graphTextAreaRef.current?.value,
+                ...renderInput,
+                planJson: planJsonObj
             })
+        }
+
         setStoredNodeGroups(Array.from(nodeGroups.values()))
     }
 
@@ -532,40 +541,6 @@ const TLDWrapper = () => {
             }
         })
     }
-    const graphTextAreaRef = useRef<
-        HTMLTextAreaElement | null
-    >(null)
-
-    const planTextAreaRef = useRef<
-        HTMLTextAreaElement | null
-    >(null)
-
-    const detailedTextAreaRef = useRef<
-        HTMLTextAreaElement | null
-    >(null)
-    const unchangedTextAreaRef = useRef<
-        HTMLTextAreaElement | null
-    >(null)
-    const debugTextAreaRef = useRef<
-        HTMLTextAreaElement | null
-    >(null)
-    const contextTextAreaRef = useRef<
-        HTMLTextAreaElement | null
-    >(null)
-
-
-    const handleRenderButtonClick = () => {
-        if (graphTextAreaRef.current && graphTextAreaRef.current.value) {
-            showDebugRef.current = debugTextAreaRef.current?.value === "true"
-            const detailed = detailedTextAreaRef.current?.value === "true"
-            debugLog("Detailed view is " + (detailed ? "on" : "off") + ".")
-            const showUnchanged = unchangedTextAreaRef.current?.value === "true"
-            planTextAreaRef.current?.value &&
-                debugLog("Unchanged resources are " + (showUnchanged ? "shown" : "hidden") + ".")
-            const model = fromDot(graphTextAreaRef.current.value)
-            parseModel(model, true, planTextAreaRef.current?.value, detailed, showUnchanged)
-        }
-    }
 
     const handleNodeSelectionChange = (node: NodeGroup) => {
         const shapeStartId = "shape:" + node.id
@@ -579,7 +554,7 @@ const TLDWrapper = () => {
     const handleShapeSelectionChange = (shapeId: string) => {
         const element = document.querySelector(".tlui-navigation-zone") as HTMLElement
         setSelectedVarOutput(undefined)
-        if (!storedData?.planJson || shapeId === "") {
+        if (!renderInput?.planJson || shapeId === "") {
             setSelectedNode(undefined)
             setSidebarWidth(0)
             setDiffText("")
@@ -636,28 +611,18 @@ const TLDWrapper = () => {
 
     const refreshWhiteboard = (fromToggle: boolean) => {
         editor?.deleteShapes(Array.from(editor.getPageShapeIds(editor.getCurrentPageId())))
-        const model = fromDot(storedData?.graph || "")
-        parseModel(model, false, storedData?.planJson, undefined, undefined, fromToggle)
+        const model = fromDot(renderInput?.graph || "")
+        parseModel(model, fromToggle)
     }
 
     const toggleDetailed = async () => {
-        storedData!.detailed = !storedData?.detailed
+        renderInput!.detailed = !renderInput?.detailed
         refreshWhiteboard(true)
-        const isDemo = await fetchIsDemo()
-        if (!isDemo)
-            sendData({
-                detailed: storedData?.detailed
-            })
     }
 
     const toggleShowUnchanged = async () => {
-        storedData!.showUnchanged = !storedData?.showUnchanged
+        renderInput!.showUnchanged = !renderInput?.showUnchanged
         refreshWhiteboard(true)
-        const isDemo = await fetchIsDemo()
-        if (!isDemo)
-            sendData({
-                showUnchanged: storedData?.showUnchanged
-            })
     }
 
     const toggleCategory = (category: string) => {
@@ -718,57 +683,55 @@ const TLDWrapper = () => {
                     variables={variables} />
             }
 
-            {initialized &&
-                <div className={'absolute top-2 z-200 left-2'}>
-                    <ToggleLayers items={
-                        [
-                            {
-                                name: "Debug",
-                                items: [
-                                    {
-                                        name: "Unchanged resources",
-                                        value: storedData?.showUnchanged || false,
-                                        action: toggleShowUnchanged
-                                    },
-                                    {
-                                        name: "Detailed diagram",
-                                        value: storedData?.detailed || false,
-                                        action: toggleDetailed
-                                    },
-                                ]
-                            },
-                            {
-                                name: "Categories",
-                                items:
-                                    categoriesRef.current.map((category) => {
-                                        return {
-                                            name: category,
-                                            value: deselectedCategoriesRef.current.includes(category) ? false : true,
-                                            action: () => {
-                                                toggleCategory(category)
-                                            }
+            <div className={'absolute top-2 z-200 left-2'}>
+                <ToggleLayers items={
+                    [
+                        {
+                            name: "Debug",
+                            items: [
+                                {
+                                    name: "Unchanged resources",
+                                    value: renderInput?.showUnchanged || false,
+                                    action: toggleShowUnchanged
+                                },
+                                {
+                                    name: "Detailed diagram",
+                                    value: renderInput?.detailed || false,
+                                    action: toggleDetailed
+                                },
+                            ]
+                        },
+                        {
+                            name: "Categories",
+                            items:
+                                categoriesRef.current.map((category) => {
+                                    return {
+                                        name: category,
+                                        value: deselectedCategoriesRef.current.includes(category) ? false : true,
+                                        action: () => {
+                                            toggleCategory(category)
                                         }
-                                    })
-                            }, {
-                                name: "Tags",
-                                items:
-                                    tagsRef.current.map((tag) => tag.name).filter((tag, index, self) => {
-                                        return self.indexOf(tag) === index
-                                    }).map((tag) => {
-                                        return {
-                                            name: tag,
-                                            value: selectedTagsRef.current.includes(tag),
-                                            action: () => {
-                                                toggleTag(tag)
-                                            }
+                                    }
+                                })
+                        }, {
+                            name: "Tags",
+                            items:
+                                tagsRef.current.map((tag) => tag.name).filter((tag, index, self) => {
+                                    return self.indexOf(tag) === index
+                                }).map((tag) => {
+                                    return {
+                                        name: tag,
+                                        value: selectedTagsRef.current.includes(tag),
+                                        action: () => {
+                                            toggleTag(tag)
                                         }
-                                    })
-                            }
-                        ]
-                    } />
+                                    }
+                                })
+                        }
+                    ]
+                } />
 
-                </div>
-            }
+            </div>
             <EditorHandler
                 editor={editor}
                 handleShapeSelectionChange={handleShapeSelectionChange} />
@@ -791,40 +754,6 @@ const TLDWrapper = () => {
                     variables={variables || {}}
                     outputs={outputs || {}}
                 />
-            }
-
-            {!storedData &&
-                <>
-                    <textarea
-                        ref={graphTextAreaRef}
-                        id='inkdrop-graphviz-textarea'
-                    />
-                    <textarea
-                        ref={planTextAreaRef}
-                        id='inkdrop-plan-textarea'
-                    />
-                    <textarea
-                        ref={detailedTextAreaRef}
-                        id='detailed-textarea'
-                    />
-                    <textarea
-                        ref={unchangedTextAreaRef}
-                        id='show-unchanged-textarea'
-                    />
-                    <textarea
-                        ref={debugTextAreaRef}
-                        id='debug-textarea'
-                    />
-                    <textarea
-                        ref={contextTextAreaRef}
-                        id='context-textarea'
-                    />
-                    <button
-                        onClick={handleRenderButtonClick}
-                        id="render-button">
-                        Render
-                    </button>
-                </>
             }
         </div>
     );

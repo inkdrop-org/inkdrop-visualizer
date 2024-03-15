@@ -27,7 +27,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return true;
     }
 
-    if (request.action === "getData") {
+    if (request.action === "getRenderInput") {
         sendResponse({ data: JSON.parse(data) });
         return true;
     }

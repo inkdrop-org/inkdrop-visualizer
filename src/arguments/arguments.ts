@@ -6,8 +6,7 @@ export const argv = yargs(hideBin(process.argv))
     .strict()
     .scriptName("inkdrop")
     .usage('$0 [planfile] [args]')
-    //.command(['$0'], 'Generates an SVG image of your Terraform resources. Automatically launches a browser tab to display the diagram interactively.', () => { })
-    .command('$0 [planfile]', 'Generates an SVG image of your Terraform resources. Automatically launches a browser tab to display the diagram interactively.', (yargs) => {
+    .command('$0 [planfile]', 'Generates a diagram of your Terraform resources. Automatically launches a browser tab to display the diagram interactively.', (yargs) => {
         yargs.positional('planfile', {
             describe: 'Visualizes the impact of changes defined in a specified Terraform plan file.',
             type: 'string'
@@ -28,10 +27,6 @@ export const argv = yargs(hideBin(process.argv))
         type: 'boolean',
         example: "inkdrop --debug",
     })
-    .option('disable-ui', {
-        describe: 'Saves the SVG diagram locally without opening the interactive renderer in a browser.',
-        type: 'boolean',
-    })
     .option('path', {
         describe: 'Sets the working directory to a specified Terraform project path.',
         type: 'string',
@@ -45,6 +40,10 @@ export const argv = yargs(hideBin(process.argv))
         describe: 'Displays also resources with no changes in a Terraform plan.',
         type: 'boolean',
     })
+    .option('svg', {
+        describe: 'Saves an SVG of the diagram locally.',
+        type: 'boolean',
+    })
     .option('telemetry-off', {
         describe: 'Disables telemetry data collection.',
         type: 'boolean',
@@ -52,12 +51,11 @@ export const argv = yargs(hideBin(process.argv))
     .version('version', 'Show version number', version)
     .alias('version', 'v')
     .example([
-        ['$0', 'Generates an SVG and opens the interactive renderer in a browser.'],
+        ['$0', 'Generates a diagram and opens its interactive version in a browser.'],
         ['$0 plan.out', 'Uses a Terraform plan file to visualize changes.'],
         ['$0 --ci', 'Enables CI mode, which does not open the browser and logs extra details.'],
         ['$0 --detailed', 'Generates a diagram with comprehensive details for all resources.'],
         ['$0 --debug', 'Enables debug mode.'],
-        ['$0 --disable-ui', 'Saves the SVG locally without launching the browser.'],
         ['$0 --path ./repos/my-tf-project', 'Sets the working directory.'],
         ['$0 --renderer-port 8080', 'Sets a custom rendering service port.'],
         ['$0 plan.out --show-unchanged', 'Visualizes changes including resources with no changes.'],
