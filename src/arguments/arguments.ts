@@ -48,6 +48,10 @@ export const argv = yargs(hideBin(process.argv))
         describe: 'Disables telemetry data collection.',
         type: 'boolean',
     })
+    .option('disable-sandbox', {
+        describe: 'run chrome with the --no-sandbox flag. Needed in certain ci environments that lack normal sandboxing capabilities',
+        type: 'boolean',
+    })
     .version('version', 'Show version number', version)
     .alias('version', 'v')
     .example([
