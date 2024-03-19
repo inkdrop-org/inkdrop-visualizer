@@ -59,7 +59,13 @@ export async function runHeadlessBrowserAndExportSVG(server: Server, argv: any) 
             }
         })
     }
-    const browser = await puppeteer.launch({ headless: "new" });
+    const noSandbox = (argv as any).disableSandbox || false;
+    const launchArgs = [];
+    if (noSandbox) {
+        launchArgs.push("--no-sandbox");
+    }
+
+    const browser = await puppeteer.launch({ headless: "new", args: launchArgs });
     const page = await browser.newPage();
     const ci = (argv as any).ci || false
     const PORT = (argv as any).rendererPort || 3000
