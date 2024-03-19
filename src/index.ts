@@ -65,6 +65,7 @@ app.use(express.static(path.resolve(__dirname, '..', 'build')));
 let state: any = {}
 
 const ci = (argv as any).ci || false
+const modules = (argv as any).modules || []
 
 app.post('/send-ci-data', async (req, res) => {
     const receivedData = req.body;
@@ -75,6 +76,18 @@ app.post('/send-ci-data', async (req, res) => {
     if (ci) {
         console.log("Writing 'inkdrop-ci-data.json'...")
         fs.writeFileSync(path.resolve(((argv as any).path || "."), 'inkdrop-ci-data.json'), JSON.stringify(state))
+        modules.forEach((module: string) => {
+            console.log(`Writing 'inkdrop-ci-data-${module}.json'...`)
+            fs.writeFileSync(path.resolve(((argv as any).path || "."), `inkdrop-ci-data-${module}.json`), JSON.stringify({
+                ...state,
+                planJson: {
+                    ...state.planJson,
+                    resource_changes: state.planJson.resource_changes.filter((change: any) => {
+                        return change.address.startsWith(`module.${module}`)
+                    })
+                }
+            }))
+        })
     }
 });
 
@@ -97,7 +110,7 @@ app.get('/get-render-input', (req, res) => {
         detailed,
         debug,
         showUnchanged,
-        ci
+        ci,
     });
 })
 

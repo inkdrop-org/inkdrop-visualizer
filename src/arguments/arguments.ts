@@ -27,6 +27,11 @@ export const argv = yargs(hideBin(process.argv))
         type: 'boolean',
         example: "inkdrop --debug",
     })
+    .options('modules', {
+        describe: 'In CI mode, create a diagram for each specified module',
+        type: 'array',
+        example: "inkdrop --ci --modules module1 module2",
+    })
     .option('path', {
         describe: 'Sets the working directory to a specified Terraform project path.',
         type: 'string',
@@ -56,6 +61,7 @@ export const argv = yargs(hideBin(process.argv))
         ['$0 --ci', 'Enables CI mode, which does not open the browser and logs extra details.'],
         ['$0 --detailed', 'Generates a diagram with comprehensive details for all resources.'],
         ['$0 --debug', 'Enables debug mode.'],
+        ['$0 --ci --modules module1 module2', 'In CI mode, creates a diagram for each specified module.'],
         ['$0 --path ./repos/my-tf-project', 'Sets the working directory.'],
         ['$0 --renderer-port 8080', 'Sets a custom rendering service port.'],
         ['$0 plan.out --show-unchanged', 'Visualizes changes including resources with no changes.'],
