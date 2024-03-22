@@ -347,35 +347,15 @@ jobs:
           script: |
             const prId = ${{ github.event.pull_request.number }};
             const svgFileName = '${{ steps.find_svg.outputs.svg_pr_file_name }}'.split('/').pop();
+            const inkdropDataFileName = '${{ steps.find_svg.outputs.inkdrop_pr_data_name }}';
+            const inkdropDataUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/blob/${{ inputs.data_branch_name }}/inkdrop-data/PR${prId}/${encodeURIComponent(inkdropDataFileName)}`;
             const svgUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/blob/${{ inputs.data_branch_name }}/inkdrop-data/PR${prId}/${encodeURIComponent(svgFileName)}?raw=true`;
 
             github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: prId,
-              body: `### Inkdrop Diagram\n![Inkdrop Diagram SVG](${svgUrl})`
-            });
-
-      ################################# INKDROP DATA COMMENT ################################
-      # The Inkdrop chrome extension needs this comment to render the interactive diagram.  #
-      # By activating the extension, this comment will be hidden from the UI.               #
-      # Don't manually change the following, or the chrome extension might stop working.    #
-      #######################################################################################
-
-      - name: Comment PR with Inkdrop CI JSON Data
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@v6
-        with:
-          github-token: ${{secrets.GITHUB_TOKEN}}
-          script: |
-            const prId = ${{ github.event.pull_request.number }};
-            const inkdropDataFileName = '${{ steps.find_svg.outputs.inkdrop_pr_data_name }}';
-            const inkdropDataUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/blob/${{ inputs.data_branch_name }}/inkdrop-data/PR${prId}/${encodeURIComponent(inkdropDataFileName)}`;
-            github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: prId,
-              body: `Install the [Inkdrop Chrome Extension](https://chromewebstore.google.com/detail/visualize-your-terraform/pddpcicnnongifmhilbamagnhiiibkki) to hide this comment and enable interactive mode.\n### Inkdrop Data\n[Inkdrop Data JSON](${inkdropDataUrl})`
+              body: `### Inkdrop Diagram\n![Inkdrop Diagram SVG](${svgUrl})*[Inkdrop Data JSON](${inkdropDataUrl}). Install the [Inkdrop Chrome Extension](https://chromewebstore.google.com/detail/visualize-your-terraform/pddpcicnnongifmhilbamagnhiiibkki) to hide this caption and enable interactive mode.*`
             });
 
       - name: Ensure README and Update with Inkdrop Diagram via GitHub API
