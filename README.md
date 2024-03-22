@@ -36,7 +36,6 @@ tar -xzf inkdrop-linux-x64.tar.gz
 chmod +x inkdrop
 mv inkdrop /usr/local/bin/
 ```
-Because we rely on Puppeteer to render our diagrams, there may be additional dependencies needed for installation on Linux. You can find the required installations in their [docs](https://pptr.dev/troubleshooting#chrome-doesnt-launch-on-linux).
 
 **Install via NPM:**
 
