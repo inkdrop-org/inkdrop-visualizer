@@ -1,8 +1,5 @@
 
 export const getImgsWithData = () => {
-    if (document.querySelector(".js-timeline-item") !== null) {
-        return []
-    }
     const imgLinks = Array.from(document.querySelectorAll('a[href$=".svg?raw=true"]'))
     const imgMap = imgLinks
         .map((imgLink) => {
