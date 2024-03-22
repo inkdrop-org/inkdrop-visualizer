@@ -1,6 +1,9 @@
 
 export const getImgsWithData = () => {
-    const inkdropDataLinks = document.querySelectorAll('a[href$="-inkdrop-ci-data.json"]');
+    if (document.querySelector(".js-timeline-item") === null) {
+        return []
+    }
+    const inkdropDataLinks = document.querySelectorAll('a[href$=".json"]');
 
     const imgLinks = Array.from(document.querySelectorAll('a[href$=".svg?raw=true"]'))
     const imgMap = imgLinks

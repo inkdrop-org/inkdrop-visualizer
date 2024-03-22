@@ -4,7 +4,7 @@ import { Editor, TLShapeId } from "@tldraw/tldraw";
 
 const defaultWidth = 120, defaultHeight = 120
 
-export const computeLayout = (nodeGroups: Map<string, NodeGroup>, computeTerraformPlan: boolean, editor: Editor | null) => {
+export const computeLayout = (nodeGroups: Map<string, NodeGroup>, computeTerraformPlan: boolean, editor: Editor | null, opacityFull: boolean) => {
     const g = new dagre.graphlib.Graph({ compound: true });
     g.setGraph({ rankdir: "TB", ranksep: 120 });
     g.setDefaultEdgeLabel(function () { return {}; });
@@ -70,7 +70,7 @@ export const computeLayout = (nodeGroups: Map<string, NodeGroup>, computeTerrafo
                     numberOfChanges: nodeGroups.get(id)?.numberOfChanges,
                     state: nodeGroups.get(id)?.state,
                 },
-                opacity: computeTerraformPlan && (["no-op", "read"].includes(nodeGroups.get(id)?.state || "no-op") &&
+                opacity: !opacityFull && computeTerraformPlan && (["no-op", "read"].includes(nodeGroups.get(id)?.state || "no-op") &&
                     !g.nodes().some((nodeId) => {
                         g.children(nodeId) && g.children(nodeId)!.length > 0 && g.children(nodeId)!.includes(id)
                     })) ? 0.2 : 1

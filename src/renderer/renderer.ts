@@ -6,8 +6,9 @@ import fs from "fs";
 import ProgressBar from "progress"
 import { openUrl } from "..";
 import { argv } from "../arguments/arguments";
+import { getCurrentFormattedDate } from "../utils/time";
 
-const chromeRevision = "119.0.6045.105"
+const chromeRevision = "123.0.6312.58"
 
 const modules = (argv as any).modules || []
 let imgsCount = modules.length + 1
@@ -78,7 +79,7 @@ export async function runHeadlessBrowserAndExportSVG(server: Server, argv: any) 
             }
         })
     }
-    const browser = await puppeteer.launch({ headless: "new" });
+    const browser = await puppeteer.launch({ headless: true });
     const page = await browser.newPage();
     const ci = (argv as any).ci || false
     const PORT = (argv as any).rendererPort || 3000
@@ -105,8 +106,12 @@ export async function runHeadlessBrowserAndExportSVG(server: Server, argv: any) 
     client.on('Browser.downloadProgress', async (event) => {
 
         if (event.state === 'completed') {
-            fs.renameSync(path.resolve(downloadFolder, suggestedFilename), path.resolve(downloadFolder, suggestedFilename.replace("shapes", "inkdrop-diagram")));
-            console.log(`Downloaded diagram -> ${path.resolve(downloadFolder, suggestedFilename.replace("shapes", "inkdrop-diagram"))}`)
+            const newName = suggestedFilename.startsWith("shapes at ") ?
+                suggestedFilename.replace("shapes at ", "inkdrop-diagram_").replace(" ", "_") :
+                suggestedFilename.replace(/(.*)\.svg/g, "$1_" + getCurrentFormattedDate() + ".svg");
+            fs.renameSync(path.resolve(downloadFolder, suggestedFilename),
+                path.resolve(downloadFolder, newName));
+            console.log(`Downloaded diagram -> ${path.resolve(downloadFolder, newName)}`)
             if (imgsCount > 1) {
                 imgsCount--
             } else {

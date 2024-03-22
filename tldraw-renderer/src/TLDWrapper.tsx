@@ -76,7 +76,8 @@ type RenderInput = {
     detailed: boolean,
     debug: boolean,
     showUnchanged: boolean,
-    ci: boolean
+    ci: boolean,
+    opacityFull: boolean
 }
 
 const assetUrls = getAssetUrls()
@@ -102,7 +103,7 @@ const TLDWrapper = () => {
     const showDebugRef = useRef<boolean>(false)
     const deselectedCategoriesRef = useRef<string[]>([])
     const [showUnknown, setShowUnknown] = useState<boolean>(false)
-    const [showUnchanged, setShowUnchanged] = useState<boolean>(false)
+    const [showUnchangedAttributes, setShowUnchangedAttributes] = useState<boolean>(false)
     const [selectedVarOutput, setSelectedVarOutput] = useState<TFVariable | TFOutput | undefined>()
     const [selectedResourceId, setSelectedResourceId] = useState<string>("")
 
@@ -114,6 +115,8 @@ const TLDWrapper = () => {
         const showUnchanged = renderInput.showUnchanged
         renderInput.planJson &&
             debugLog("Unchanged resources are " + (showUnchanged ? "shown" : "hidden") + ".")
+        const opacityFull = renderInput.opacityFull
+        debugLog("Full opacity for unchanged resources is " + (opacityFull ? "on" : "off") + ".")
         const model = fromDot(renderInput.graph)
         parseModel(model, false)
     }, [renderInput, editor])
@@ -372,7 +375,7 @@ const TLDWrapper = () => {
             debugLog("Removing inactive resources... Done.")
         }
 
-        if (!renderInput?.showUnchanged && !showUnchanged && computeTerraformPlan) {
+        if (!renderInput?.showUnchanged && computeTerraformPlan) {
             debugLog("Removing unchanged resources...")
             // Remove nodeGroups whose first node has no resourceChanges
             Array.from(nodeGroups.keys()).forEach((key) => {
@@ -455,7 +458,7 @@ const TLDWrapper = () => {
             { variables: undefined, outputs: undefined }
         setVariables(variables)
         setOutputs(outputs)
-        computeLayout(nodeGroups, computeTerraformPlan, editor)
+        computeLayout(nodeGroups, computeTerraformPlan, editor, renderInput?.opacityFull || false)
 
         const isDemo = await fetchIsDemo()
         if (isDemo && !refreshFromToggle) {
@@ -574,7 +577,7 @@ const TLDWrapper = () => {
 
             const { textToShow, resourceId } = nodeChangesToString(selectedNodeGroup.nodes.map((node) => {
                 return node.resourceChanges || undefined
-            }).filter((s) => s !== undefined).flat(), showUnknown, showUnchanged)
+            }).filter((s) => s !== undefined).flat(), showUnknown, showUnchangedAttributes)
 
             setSidebarWidth(30)
 
@@ -583,7 +586,7 @@ const TLDWrapper = () => {
         }
     }
 
-    const refreshChangesDrilldown = (showUnknown: boolean, showUnchanged: boolean) => {
+    const refreshChangesDrilldown = (showUnknown: boolean, showUnchangedAttributes: boolean) => {
         if (storedNodeGroups) {
             const shapeIdWithoutPrefixAndSuffix = editor?.getSelectedShapeIds()[0].split(":")[1]
 
@@ -591,7 +594,7 @@ const TLDWrapper = () => {
                 return nodeGroup.id === shapeIdWithoutPrefixAndSuffix
             })[0].nodes.map((node) => {
                 return node.resourceChanges || undefined
-            }).filter((s) => s !== undefined).flat(), showUnknown, showUnchanged)
+            }).filter((s) => s !== undefined).flat(), showUnknown, showUnchangedAttributes)
 
             setDiffText(textToShow || "No changes detected")
             setSelectedResourceId(resourceId || "")
@@ -601,12 +604,12 @@ const TLDWrapper = () => {
 
     const handleShowUnknownChange = (showUnknown: boolean) => {
         setShowUnknown(showUnknown)
-        refreshChangesDrilldown(showUnknown, showUnchanged)
+        refreshChangesDrilldown(showUnknown, showUnchangedAttributes)
     }
 
-    const handleShowUnchangedChange = (showUnchanged: boolean) => {
-        setShowUnchanged(showUnchanged)
-        refreshChangesDrilldown(showUnknown, showUnchanged)
+    const handleShowUnchangedAttributesChange = (showUnchangedAttributes: boolean) => {
+        setShowUnchangedAttributes(showUnchangedAttributes)
+        refreshChangesDrilldown(showUnknown, showUnchangedAttributes)
     }
 
     const refreshWhiteboard = (fromToggle: boolean) => {
@@ -741,14 +744,14 @@ const TLDWrapper = () => {
                     nodeGroups={storedNodeGroups!}
                     handleNodeSelectionChange={handleNodeSelectionChange}
                     showUnknown={showUnknown}
-                    showUnchanged={showUnchanged}
+                    showUnchanged={showUnchangedAttributes}
                     title={selectedVarOutput?.name || selectedNode?.name || ""}
                     text={diffText}
                     resourceId={selectedResourceId}
                     subtitle={selectedVarOutput ? selectedVarOutput.hasOwnProperty("outputReferences") ? "Output" : "Variable" : selectedNode?.type || ""}
                     closeSidebar={() => closeSidebar()}
                     handleShowUnknownChange={handleShowUnknownChange}
-                    handleShowUnchangedChange={handleShowUnchangedChange}
+                    handleShowUnchangedChange={handleShowUnchangedAttributesChange}
                     selectedVarOutput={selectedVarOutput}
                     handleVarOutputSelectionChange={handleVarOutputSelectionChange}
                     variables={variables || {}}

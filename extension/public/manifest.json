@@ -18,7 +18,8 @@
         "https://github.com/*"
       ],
       "js": [
-        "js/actionScript.js"
+        "js/readmeScript.js",
+        "js/pullRequestScript.js"
       ]
     }
   ],

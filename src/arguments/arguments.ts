@@ -53,6 +53,10 @@ export const argv = yargs(hideBin(process.argv))
         describe: 'Disables telemetry data collection.',
         type: 'boolean',
     })
+    .option('opacity-full', {
+        describe: 'Sets the opacity of unchanged resources to 100%.',
+        type: 'boolean',
+    })
     .version('version', 'Show version number', version)
     .alias('version', 'v')
     .example([
@@ -65,6 +69,8 @@ export const argv = yargs(hideBin(process.argv))
         ['$0 --path ./repos/my-tf-project', 'Sets the working directory.'],
         ['$0 --renderer-port 8080', 'Sets a custom rendering service port.'],
         ['$0 plan.out --show-unchanged', 'Visualizes changes including resources with no changes.'],
+        ['$0 plan.out --svg', 'Saves an SVG of the diagram locally.'],
+        ['$0 plan.out --show-unchanged --opacity-full', 'Sets the opacity of unchanged resources to 100%.'],
         ['$0 --telemetry-off', 'Disables telemetry data collection.'],
     ])
     .help()
