@@ -1,12 +1,17 @@
 import path from "path";
-import puppeteer, { Page } from "puppeteer";
+import puppeteer, { ElementHandle, Page } from "puppeteer";
 import { install, getInstalledBrowsers, Browser } from "@puppeteer/browsers"
 import { Server } from "http";
 import fs from "fs";
 import ProgressBar from "progress"
 import { openUrl } from "..";
+import { argv } from "../arguments/arguments";
+import { getCurrentFormattedDate } from "../utils/time";
 
-const chromeRevision = "119.0.6045.105"
+const chromeRevision = "123.0.6312.58"
+
+const modules = (argv as any).modules || []
+let imgsCount = modules.length + 1
 
 async function performActionsToDownloadFile(page: Page) {
     page.waitForSelector('.tlui-layout').then(async () => {
@@ -28,6 +33,21 @@ async function performActionsToDownloadFile(page: Page) {
         if (svgButton) {
             await svgButton.click();
         }
+        for (const module of modules) {
+            const moduleFrame = await (await page.$('.tl-frame-label > [value="module.' + module + '"]'))!.getProperty("parentNode");
+            if (moduleFrame) {
+                await (moduleFrame as ElementHandle).click({ button: 'right' })
+                const exportAsButton = await page.$('[data-testid="menu-item.export-as"]');
+                if (exportAsButton) {
+                    await exportAsButton.click();
+                }
+                const svgButton = await page.$('[data-testid="menu-item.export-as-svg"]');
+                if (svgButton) {
+                    await svgButton.click();
+                }
+            }
+        }
+
     });
 }
 
@@ -65,7 +85,7 @@ export async function runHeadlessBrowserAndExportSVG(server: Server, argv: any) 
         launchArgs.push("--no-sandbox");
     }
 
-    const browser = await puppeteer.launch({ headless: "new", args: launchArgs });
+    const browser = await puppeteer.launch({ headless: true, args: launchArgs });
     const page = await browser.newPage();
     const ci = (argv as any).ci || false
     const PORT = (argv as any).rendererPort || 3000
@@ -92,14 +112,22 @@ export async function runHeadlessBrowserAndExportSVG(server: Server, argv: any) 
     client.on('Browser.downloadProgress', async (event) => {
 
         if (event.state === 'completed') {
-            fs.renameSync(path.resolve(downloadFolder, suggestedFilename), path.resolve(downloadFolder, suggestedFilename.replace("shapes", "inkdrop-diagram")));
-            console.log(`Downloaded diagram -> ${path.resolve(downloadFolder, suggestedFilename.replace("shapes", "inkdrop-diagram"))}`)
-            await browser.close();
-            if (ci) {
-                server.close();
+            const newName = suggestedFilename.startsWith("shapes at ") ?
+                suggestedFilename.replace("shapes at ", "inkdrop-diagram_").replace(" ", "_") :
+                suggestedFilename.replace(/(.*)\.svg/g, "$1_" + getCurrentFormattedDate() + ".svg");
+            fs.renameSync(path.resolve(downloadFolder, suggestedFilename),
+                path.resolve(downloadFolder, newName));
+            console.log(`Downloaded diagram -> ${path.resolve(downloadFolder, newName)}`)
+            if (imgsCount > 1) {
+                imgsCount--
             } else {
-                console.log("Opening Inkdrop...")
-                openUrl(`http://localhost:${PORT}/`);
+                await browser.close();
+                if (ci) {
+                    server.close();
+                } else {
+                    console.log("Opening Inkdrop...")
+                    openUrl(`http://localhost:${PORT}/`);
+                }
             }
         }
     });

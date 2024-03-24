@@ -28,6 +28,16 @@ on:
         default: latest
         required: false
         description: The version of Inkdrop to use (vX.Y.Z format)
+      diagram_readme:
+        type: boolean
+        default: true
+        required: false
+        description: Whether to update the README with the Inkdrop diagram
+      modules_diagram_readme:
+        type: boolean
+        default: true
+        required: false
+        description: Whether to update the READMEs of each module with the Inkdrop diagram
       
       
 jobs:
@@ -95,62 +105,239 @@ jobs:
           name: ${{ inputs.plan_artifact }}
           path: ${{ inputs.terraform_relative_dir }}
 
-      - name: Run Inkdrop
+      - name: Find module names and paths
+        id: find_modules
+        if: ${{ inputs.modules_diagram_readme && inputs.diagram_readme }}
         run: |
-          inkdrop --ci ${{inputs.plan_file_name}}
+          shopt -s nullglob
+          tf_files=(./*.tf)
+          modules_json="["
+          first=true
+
+          for file in "${tf_files[@]}"; do
+              while IFS= read -r line ; do
+                  module_name=$(echo "$line" | awk '{print $2}' | tr -d '"' | tr -d "{")
+                  # Extracting the source path, considering only local modules starting with ./
+                  source_path=$(grep -A 2 "module \"$module_name\"" "$file" | grep "source" | awk -F'= ' '{print $2}' | tr -d '"' | tr -d '"')
+                  
+                  if [[ $source_path = ./* ]]; then
+                      if $first; then
+                          first=false
+                      else
+                          modules_json+=","
+                      fi
+                      
+                      module_json=$(jq -n --arg name "$module_name" --arg path "$source_path" \
+                          '{name: $name, path: $path}')
+                      modules_json+="$module_json"
+                  fi
+              done < <(grep -E '^module "' "$file")
+          done
+
+          modules_json+="]"
+          shopt -u nullglob
+
+          # Using jq to parse the JSON environment variable and extract module names
+          module_names=$(echo $modules_json | jq -r '.[].name')
+          module_paths=$(echo $modules_json | jq -r '.[].path')
+
+          # Convert the newline-separated jq output into space-separated module names
+          module_names_array=($module_names)
+          module_paths_array=($module_paths)
+
+          echo "TERRAFORM_MODULE_NAMES='${module_names_array[@]}'" >> $GITHUB_OUTPUT
+          echo "TERRAFORM_MODULE_PATHS='${module_paths_array[@]}'" >> $GITHUB_OUTPUT
+
         working-directory: ${{ inputs.terraform_relative_dir }}
 
+      - name: Run Inkdrop for PR comment
+        run: |
+          inkdrop ${{inputs.plan_file_name}} --ci
+        working-directory: ${{ inputs.terraform_relative_dir }}
 
-      - name: Capture SVG File Name
+      - name: Run Inkdrop for README diagrams
+        if: ${{ inputs.diagram_readme }}
+        run: |
+          inkdrop_cmd="inkdrop ${{inputs.plan_file_name}} --ci --opacity-full --show-unchanged"
+          if [ "${{ inputs.modules_diagram_readme }}" = "true" ]; then
+            inkdrop_cmd+=" --modules $(echo ${{ steps.find_modules.outputs.TERRAFORM_MODULE_NAMES }})"
+          fi
+          echo "Running Inkdrop with command: $inkdrop_cmd"
+          eval $inkdrop_cmd
+        working-directory: ${{ inputs.terraform_relative_dir }}
+
+      - name: Capture SVG and Inkdrop Data
         id: find_svg
         working-directory: ${{ inputs.terraform_relative_dir }}
         run: |
-          SVG_FILE=$(ls -Art *.svg | tail -n 1)
-          echo "Found SVG: $SVG_FILE"
-          echo "::set-output name=svg_file_name::${SVG_FILE}"
+          SVG_FILE_PR=$(ls -Art inkdrop-diagram_*.svg | sed -n '1 p')
+          INKDROP_DATA_PR=$(ls -Art inkdrop-ci-data_*.json | sed -n '1 p')
+          echo "Found SVG for PR: $SVG_FILE_PR"
+          echo "svg_pr_file_name=${SVG_FILE_PR}" >> $GITHUB_OUTPUT
+          echo "Found Inkdrop Data for PR: $INKDROP_DATA_PR"
+          echo "inkdrop_pr_data_name=${INKDROP_DATA_PR}" >> $GITHUB_OUTPUT
 
+          if [ "${{ inputs.diagram_readme }}" = "true" ]; then
+            SVG_FILE_README=$(ls -Art inkdrop-diagram_*.svg | sed -n '2 p')
+            echo "Found SVG for README: $SVG_FILE_README"
+            echo "svg_readme_file_name=${SVG_FILE_README}" >> $GITHUB_OUTPUT
+            INKDROP_DATA_README=$(ls -Art inkdrop-ci-data_*.json | sed -n '2 p')
+            echo "Found Inkdrop Data for README: $INKDROP_DATA_README"
+            echo "inkdrop_readme_data_name=${INKDROP_DATA_README}" >> $GITHUB_OUTPUT
+          fi
+          MODULE_SVGS="{"
+          MODULE_DATA="{"
+          for module in $(echo ${{steps.find_modules.outputs.TERRAFORM_MODULE_NAMES}}); do
+            MODULE_SVG_FILE=$(ls -Art module.${module}_*.svg | tail -n 1)
+            echo "Found SVG for module ${module}: $MODULE_SVG_FILE"
+            MODULE_SVGS=${MODULE_SVGS}",\"${module}\":\"${MODULE_SVG_FILE}\""
+            MODULE_INKDROP_DATA=$(ls -Art inkdrop-ci-data-${module}_*.json | tail -n 1)
+            echo "Found Inkdrop Data for module ${module}: $MODULE_INKDROP_DATA"
+            MODULE_DATA=${MODULE_DATA}",\"${module}\":\"${MODULE_INKDROP_DATA}\""
+          done
+          MODULE_SVGS=${MODULE_SVGS}"}"
+          MODULE_DATA=${MODULE_DATA}"}"
+          MODULE_SVGS=$(echo $MODULE_SVGS | sed 's/,//')
+          MODULE_DATA=$(echo $MODULE_DATA | sed 's/,//')
+          echo "module_svgs=${MODULE_SVGS}" >> $GITHUB_OUTPUT
+          echo "module_inkdrop_data=${MODULE_DATA}" >> $GITHUB_OUTPUT
 
-      - name: Commit and push SVG and inkdrop-ci-data.json to inkdrop data branch
+      - name: Commit and push SVG and inkdrop-ci-data to inkdrop data branch
         uses: actions/github-script@v6
+        env:
+          PR_ID: ${{ github.event.pull_request.number }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           script: |
             const fs = require('fs');
-            const svgPath = process.env.SVG_FILE_PATH;
-            const inkdropDataPath = process.env.INKDROP_DATA_PATH;
-            const svgContent = fs.readFileSync(svgPath, { encoding: 'utf-8' });
-            const inkdropDataContent = fs.readFileSync(inkdropDataPath, { encoding: 'utf-8' });
+
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            const pushDiagramReadme = "${{ inputs.diagram_readme }}";
+            const pushModulesDiagrams = "${{ inputs.modules_diagram_readme }}";
+
+            const modules = pushModulesDiagrams === "true" ?
+                "${{ steps.find_modules.outputs.TERRAFORM_MODULE_NAMES }}".replace(/'/g, '') :
+                "";
+            const moduleSvgs = JSON.parse('${{ steps.find_svg.outputs.module_svgs }}');
+            const moduleInkdropData = JSON.parse('${{ steps.find_svg.outputs.module_inkdrop_data }}');
+
+            const paths = [
+                '${{ inputs.terraform_relative_dir }}/${{ steps.find_svg.outputs.svg_pr_file_name }}',
+                '${{ inputs.terraform_relative_dir }}/${{ steps.find_svg.outputs.inkdrop_pr_data_name }}',
+                ...(pushDiagramReadme === "true" ? [
+                    '${{ inputs.terraform_relative_dir }}/${{ steps.find_svg.outputs.svg_readme_file_name }}',
+                    '${{ inputs.terraform_relative_dir }}/${{ steps.find_svg.outputs.inkdrop_readme_data_name }}',
+                ] : []),
+                ...(modules ? modules.split(" ").map(module => {
+                    return '${{ inputs.terraform_relative_dir }}/' + moduleSvgs[module];
+                }
+                ) : []),
+                ...(modules ? modules.split(" ").map(module => {
+                    return '${{ inputs.terraform_relative_dir }}/' + moduleInkdropData[module];
+                }
+                ) : []),
+            ]
+
+            const names = [
+                '${{ steps.find_svg.outputs.svg_pr_file_name }}',
+                '${{ steps.find_svg.outputs.inkdrop_pr_data_name }}',
+                ...(pushDiagramReadme === "true" ? [
+                    '${{ steps.find_svg.outputs.svg_readme_file_name }}',
+                    '${{ steps.find_svg.outputs.inkdrop_readme_data_name }}',
+                ] : []),
+                ...(modules ? modules.split(" ").map(module => {
+                    return moduleSvgs[module];
+                }
+                ) : []),
+                ...(modules ? modules.split(" ").map(module => {
+                    return moduleInkdropData[module];
+                }
+                ) : []),
+            ]
+
+            const contentsBase64 = paths.map(path => Buffer.from(fs.readFileSync(
+                path, { encoding: 'utf-8' }
+            )).toString('base64'));
+
             const branch = '${{ inputs.data_branch_name }}';
-            const svgName = svgPath.split('/').pop();
-            const noExtensionSvgName = svgName.split('.svg')[0];
-            const svgFilePath = `inkdrop-data/PR${process.env.PR_ID}/${svgPath.split('/').pop()}`;
-            const inkdropDataFilePath = `inkdrop-data/PR${process.env.PR_ID}/${noExtensionSvgName}-${inkdropDataPath.split('/').pop()}`;
+            const newFilePaths = names.map((name) => {
+                return `inkdrop-data/PR${process.env.PR_ID}/${name}`;
+            })
 
-            // Encode content to Base64 for the GitHub API
-            const contentBase64 = Buffer.from(svgContent).toString('base64');
-            const inkdropDataContentBase64 = Buffer.from(inkdropDataContent).toString('base64');
+            const files = newFilePaths.map((path, index) => {
+                return {
+                    path,
+                    content: contentsBase64[index],
+                }
+            });
 
-            // Commit and push the file
-            await github.rest.repos.createOrUpdateFileContents({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                path: svgFilePath,
-                message: `Add SVG for PR ${process.env.PR_ID}`,
-                content: contentBase64,
-                branch,
-            }).catch(error => core.setFailed(`Failed to commit SVG: ${error.message}`));
+            async function createBlobForFile(github, owner, repo, content) {
+                const blobData = await github.rest.git.createBlob({
+                    owner,
+                    repo,
+                    content,
+                    encoding: 'base64',
+                });
+                return blobData.data.sha;
+            }
 
-            await github.rest.repos.createOrUpdateFileContents({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                path: inkdropDataFilePath,
-                message: `Add Inkdrop data JSON for PR ${process.env.PR_ID}`,
-                content: inkdropDataContentBase64,
-                branch,
-            }).catch(error => core.setFailed(`Failed to commit Inkdrop data JSON: ${error.message}`));
-        env:
-          SVG_FILE_PATH: ${{ inputs.terraform_relative_dir }}/${{ steps.find_svg.outputs.svg_file_name }}
-          INKDROP_DATA_PATH: ${{ inputs.terraform_relative_dir }}/inkdrop-ci-data.json
-          PR_ID: ${{ github.event.pull_request.number }}
+            async function pushFilesToRepo() {
+                let blobs = [];
+
+                // Create blobs for file contents
+                for (let file of files) {
+                    const blobSha = await createBlobForFile(github, owner, repo, file.content);
+                    blobs.push({
+                        sha: blobSha,
+                        path: file.path,
+                        mode: '100644', // blob type
+                        type: 'blob',
+                    });
+                }
+
+                // Get the current commit SHA and tree SHA of the branch you're updating
+                const { data: refData } = await github.rest.git.getRef({
+                    owner,
+                    repo,
+                    ref: `heads/${branch}`,
+                });
+                const parentSha = refData.object.sha;
+                const { data: commitData } = await github.rest.git.getCommit({
+                    owner,
+                    repo,
+                    commit_sha: parentSha,
+                });
+                const treeSha = commitData.tree.sha;
+
+                // Create a new tree with base as existing tree
+                const { data: newTreeData } = await github.rest.git.createTree({
+                    owner,
+                    repo,
+                    base_tree: treeSha,
+                    tree: blobs,
+                });
+
+                // Create a new commit with this tree
+                const { data: newCommitData } = await github.rest.git.createCommit({
+                    owner,
+                    repo,
+                    message: 'Inkdrop data and diagrams for PR#' + process.env.PR_ID,
+                    tree: newTreeData.sha,
+                    parents: [parentSha],
+                });
+
+                // Update the branch reference to this new commit
+                await github.rest.git.updateRef({
+                    owner,
+                    repo,
+                    ref: `heads/${branch}`,
+                    sha: newCommitData.sha,
+                });
+            }
+
+            pushFilesToRepo().catch(err => console.error(err));
 
       - name: Comment PR with Inkdrop SVG Image Link
         if: github.event_name == 'pull_request'
@@ -159,36 +346,129 @@ jobs:
           github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
             const prId = ${{ github.event.pull_request.number }};
-            const svgFileName = '${{ steps.find_svg.outputs.svg_file_name }}'.split('/').pop();
+            const svgFileName = '${{ steps.find_svg.outputs.svg_pr_file_name }}'.split('/').pop();
+            const inkdropDataFileName = '${{ steps.find_svg.outputs.inkdrop_pr_data_name }}';
+            const inkdropDataUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/blob/${{ inputs.data_branch_name }}/inkdrop-data/PR${prId}/${encodeURIComponent(inkdropDataFileName)}`;
             const svgUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/blob/${{ inputs.data_branch_name }}/inkdrop-data/PR${prId}/${encodeURIComponent(svgFileName)}?raw=true`;
 
             github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: prId,
-              body: `### Inkdrop Diagram\n![Inkdrop Diagram SVG](${svgUrl})`
+              body: `### Inkdrop Diagram\n![Inkdrop Diagram SVG](${svgUrl})*[Inkdrop Data JSON](${inkdropDataUrl}). Install the [Inkdrop Chrome Extension](https://chromewebstore.google.com/detail/visualize-your-terraform/pddpcicnnongifmhilbamagnhiiibkki) to hide this caption and enable interactive mode.*`
             });
 
-      ################################# INKDROP DATA COMMENT ################################
-      # The Inkdrop chrome extension needs this comment to render the interactive diagram.  #
-      # By activating the extension, this comment will be hidden from the UI.               #
-      # Don't manually change the following, or the chrome extension might stop working.    #
-      #######################################################################################
-
-      - name: Comment PR with Inkdrop CI JSON Data
-        if: github.event_name == 'pull_request'
+      - name: Ensure README and Update with Inkdrop Diagram via GitHub API
         uses: actions/github-script@v6
+        if: ${{ inputs.diagram_readme }}
         with:
-          github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
-            const prId = ${{ github.event.pull_request.number }};
-            const inkdropDataFileName = '${{ steps.find_svg.outputs.svg_file_name }}'.split('.svg')[0] + '-' + process.env.INKDROP_DATA_NAME;
-            const inkdropDataUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/blob/${{ inputs.data_branch_name }}/inkdrop-data/PR${prId}/${encodeURIComponent(inkdropDataFileName)}`;
-            github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: prId,
-              body: `Install the [Inkdrop Chrome Extension](https://chromewebstore.google.com/detail/visualize-your-terraform/pddpcicnnongifmhilbamagnhiiibkki) to hide this comment and enable interactive mode.\n### Inkdrop Data\n[Inkdrop Data JSON](${inkdropDataUrl})`
+            const path = require('path');
+            const svgBranch = '${{ inputs.data_branch_name }}';
+            const branch = process.env.HEAD_BRANCH || github.context.ref.replace('refs/heads/', '');
+            const workingDir = '${{ inputs.terraform_relative_dir }}';
+
+            const pushModulesDiagrams = "${{ inputs.modules_diagram_readme }}";
+
+            const prId = '${{ github.event.pull_request.number }}';
+            const modules = pushModulesDiagrams === "true" ?
+                "${{ steps.find_modules.outputs.TERRAFORM_MODULE_NAMES }}".replace(/'/g, '').split(' ') : [];
+            modules.push("ROOT");
+            const modulePaths = pushModulesDiagrams === "true" ?
+                "${{ steps.find_modules.outputs.TERRAFORM_MODULE_PATHS }}".replace(/'/g, '').split(' ') : [];
+            modulePaths.push(".")
+            const moduleSvgs = pushModulesDiagrams === "true" ?
+                JSON.parse(`${{ steps.find_svg.outputs.module_svgs }}`) : {};
+            const moduleJsons = pushModulesDiagrams === "true" ?
+                JSON.parse(`${{ steps.find_svg.outputs.module_inkdrop_data }}`) : {};
+            moduleSvgs["ROOT"] = "${{ steps.find_svg.outputs.svg_readme_file_name }}";
+            moduleJsons["ROOT"] = "${{ steps.find_svg.outputs.inkdrop_readme_data_name }}";
+
+
+            let tree = []; // Preparing a new tree for batch update
+
+            for (let i = 0; i < modules.length; i++) {
+                const moduleName = modules[i];
+                const modulePath = modulePaths[i].replaceAll('./', ''); // Adjusting the path
+                const svgFileName = moduleSvgs[moduleName]; // Use the output from "Capture SVG and Inkdrop Data"
+                const svgUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/blob/${svgBranch}/inkdrop-data/PR${prId}/${encodeURIComponent(svgFileName)}?raw=true`;
+                const readmePath = path.join(workingDir, `${modulePath}/README.md`);
+                const inkdropDataName = moduleJsons[moduleName];
+                const inkdropDataUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/blob/${svgBranch}/inkdrop-data/PR${prId}/${encodeURIComponent(inkdropDataName)}`;
+
+                let readmeContent = `## Inkdrop Diagram\n![Inkdrop Diagram](${svgUrl})\n*[Inkdrop Data JSON](${inkdropDataUrl}). Install the [Inkdrop Chrome Extension](https://chromewebstore.google.com/detail/visualize-your-terraform/pddpcicnnongifmhilbamagnhiiibkki) to hide this caption and enable interactive mode.*`;
+
+                try {
+                    // Try to get existing content if README already exists
+                    const response = await github.rest.repos.getContent({
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        path: readmePath,
+                        ref: branch
+                    });
+
+                    // If the file exists, decode its content and append or modify the diagram link
+                    if (response.data.sha) {
+                        const buff = Buffer.from(response.data.content, 'base64');
+                        readmeContent = buff.toString('utf-8');
+                        if (readmeContent.includes("![Inkdrop Diagram]")) {
+                            if (readmeContent.includes("*[Inkdrop Data JSON]")) {
+                                readmeContent = readmeContent.replace(/\*\[Inkdrop Data JSON\].*\*/g, "");
+                            }
+                            readmeContent = readmeContent.replace(/!\[Inkdrop Diagram\]\(.*\)/g,
+                                `![Inkdrop Diagram](${svgUrl})\n*[Inkdrop Data JSON](${inkdropDataUrl}). Install the [Inkdrop Chrome Extension](https://chromewebstore.google.com/detail/visualize-your-terraform/pddpcicnnongifmhilbamagnhiiibkki) to hide this caption and enable interactive mode.*`);
+                        }
+                    }
+                } catch (error) {
+                    console.error(`Error fetching README for ${moduleName}:`, error);
+                    if (error.status !== 404) {
+                        throw error;
+                    }
+                }
+
+                // Convert updated content to Base64 for GitHub API
+                const contentBase64 = Buffer.from(readmeContent).toString('base64');
+                tree.push({
+                    path: readmePath,
+                    mode: '100644', // Represents a blob (file)
+                    type: 'blob',
+                    content: readmeContent
+                });
+            }
+
+            // Create a new tree
+            const { data: newTree } = await github.rest.git.createTree({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                base_tree: (await github.rest.git.getRef({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    ref: `heads/${branch}`,
+                })).data.object.sha,
+                tree
+            });
+
+            const parent = (await github.rest.git.getRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: `heads/${branch}`,
+            })).data.object.sha;
+
+            // Create a commit
+            const commit = await github.rest.git.createCommit({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                message: `Updating READMEs with Inkdrop Diagram links - PR#${prId}`,
+                tree: newTree.sha,
+                parents: [parent]
+            });
+
+            // Update reference to point to the new commit
+            await github.rest.git.updateRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: `heads/${branch}`,
+                sha: commit.data.sha
             });
         env:
-          INKDROP_DATA_NAME: inkdrop-ci-data.json
+          HEAD_BRANCH: ${{ github.head_ref }}

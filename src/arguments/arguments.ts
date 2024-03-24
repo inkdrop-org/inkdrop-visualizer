@@ -27,6 +27,11 @@ export const argv = yargs(hideBin(process.argv))
         type: 'boolean',
         example: "inkdrop --debug",
     })
+    .options('modules', {
+        describe: 'In CI mode, create a diagram for each specified module',
+        type: 'array',
+        example: "inkdrop --ci --modules module1 module2",
+    })
     .option('path', {
         describe: 'Sets the working directory to a specified Terraform project path.',
         type: 'string',
@@ -52,6 +57,10 @@ export const argv = yargs(hideBin(process.argv))
         describe: 'run chrome with the --no-sandbox flag. Needed in certain ci environments that lack normal sandboxing capabilities',
         type: 'boolean',
     })
+    .option('opacity-full', {
+        describe: 'Sets the opacity of unchanged resources to 100%.',
+        type: 'boolean',
+    })
     .version('version', 'Show version number', version)
     .alias('version', 'v')
     .example([
@@ -60,9 +69,12 @@ export const argv = yargs(hideBin(process.argv))
         ['$0 --ci', 'Enables CI mode, which does not open the browser and logs extra details.'],
         ['$0 --detailed', 'Generates a diagram with comprehensive details for all resources.'],
         ['$0 --debug', 'Enables debug mode.'],
+        ['$0 --ci --modules module1 module2', 'In CI mode, creates a diagram for each specified module.'],
         ['$0 --path ./repos/my-tf-project', 'Sets the working directory.'],
         ['$0 --renderer-port 8080', 'Sets a custom rendering service port.'],
         ['$0 plan.out --show-unchanged', 'Visualizes changes including resources with no changes.'],
+        ['$0 plan.out --svg', 'Saves an SVG of the diagram locally.'],
+        ['$0 plan.out --show-unchanged --opacity-full', 'Sets the opacity of unchanged resources to 100%.'],
         ['$0 --telemetry-off', 'Disables telemetry data collection.'],
     ])
     .help()

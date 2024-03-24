@@ -11,6 +11,7 @@ import { sendPing } from './ping/sendPing';
 import semver from 'semver';
 import cors from 'cors';
 import { warnUserIfNotLatestVersion } from './utils/fetchLatestVersion';
+import { getCurrentFormattedDate } from './utils/time';
 
 const MAX_BUFFER_SIZE = 10 * 1024 * 1024; // 10 MB
 
@@ -35,13 +36,13 @@ if ((argv as any).debug) {
     warnUserIfNotLatestVersion()
 }
 
-
 if ((argv as any).planfile) {
     if (!fs.existsSync((argv as any).planfile) || !fs.lstatSync((argv as any).planfile).isFile()) {
         console.error(`The path to the plan file is invalid: ${(argv as any).planfile}`);
         process.exit(1);
     }
 }
+
 //Check if the argument "--path" contains a path to a Terraform project
 if ((argv as any).path) {
     if (!fs.existsSync((argv as any).path) || !fs.lstatSync((argv as any).path).isDirectory()) {
@@ -65,6 +66,7 @@ app.use(express.static(path.resolve(__dirname, '..', 'build')));
 let state: any = {}
 
 const ci = (argv as any).ci || false
+const modules = (argv as any).modules || []
 
 app.post('/send-ci-data', async (req, res) => {
     const receivedData = req.body;
@@ -73,8 +75,21 @@ app.post('/send-ci-data', async (req, res) => {
     })
     res.status(200).json({ message: 'Data stored', yourData: receivedData });
     if (ci) {
-        console.log("Writing 'inkdrop-ci-data.json'...")
-        fs.writeFileSync(path.resolve(((argv as any).path || "."), 'inkdrop-ci-data.json'), JSON.stringify(state))
+        const currentDate = getCurrentFormattedDate()
+        console.log("Writing 'inkdrop-ci-data_" + currentDate + ".json'...")
+        fs.writeFileSync(path.resolve(((argv as any).path || "."), 'inkdrop-ci-data_' + currentDate + '.json'), JSON.stringify(state))
+        modules.forEach((module: string) => {
+            console.log(`Writing 'inkdrop-ci-data-${module}_${currentDate}.json'...`)
+            fs.writeFileSync(path.resolve(((argv as any).path || "."), `inkdrop-ci-data-${module}_${currentDate}.json`), JSON.stringify({
+                ...state,
+                planJson: {
+                    ...state.planJson,
+                    resource_changes: state.planJson.resource_changes.filter((change: any) => {
+                        return change.address.startsWith(`module.${module}`)
+                    })
+                }
+            }))
+        })
     }
 });
 
@@ -89,6 +104,7 @@ let graph = ""
 const debug: boolean = (argv as any).debug || false
 const detailed: boolean = (argv as any).detailed || false
 const showUnchanged: boolean = (argv as any).showUnchanged || false
+const opacityFull: boolean = (argv as any).opacityFull || false
 
 app.get('/get-render-input', (req, res) => {
     res.status(200).json({
@@ -97,7 +113,8 @@ app.get('/get-render-input', (req, res) => {
         detailed,
         debug,
         showUnchanged,
-        ci
+        ci,
+        opacityFull
     });
 })
 
