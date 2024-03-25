@@ -1,5 +1,5 @@
 import { Editor, useValue } from "@tldraw/tldraw";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { NodeGroup } from "../TLDWrapper";
 import { Button } from "@mui/material";
 import DownloadIcon from '@mui/icons-material/Download';
@@ -36,8 +36,10 @@ const EditorHandler = ({
 
     const selectionFrameChange = useValue("selection change", () => {
         if (!editor) return undefined;
-        if (editor.root.getPath() === "root.select.idle" && editor.getSelectedShapes().length > 1) {
-            return editor.getSelectionPageBounds()
+        if (editor.root.getPath() === "root.select.idle" && editor.getSelectedShapes().length > 0) {
+            if (editor.getSelectedShapes().length > 1 || (editor.getSelectedShapes().length === 1 && editor.getSelectedShapes()[0].type === "frame")) {
+                return editor.getSelectionPageBounds()
+            }
         }
         return undefined
     }, [editor])

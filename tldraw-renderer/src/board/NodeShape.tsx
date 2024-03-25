@@ -1,16 +1,11 @@
-import { Button, Tooltip } from '@mui/material'
 import {
     BaseBoxShapeTool,
     BaseBoxShapeUtil,
     DefaultColorStyle,
     HTMLContainer,
-    StyleProp,
     T,
     TLBaseShape,
-    TLDefaultColorStyle,
-    getDefaultColorTheme,
 } from '@tldraw/tldraw'
-import { useEffect, useRef } from 'react'
 import { truncateText } from './shapeUtils'
 
 // Define a style that can be used across multiple shapes.
@@ -104,29 +99,30 @@ export class NodeShapeUtil extends BaseBoxShapeUtil<NodeShape> {
                         backgroundColor: shape.props.backgroundColor,
                     }}
                 >
-                    <div className={`absolute top-0 left-0 text-center max-w-[88%] p-1 pt-[2px] text-sm text-black truncate rounded-br`}
-                    >
-                        {shape.props.name}
-                    </div>
+
                     <div className={`absolute top-[14px] left-0 text-center max-w-full p-1 text-[10px] text-[#504758] truncate rounded-br`}
                     >
                         {shape.props.resourceType}
                     </div>
                     <img src={shape.props.iconPath} className='absolute bottom-4 h-16 w-16 rounded pointer-events-none select-none' />
-                    {
-                        !["no-op", "read"].includes(shape.props.state) &&
-                        <div
-                            style={{
-                                backgroundColor: shape.props.state === "create" ? "#dcfce7" :
-                                    shape.props.state === "delete" ? "#fee2e2" : "#fef9c3",
-                                borderColor: shape.props.state === "create" ? "#22c55e" :
-                                    shape.props.state === "delete" ? "#ef4444" : "#eab208",
-                                fontSize: "10px"
-                            }}
-                            className='absolute top-1 right-1 rounded-full border h-4 w-4 text-center leading-[14px]'>
-                            {shape.props.numberOfChanges}
+                    <div className={`flex absolute top-0 left-0 w-full`}>
+                        <div className={`grow p-1 pt-[2px] text-sm text-black truncate rounded-br text-left`}
+                        >
+                            {shape.props.name}
                         </div>
-                    }
+                        {
+                            !["no-op", "read"].includes(shape.props.state) &&
+                            <div
+                                style={{
+                                    backgroundColor: shape.props.state === "create" ? "#37BB65" :
+                                        shape.props.state === "delete" ? "#E22134" : "#F2960D",
+                                    fontSize: "12px"
+                                }}
+                                className='mt-1 mr-1 rounded-full h-4 min-w-6 text-center leading-[14px]'>
+                                {shape.props.numberOfChanges}
+                            </div>
+                        }
+                    </div>
                 </HTMLContainer>
 
             </>
@@ -172,11 +168,9 @@ export class NodeShapeUtil extends BaseBoxShapeUtil<NodeShape> {
         typeText.setAttributeNS(null, 'dominant-baseline', 'middle');
 
         // Truncate the text if it's too long
-        truncateText(nameText, shape.props.w - 25); // Assume 5 padding on each side
         truncateText(typeText, shape.props.w - 10); // Assume 5 padding on each side
 
         // Append the text element to the main group
-        g.appendChild(nameText);
         g.appendChild(typeText);
 
         const iconWidth = 58; // The width of the image
@@ -225,39 +219,53 @@ export class NodeShapeUtil extends BaseBoxShapeUtil<NodeShape> {
 
         g.appendChild(icon);
 
-        // Calculate the position for diff indicator
-        const indicatorDiameter = 16; // since the dot is 7x7, diameter would be double that
-        const indicatorRadius = indicatorDiameter / 2;
-        const indicatorX = shape.props.w - indicatorRadius - 4
-        const indicatorY = indicatorRadius + 4
-        const fontSize = 10;
-
         if (!["no-op", "read"].includes(shape.props.state)) {
-            // Create the validity indicator circle
-            const indicator = document.createElementNS(xmlns, 'circle');
-            indicator.setAttributeNS(null, 'cx', indicatorX.toString());
-            indicator.setAttributeNS(null, 'cy', indicatorY.toString());
-            indicator.setAttributeNS(null, 'r', indicatorRadius.toString());
-            indicator.setAttributeNS(null, 'fill',
-                shape.props.state === "create" ? "#dcfce7" :
-                    shape.props.state === "delete" ? "#fee2e2" : "#fef9c3"); // Using colors for green or red indicators
-            indicator.setAttributeNS(null, 'stroke', shape.props.state === "create" ? "#22c55e" :
-                shape.props.state === "delete" ? "#ef4444" : "#eab208"); // Set stroke (border) color to black
-            indicator.setAttributeNS(null, 'stroke-width', "1"); // Set stroke width to 2
-            // Append the indicator to the main group
-            g.appendChild(indicator);
+            const textContent = shape.props.numberOfChanges.toString();
+            const fontSize = 12;
+            const padding = 5; // Horizontal padding around the text
+            const minimumWidth = 24;
+            const height = 16; // height for the pill-shaped rectangle
 
-            // Create the text element for numberOfChanges
+            // Dynamically calculate the text width (for simplicity, this is an approximation)
+            let estimatedTextWidth = textContent.length * (fontSize * 0.6);
+
+            let totalWidth = Math.max(minimumWidth, estimatedTextWidth + (2 * padding));
+
+            truncateText(nameText, shape.props.w - 25 - totalWidth);
+
+            const margin = 5; // Margin from the right edge
+            let rectX = shape.props.w - totalWidth - margin;
+
+            const changesRect = document.createElementNS(xmlns, 'rect');
+            changesRect.setAttributeNS(null, 'x', rectX.toString());
+            changesRect.setAttributeNS(null, 'y', margin.toString());
+            changesRect.setAttributeNS(null, 'width', totalWidth.toString());
+            changesRect.setAttributeNS(null, 'height', height.toString());
+
+            // rx and ry are half of the rectangle's height
+            changesRect.setAttributeNS(null, 'rx', (height / 2).toString());
+            changesRect.setAttributeNS(null, 'ry', (height / 2).toString());
+
+            changesRect.setAttributeNS(null, 'fill', shape.props.state === "create" ? "#37bb65" :
+                shape.props.state === "delete" ? "#e22134" : "#f2960d");
+
+
+            g.appendChild(changesRect);
+
+            // Create and add the text for the number of changes
             const changesText = document.createElementNS(xmlns, 'text');
-            changesText.textContent = shape.props.numberOfChanges.toString();
-            changesText.setAttributeNS(null, 'x', indicatorX.toString());
-            changesText.setAttributeNS(null, 'y', (indicatorY + 1).toString()); // Adjust the Y position slightly to center the text vertically
-            changesText.setAttributeNS(null, 'style', `font-family: sans-serif; font-size: ${fontSize}px; fill: black;`);
-            changesText.setAttributeNS(null, 'text-anchor', 'middle'); // Centers the text horizontally on X
-            changesText.setAttributeNS(null, 'dominant-baseline', 'central'); // Centers the text vertically
+            changesText.textContent = textContent;
+            changesText.setAttributeNS(null, 'x', (rectX + totalWidth / 2).toString()); // Center the text in the rectangle
+            changesText.setAttributeNS(null, 'y', (margin + height / 2 + 1).toString());
+            changesText.setAttributeNS(null, 'style', `font-family: sans-serif; font-size: ${fontSize}px; fill: black; text-anchor: middle; dominant-baseline: middle;`);
 
             g.appendChild(changesText);
+        } else {
+            truncateText(nameText, shape.props.w - 25);
         }
+
+        // Append the text element to the main group
+        g.appendChild(nameText);
 
         // Return the SVG element <g>
         return g;

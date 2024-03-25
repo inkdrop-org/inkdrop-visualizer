@@ -1,13 +1,13 @@
 .green-text {
-    color: rgb(34 197 94 / var(--tw-bg-opacity));
+    color: #37bb65
 }
 
 .red-text {
-    color: rgb(239 68 68 / var(--tw-bg-opacity));
+    color: #e22134
 }
 
 .yellow-text {
-    color: rgb(234 179 8 / var(--tw-bg-opacity));
+    color: #f2960d
 }
 
 .gray-text {
