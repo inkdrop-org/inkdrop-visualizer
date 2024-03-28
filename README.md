@@ -26,25 +26,25 @@
 </p>
 
 ## Overview
-We built Inkdrop because keeping track of large Terraform configs is hard. Seeing a visual map of your resources helps you reason about the relationships and dependencies.
+Inkdrop generates a visual, interactive map of your resources helps you understand relationships and dependencies.
 
-Inkdrop takes your Terraform config and locally renders it as an interactive webUI, allowing you to get a clean architecture overview in seconds
+Inkdrop takes your Terraform Plan and renders it locally as an interactive WebUI, allowing you to get a clean overview in seconds.
 
 Benefits:
-- Visualize your terraform plans to review changes at a glance.
-- Use tags and filters to get an overview of a new project fast.
-- Detect Drift, Edit and Document Infrastructure - Coming soon
+- Review proposed changes at a glance.
+- Document your infrastructure automatically.
+- Onboard engineers to a new project 10 times faster.
 
-## Installation
-You can install Inkdrop with Brew, as a Linux binary or with NPM :
+Note: Inkdrop currently only works for AWS resources.
 
-**Install via Brew:**
+## Quick Install
+**With Brew:**
 
 ```
 brew tap inkdrop-org/inkdrop-visualizer
 brew install inkdrop-visualizer
 ```
-**Install via Linux:**
+**With Linux:**
 
 ```
 wget https://github.com/inkdrop-org/inkdrop-visualizer/releases/latest/download/inkdrop-linux-x64.tar.gz
@@ -53,7 +53,7 @@ chmod +x inkdrop
 mv inkdrop /usr/local/bin/
 ```
 
-**Install via NPM:**
+**With NPM:**
 
 ```
 npm install -g inkdrop-visualizer
