@@ -2,16 +2,13 @@ import { Checkbox, Drawer, FormControlLabel, FormGroup, IconButton, Tooltip, Typ
 import "./Sidebar.css"
 import CloseIcon from '@mui/icons-material/Close';
 import ResourceDrilldown from "./ResourceDrilldown";
-import VariableOutputDrilldown from "./VariableOutputDrilldown";
-import { NodeGroup, TFOutput, TFVariable } from "../TLDWrapper";
+import { NodeGroup } from "../TLDWrapper";
 
 interface SidebarProps {
     width: number;
     text: string;
-    selectedVarOutput: TFVariable | TFOutput | undefined;
     handleShowUnknownChange: (showHidden: boolean) => void;
     handleShowUnchangedChange: (showHidden: boolean) => void;
-    handleVarOutputSelectionChange: (varOutput: string, module: string, type: "variable" | "output") => void;
     nodeGroups: NodeGroup[];
     resourceId: string;
     showUnknown: boolean;
@@ -20,8 +17,6 @@ interface SidebarProps {
     closeSidebar: () => void;
     title: string
     subtitle: string
-    variables: { [moduleName: string]: TFVariable[] };
-    outputs: { [moduleName: string]: TFOutput[] };
 }
 const Sidebar = ({ width,
     text,
@@ -33,12 +28,7 @@ const Sidebar = ({ width,
     title,
     subtitle,
     closeSidebar,
-    selectedVarOutput,
-    handleVarOutputSelectionChange,
-    nodeGroups,
-    handleNodeSelectionChange,
-    variables,
-    outputs
+
 }: SidebarProps) => {
     return (
         <Drawer
@@ -48,7 +38,7 @@ const Sidebar = ({ width,
             sx={{
                 "& .MuiPaper-root": {
                     backgroundColor: "#F7F7F8",
-                    borderLeft: "1px dashed"
+                    borderLeft: "1px solid"
                 }
             }}
         >
@@ -73,23 +63,15 @@ const Sidebar = ({ width,
                 style={{
                     width: width + "rem",
                 }}>
-                {selectedVarOutput ?
-                    <VariableOutputDrilldown
-                        nodeGroups={nodeGroups}
-                        handleNodeSelectionChange={handleNodeSelectionChange}
-                        selectedVarOutput={selectedVarOutput}
-                        handleVarOutputSelectionChange={handleVarOutputSelectionChange}
-                        variables={variables}
-                        outputs={outputs}
-                    /> :
-                    <ResourceDrilldown
-                        showUnchanged={showUnchanged}
-                        showUnknown={showUnknown}
-                        text={text}
-                        resourceId={resourceId}
-                        handleShowUnknownChange={handleShowUnknownChange}
-                        handleShowUnchangedChange={handleShowUnchangedChange}
-                    />}
+
+                <ResourceDrilldown
+                    showUnchanged={showUnchanged}
+                    showUnknown={showUnknown}
+                    text={text}
+                    resourceId={resourceId}
+                    handleShowUnknownChange={handleShowUnknownChange}
+                    handleShowUnchangedChange={handleShowUnchangedChange}
+                />
             </div>
 
         </Drawer >
