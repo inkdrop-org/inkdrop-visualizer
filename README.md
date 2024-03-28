@@ -1,9 +1,29 @@
-Inkdrop is a CLI tool that creates interactive diagrams to visualize your Terraform configurations. It helps you to understand dependencies between resources and explore changes in your AWS architecture.
+<p align="center">
+  <picture width="100px" align="center">
+      <source media="(prefers-color-scheme: dark)" srcset="https://github.com/inkdrop-org/inkdrop-visualizer/assets/86591160/f93f558f-81e8-4d70-9dcd-d7512b3a47d4">
+      <img alt="Terramate" src="https://github.com/inkdrop-org/inkdrop-visualizer/assets/86591160/cfe32c6e-3634-4d68-9749-d2c2d0468ecc" width="100px" align="center">
+    </picture>
+  <h1 align="center">Terraform Visualizer</h1>
+  <p align="center">
+    Inkdrop is a CLI tool that creates interactive diagrams to visualize your Terraform. 
+    <br/>
+    It helps you onboard engineers, generate documentation and understand dependencies faster. 
+  </p>
+</p>
+<p align="center">
+  <a href="https://github.com/inkdrop-org/inkdrop-visualizer/releases"><img src="https://img.shields.io/github/v/release/inkdrop-org/inkdrop-visualizer?color=%239F50DA&display_name=tag&label=Version" alt="Latest Release" /></a>
+  <a href="https://github.com/inkdrop-org/inkdrop-visualizer/graphs/commit-activity"><img src="https://img.shields.io/github/commit-activity/m/inkdrop-org/inkdrop-visualizer" alt="Commit Activity" /></a>
+  <a href="https://github.com/inkdrop-org/inkdrop-visualizer/stargazers" rel="nofollow"><img src="https://img.shields.io/github/stars/inkdrop-org/inkdrop-visualizer" alt="Stars"></a>
+</p>
 
-## Start here:
-[Try an interactive demo](https://demo.inkdrop.ai/) 
-
-[See a CI integration](https://github.com/inkdrop-org/inkdrop-gh-action-example) 
+<p align="center">
+  <picture align="center">
+    <img src="https://github.com/inkdrop-org/inkdrop-visualizer/assets/86591160/622d59f5-65ca-4e3f-a94b-a33ad468ffbc" alt="demo" height="450px"> 
+  </picture>
+</p>
+<p align="center">
+  <a href="https://github.com/inkdrop-org/inkdrop-gh-action-example/pull/2">🚀 CI Intergration</a> | <a href="https://demo.inkdrop.ai">💻 Interactive Demo</a> | <a href="https://github.com/inkdrop-org/inkdrop-visualizer/issues/new">🙌 Give Feedback</a>
+</p>
 
 ## Overview
 We built Inkdrop because keeping track of large Terraform configs is hard. Seeing a visual map of your resources helps you reason about the relationships and dependencies.
@@ -14,10 +34,6 @@ Benefits:
 - Visualize your terraform plans to review changes at a glance.
 - Use tags and filters to get an overview of a new project fast.
 - Detect Drift, Edit and Document Infrastructure - Coming soon
-
-Turn This            |  Into this
-:-------------------------:|:-------------------------:
-![image](https://github.com/inkdrop-org/inkdrop-visualizer/assets/86591160/073fbeb8-d67c-449d-adce-3426bddc9276) | ![Screenshot 2024-03-22 112820](https://github.com/inkdrop-org/inkdrop-visualizer/assets/86591160/399316ce-e9e9-4c46-a0e2-9e44dac1e802)
 
 ## Installation
 You can install Inkdrop with Brew, as a Linux binary or with NPM :
