@@ -1,14 +1,18 @@
 import { Editor } from "@tldraw/tldraw";
 import { NodeGroup } from "../TLDWrapper";
+import { Dependency } from "../dependencies/dependencies";
 
-export const computeShading = (selectedNode: NodeGroup, nodeGroups: NodeGroup[], editor: Editor) => {
+export const computeShading = (selectedNode: NodeGroup, nodeGroups: NodeGroup[], editor: Editor, dependencies: Dependency[], affected: Dependency[]) => {
     const editorShapes = editor.getCurrentPageShapes()
     nodeGroups.forEach((node) => {
         const shape = editorShapes.find((shape) => shape.id.split(":").length === 3 && shape.id.split(":")[1] === node.id)
         if (shape) {
             if (node.id !== selectedNode.id &&
                 !node.connectionsIn.some((connectedId) => connectedId === selectedNode.id) &&
-                !node.connectionsOut.some((connectedId) => connectedId === selectedNode.id)) {
+                !node.connectionsOut.some((connectedId) => connectedId === selectedNode.id) &&
+                !dependencies.some((dep) => dep.type === "resource" && dep.name === node.type + "." + node.name && dep.module === (node.moduleName || "root_module")) &&
+                !affected.some((dep) => dep.type === "resource" && dep.name === node.type + "." + node.name && dep.module === (node.moduleName || "root_module"))
+            ) {
                 editor.updateShape({ ...shape, opacity: 0.2 })
             } else {
                 editor.updateShape({ ...shape, opacity: 1 })

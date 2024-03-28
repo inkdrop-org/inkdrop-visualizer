@@ -17,7 +17,7 @@ import { getResourceNameAndType } from './utils/resources';
 import { filterOutNotNeededArgs } from './utils/filterPlanJson';
 import { demoShapes } from './layout/demoShapes';
 import DependencyUI from './dependencies/DependenciesUI';
-import { computeShading, resetShading } from './editorHandler/ShadingHandler';
+import { computeShading, resetShading } from './editorHandler/Shading';
 
 
 const customShapeUtils = [NodeShapeUtil]
@@ -564,8 +564,6 @@ const TLDWrapper = () => {
             })[0]
 
             setSelectedNode(selectedNodeGroup)
-            resetShading(editor!, shapesSnapshot)
-            computeShading(selectedNodeGroup, storedNodeGroups, editor!)
 
             if (element)
                 element.style.display = "none"
@@ -573,6 +571,9 @@ const TLDWrapper = () => {
             const { dependencies, affected } = resourceDependencies(storedNodeGroups, selectedNodeGroup, variables, outputs)
             setDependencies(dependencies)
             setAffected(affected)
+
+            resetShading(editor!, shapesSnapshot)
+            computeShading(selectedNodeGroup, storedNodeGroups, editor!, dependencies, affected)
 
             const { textToShow, resourceId } = nodeChangesToString(selectedNodeGroup.nodes.map((node) => {
                 return node.resourceChanges || undefined
