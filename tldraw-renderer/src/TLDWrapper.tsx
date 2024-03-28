@@ -17,6 +17,7 @@ import { getResourceNameAndType } from './utils/resources';
 import { filterOutNotNeededArgs } from './utils/filterPlanJson';
 import { demoShapes } from './layout/demoShapes';
 import DependencyUI from './dependencies/DependenciesUI';
+import { computeShading, resetShading } from './editorHandler/Shading';
 
 
 const customShapeUtils = [NodeShapeUtil]
@@ -98,6 +99,7 @@ const TLDWrapper = () => {
     const [showUnchangedAttributes, setShowUnchangedAttributes] = useState<boolean>(false)
     const [selectedVarOutput, setSelectedVarOutput] = useState<TFVariableOutput | undefined>()
     const [selectedResourceId, setSelectedResourceId] = useState<string>("")
+    const [shapesSnapshot, setShapesSnapshot] = useState<string>("")
 
     useEffect(() => {
         if (!renderInput || !editor || initializedRef.current) return
@@ -453,6 +455,7 @@ const TLDWrapper = () => {
         setVariables(variables)
         setOutputs(outputs)
         computeLayout(nodeGroups, computeTerraformPlan, editor, renderInput?.opacityFull || false)
+        setShapesSnapshot(JSON.stringify(editor?.getCurrentPageShapes()))
 
         const isDemo = await fetchIsDemo()
         if (isDemo && !refreshFromToggle) {
@@ -541,15 +544,6 @@ const TLDWrapper = () => {
         })
     }
 
-    const handleNodeSelectionChange = (node: NodeGroup) => {
-        const shapeStartId = "shape:" + node.id
-        editor?.getCurrentPageShapeIds().forEach((shapeId) => {
-            if (shapeId.startsWith(shapeStartId + ":")) {
-                handleShapeSelectionChange(shapeId)
-            }
-        })
-    }
-
     const handleShapeSelectionChange = (shapeId: string) => {
         const element = document.querySelector(".tlui-navigation-zone") as HTMLElement
         setSelectedVarOutput(undefined)
@@ -559,6 +553,7 @@ const TLDWrapper = () => {
             setDependencies([])
             setAffected([])
             setDiffText("")
+            resetShading(editor!, shapesSnapshot)
             if (element)
                 element.style.display = ""
         } else if (storedNodeGroups) {
@@ -576,6 +571,9 @@ const TLDWrapper = () => {
             const { dependencies, affected } = resourceDependencies(storedNodeGroups, selectedNodeGroup, variables, outputs)
             setDependencies(dependencies)
             setAffected(affected)
+
+            resetShading(editor!, shapesSnapshot)
+            computeShading(selectedNodeGroup, storedNodeGroups, editor!, dependencies, affected)
 
             const { textToShow, resourceId } = nodeChangesToString(selectedNodeGroup.nodes.map((node) => {
                 return node.resourceChanges || undefined
@@ -730,8 +728,6 @@ const TLDWrapper = () => {
 
             {sidebarWidth > 0 &&
                 <Sidebar width={sidebarWidth}
-                    nodeGroups={storedNodeGroups!}
-                    handleNodeSelectionChange={handleNodeSelectionChange}
                     showUnknown={showUnknown}
                     showUnchanged={showUnchangedAttributes}
                     title={selectedVarOutput?.name || selectedNode?.name || ""}
