@@ -17,7 +17,7 @@ import { getResourceNameAndType } from './utils/resources';
 import { filterOutNotNeededArgs } from './utils/filterPlanJson';
 import { demoShapes } from './layout/demoShapes';
 import DependencyUI from './dependencies/DependenciesUI';
-import { computeShading, resetShading } from './editorHandler/Shading';
+import { computeShading, resetShading } from './editorHandler/shading';
 
 
 const customShapeUtils = [NodeShapeUtil]
