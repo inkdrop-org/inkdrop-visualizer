@@ -9,16 +9,15 @@ interface SidebarProps {
     text: string;
     handleShowUnknownChange: (showHidden: boolean) => void;
     handleShowUnchangedChange: (showHidden: boolean) => void;
-    nodeGroups: NodeGroup[];
     resourceId: string;
     showUnknown: boolean;
     showUnchanged: boolean;
-    handleNodeSelectionChange: (node: NodeGroup) => void;
     closeSidebar: () => void;
     title: string
     subtitle: string
 }
-const Sidebar = ({ width,
+const Sidebar = ({
+    width,
     text,
     handleShowUnknownChange,
     handleShowUnchangedChange,
