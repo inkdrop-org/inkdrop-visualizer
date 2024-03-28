@@ -12,11 +12,11 @@ import { nodeChangesToString } from './jsonPlanManager/jsonPlanManager';
 import Sidebar from './sidebar/Sidebar';
 import ToggleLayers from './layers/ToggleLayers';
 import { computeLayout } from './layout/computeLayout';
-import { getVariablesAndOutputs } from './variablesAndOutputs/variablesAndOutputs';
+import { Dependency, getVariablesAndOutputs, resourceDependencies } from './dependencies/dependencies';
 import { getResourceNameAndType } from './utils/resources';
-import VarsAndOutputsPanel from './variablesAndOutputs/VarsAndOutputsPanel';
 import { filterOutNotNeededArgs } from './utils/filterPlanJson';
 import { demoShapes } from './layout/demoShapes';
+import DependencyUI from './dependencies/DependenciesUI';
 
 
 const customShapeUtils = [NodeShapeUtil]
@@ -26,6 +26,8 @@ type ResourceState = "no-op" | "create" | "read" | "update" | "delete" | "delete
 export type NodeGroup = {
     nodes: {
         nodeModel: NodeModel,
+        name: string,
+        type: string,
         resourceChanges?: any[]
     }[],
     id: string,
@@ -34,6 +36,7 @@ export type NodeGroup = {
     connectionsIn: string[],
     variableRefs?: string[],
     outputRefs?: string[],
+    affectedOutputs?: string[],
     numberOfChanges: number,
     name: string,
     type: string,
@@ -45,20 +48,11 @@ export type NodeGroup = {
     state: ResourceState
 }
 
-export type TFVariable = {
+export type TFVariableOutput = {
     name: string,
     module: string,
+    type: "variable" | "output",
     expressionReferences: {
-        type: "variable" | "output" | "unknown",
-        module: string,
-        name: string
-    }[]
-}
-
-export type TFOutput = {
-    name: string,
-    module: string,
-    outputReferences: {
         type: "variable" | "output" | "resource",
         module: string,
         name: string
@@ -88,14 +82,12 @@ const TLDWrapper = () => {
     const [renderInput, setRenderInput] = useState<RenderInput>()
     const [storedNodeGroups, setStoredNodeGroups] = useState<NodeGroup[]>()
     const [selectedNode, setSelectedNode] = useState<NodeGroup | undefined>()
-    const [variables, setVariables] = useState<{
-        [moduleName: string]: TFVariable[]
-    }>()
-    const [outputs, setOutputs] = useState<{
-        [moduleName: string]: TFOutput[]
-    }>()
+    const [variables, setVariables] = useState<TFVariableOutput[]>([])
+    const [outputs, setOutputs] = useState<TFVariableOutput[]>([])
     const [sidebarWidth, setSidebarWidth] = useState<number>(0)
     const [diffText, setDiffText] = useState<string>("")
+    const [dependencies, setDependencies] = useState<Dependency[]>([])
+    const [affected, setAffected] = useState<Dependency[]>([])
     const tagsRef = useRef<Tag[]>([])
     const selectedTagsRef = useRef<string[]>([])
     const initializedRef = useRef<boolean>(false)
@@ -104,7 +96,7 @@ const TLDWrapper = () => {
     const deselectedCategoriesRef = useRef<string[]>([])
     const [showUnknown, setShowUnknown] = useState<boolean>(false)
     const [showUnchangedAttributes, setShowUnchangedAttributes] = useState<boolean>(false)
-    const [selectedVarOutput, setSelectedVarOutput] = useState<TFVariable | TFOutput | undefined>()
+    const [selectedVarOutput, setSelectedVarOutput] = useState<TFVariableOutput | undefined>()
     const [selectedResourceId, setSelectedResourceId] = useState<string>("")
 
     useEffect(() => {
@@ -251,6 +243,8 @@ const TLDWrapper = () => {
                             nodeGroups.set(node.id.split(" ")[1], {
                                 nodes: [{
                                     nodeModel: node,
+                                    name: resourceName,
+                                    type: resourceType,
                                     resourceChanges: resourceChanges
                                 }],
                                 id: node.id.split(" ")[1],
@@ -446,16 +440,16 @@ const TLDWrapper = () => {
             if (fromGroup && toGroup && fromGroup !== toGroup) {
                 const fromGroupKey = fromGroup[0]
                 const toGroupKey = toGroup[0]
-                if (!fromGroup[1].connectionsOut.includes(toGroupKey) && !toGroup[1].connectionsIn.includes(fromGroupKey)) {
-                    fromGroup[1].connectionsOut.push(toGroupKey)
-                    toGroup[1].connectionsIn.push(fromGroupKey)
+                if (!fromGroup[1].connectionsIn.includes(toGroupKey) && !toGroup[1].connectionsOut.includes(fromGroupKey)) {
+                    fromGroup[1].connectionsIn.push(toGroupKey)
+                    toGroup[1].connectionsOut.push(fromGroupKey)
                 }
             }
         })
         debugLog("Computing connections... Done.")
 
         const { variables, outputs } = computeTerraformPlan ? getVariablesAndOutputs(nodeGroups, planJsonObj) :
-            { variables: undefined, outputs: undefined }
+            { variables: [], outputs: [] }
         setVariables(variables)
         setOutputs(outputs)
         computeLayout(nodeGroups, computeTerraformPlan, editor, renderInput?.opacityFull || false)
@@ -530,6 +524,8 @@ const TLDWrapper = () => {
 
                             nodeGroup.nodes.push({
                                 nodeModel: newNode,
+                                name: resourceName,
+                                type: resourceType,
                                 resourceChanges: resourceChanges
                             })
 
@@ -560,6 +556,8 @@ const TLDWrapper = () => {
         if (!renderInput?.planJson || shapeId === "") {
             setSelectedNode(undefined)
             setSidebarWidth(0)
+            setDependencies([])
+            setAffected([])
             setDiffText("")
             if (element)
                 element.style.display = ""
@@ -574,6 +572,10 @@ const TLDWrapper = () => {
 
             if (element)
                 element.style.display = "none"
+
+            const { dependencies, affected } = resourceDependencies(storedNodeGroups, selectedNodeGroup, variables, outputs)
+            setDependencies(dependencies)
+            setAffected(affected)
 
             const { textToShow, resourceId } = nodeChangesToString(selectedNodeGroup.nodes.map((node) => {
                 return node.resourceChanges || undefined
@@ -655,11 +657,6 @@ const TLDWrapper = () => {
         editor?.selectNone()
     }
 
-    const handleVarOutputSelectionChange = (varOutput: string, module: string, type: "variable" | "output") => {
-        setSelectedVarOutput(type === "variable" ? variables?.[module]?.find((variable) => variable.name === varOutput) :
-            outputs?.[module]?.find((output) => output.name === varOutput))
-    }
-
 
     return (
         <div style={{
@@ -675,66 +672,58 @@ const TLDWrapper = () => {
                     assetUrls={assetUrls}
                 />
             </div>
-            {
-                selectedNode &&
-                <VarsAndOutputsPanel
-                    selectedNode={selectedNode}
-                    sidebarWidth={sidebarWidth}
-                    selectedVarOutput={selectedVarOutput?.name || ""}
-                    setSelectedVar={(variable, module) => handleVarOutputSelectionChange(variable, module, "variable")}
-                    setSelectedOutput={(output, module) => handleVarOutputSelectionChange(output, module, "output")}
-                    variables={variables} />
+            {selectedNode && storedNodeGroups ?
+                <DependencyUI dependencies={dependencies} affected={affected} sidebarWidth={sidebarWidth} nodeGroups={storedNodeGroups} selectedNode={selectedNode} /> :
+                <div className={'absolute top-2 z-200 left-2'}>
+                    <ToggleLayers items={
+                        [
+                            {
+                                name: "Debug",
+                                items: [
+                                    {
+                                        name: "Unchanged resources",
+                                        value: renderInput?.showUnchanged || false,
+                                        action: toggleShowUnchanged
+                                    },
+                                    {
+                                        name: "Detailed diagram",
+                                        value: renderInput?.detailed || false,
+                                        action: toggleDetailed
+                                    },
+                                ]
+                            },
+                            {
+                                name: "Categories",
+                                items:
+                                    categoriesRef.current.map((category) => {
+                                        return {
+                                            name: category,
+                                            value: deselectedCategoriesRef.current.includes(category) ? false : true,
+                                            action: () => {
+                                                toggleCategory(category)
+                                            }
+                                        }
+                                    })
+                            }, {
+                                name: "Tags",
+                                items:
+                                    tagsRef.current.map((tag) => tag.name).filter((tag, index, self) => {
+                                        return self.indexOf(tag) === index
+                                    }).map((tag) => {
+                                        return {
+                                            name: tag,
+                                            value: selectedTagsRef.current.includes(tag),
+                                            action: () => {
+                                                toggleTag(tag)
+                                            }
+                                        }
+                                    })
+                            }
+                        ]
+                    } />
+
+                </div>
             }
-
-            <div className={'absolute top-2 z-200 left-2'}>
-                <ToggleLayers items={
-                    [
-                        {
-                            name: "Debug",
-                            items: [
-                                {
-                                    name: "Unchanged resources",
-                                    value: renderInput?.showUnchanged || false,
-                                    action: toggleShowUnchanged
-                                },
-                                {
-                                    name: "Detailed diagram",
-                                    value: renderInput?.detailed || false,
-                                    action: toggleDetailed
-                                },
-                            ]
-                        },
-                        {
-                            name: "Categories",
-                            items:
-                                categoriesRef.current.map((category) => {
-                                    return {
-                                        name: category,
-                                        value: deselectedCategoriesRef.current.includes(category) ? false : true,
-                                        action: () => {
-                                            toggleCategory(category)
-                                        }
-                                    }
-                                })
-                        }, {
-                            name: "Tags",
-                            items:
-                                tagsRef.current.map((tag) => tag.name).filter((tag, index, self) => {
-                                    return self.indexOf(tag) === index
-                                }).map((tag) => {
-                                    return {
-                                        name: tag,
-                                        value: selectedTagsRef.current.includes(tag),
-                                        action: () => {
-                                            toggleTag(tag)
-                                        }
-                                    }
-                                })
-                        }
-                    ]
-                } />
-
-            </div>
             <EditorHandler
                 editor={editor}
                 handleShapeSelectionChange={handleShapeSelectionChange} />
@@ -752,10 +741,6 @@ const TLDWrapper = () => {
                     closeSidebar={() => closeSidebar()}
                     handleShowUnknownChange={handleShowUnknownChange}
                     handleShowUnchangedChange={handleShowUnchangedAttributesChange}
-                    selectedVarOutput={selectedVarOutput}
-                    handleVarOutputSelectionChange={handleVarOutputSelectionChange}
-                    variables={variables || {}}
-                    outputs={outputs || {}}
                 />
             }
         </div>
