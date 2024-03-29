@@ -35,7 +35,7 @@ Benefits:
 - Document your infrastructure automatically.
 - Onboard engineers to a new project 10 times faster.
 
-Note: Inkdrop currently only works for AWS resources.
+![Static Badge](https://img.shields.io/badge/Note%3A%20-%20Inkdrop%20currently%20only%20works%20for%20AWS%20resources.-blue)
 
 ## Quick Install
 **With Brew:**
@@ -82,7 +82,8 @@ At the top left of the UI you can filter the diagram by resource type, tags and 
 | `--path`           | Sets the working directory to a specified Terraform project path.     | `inkdrop --path ./repos/my-tf-project`     |
 | `--renderer-port`  | Defines the port for the local diagram rendering service (default: `3000`). | `inkdrop --renderer-port 8080`       |
 
-Note: Without a plan file the diagram will be missing the current state of the resources, variables, outputs and some filters.
+![Static Badge](https://img.shields.io/badge/%20Note%3A-%20Without%20a%20plan%20file%20the%20diagram%20will%20be%20missing%20some%20functionality-blue)
+
 
 ## CI Usage
 
