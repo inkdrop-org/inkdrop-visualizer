@@ -670,8 +670,13 @@ const TLDWrapper = () => {
                     assetUrls={assetUrls}
                 />
             </div>
-            {selectedNode && storedNodeGroups ?
-                <DependencyUI dependencies={dependencies} affected={affected} sidebarWidth={sidebarWidth} nodeGroups={storedNodeGroups} selectedNode={selectedNode} /> :
+            {selectedNode && storedNodeGroups && editor ?
+                <DependencyUI dependencies={dependencies}
+                    affected={affected}
+                    sidebarWidth={sidebarWidth}
+                    nodeGroups={storedNodeGroups}
+                    selectedNode={selectedNode}
+                    editor={editor} /> :
                 <div className={'absolute top-2 z-200 left-2'}>
                     <ToggleLayers items={
                         [
