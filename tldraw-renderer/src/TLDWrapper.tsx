@@ -1,23 +1,19 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { NodeShapeUtil } from './board/NodeShape';
-import { Editor, TLStoreOptions, Tldraw, createTLStore, defaultShapeUtils, throttle, TLParentId } from '@tldraw/tldraw';
+import { Editor, TLStoreOptions, Tldraw, createTLStore, defaultShapeUtils } from '@tldraw/tldraw';
 import Papa from "papaparse"
 import { getAssetUrls } from '@tldraw/assets/selfHosted';
 import { NodeModel, RootGraphModel, SubgraphModel, fromDot } from "ts-graphviz"
 import { terraformResourcesCsv } from './terraformResourcesCsv';
 import '@tldraw/tldraw/tldraw.css'
 import { fetchIsDemo, getRenderInput, sendData, sendDebugLog } from './utils/storage';
-import EditorHandler from './editorHandler/EditorHandler';
-import { nodeChangesToString } from './jsonPlanManager/jsonPlanManager';
-import Sidebar from './sidebar/Sidebar';
 import ToggleLayers from './layers/ToggleLayers';
 import { computeLayout } from './layout/computeLayout';
-import { Dependency, getVariablesAndOutputs, resourceDependencies } from './dependencies/dependencies';
+import { getVariablesAndOutputs } from './dependencies/dependencies';
 import { getResourceNameAndType } from './utils/resources';
 import { filterOutNotNeededArgs } from './utils/filterPlanJson';
 import { demoShapes } from './layout/demoShapes';
-import DependencyUI from './dependencies/DependenciesUI';
-import { computeShading, resetShading } from './editorHandler/shading';
+import SelectionHandler from './selection/SelectionHandler';
 
 
 const customShapeUtils = [NodeShapeUtil]
@@ -47,6 +43,7 @@ export type NodeGroup = {
     moduleName?: string
     parentModules: string[]
     state: ResourceState
+    frameShapeId?: string
 }
 
 export type TFVariableOutput = {
@@ -81,25 +78,17 @@ const TLDWrapper = () => {
 
     const [editor, setEditor] = useState<Editor | null>(null)
     const [renderInput, setRenderInput] = useState<RenderInput>()
-    const [storedNodeGroups, setStoredNodeGroups] = useState<NodeGroup[]>()
-    const [selectedNode, setSelectedNode] = useState<NodeGroup | undefined>()
-    const [variables, setVariables] = useState<TFVariableOutput[]>([])
-    const [outputs, setOutputs] = useState<TFVariableOutput[]>([])
-    const [sidebarWidth, setSidebarWidth] = useState<number>(0)
-    const [diffText, setDiffText] = useState<string>("")
-    const [dependencies, setDependencies] = useState<Dependency[]>([])
-    const [affected, setAffected] = useState<Dependency[]>([])
     const tagsRef = useRef<Tag[]>([])
     const selectedTagsRef = useRef<string[]>([])
     const initializedRef = useRef<boolean>(false)
     const categoriesRef = useRef<string[]>([])
     const showDebugRef = useRef<boolean>(false)
     const deselectedCategoriesRef = useRef<string[]>([])
-    const [showUnknown, setShowUnknown] = useState<boolean>(false)
-    const [showUnchangedAttributes, setShowUnchangedAttributes] = useState<boolean>(false)
-    const [selectedVarOutput, setSelectedVarOutput] = useState<TFVariableOutput | undefined>()
-    const [selectedResourceId, setSelectedResourceId] = useState<string>("")
+    const [sidebarWidth, setSidebarWidth] = useState<number>(0)
     const [shapesSnapshot, setShapesSnapshot] = useState<string>("")
+    const [storedNodeGroups, setStoredNodeGroups] = useState<NodeGroup[]>()
+    const [variables, setVariables] = useState<TFVariableOutput[]>([])
+    const [outputs, setOutputs] = useState<TFVariableOutput[]>([])
 
     useEffect(() => {
         if (!renderInput || !editor || initializedRef.current) return
@@ -544,74 +533,6 @@ const TLDWrapper = () => {
         })
     }
 
-    const handleShapeSelectionChange = (shapeId: string) => {
-        const element = document.querySelector(".tlui-navigation-zone") as HTMLElement
-        setSelectedVarOutput(undefined)
-        if (!renderInput?.planJson || shapeId === "") {
-            setSelectedNode(undefined)
-            setSidebarWidth(0)
-            setDependencies([])
-            setAffected([])
-            setDiffText("")
-            resetShading(editor!, shapesSnapshot)
-            if (element)
-                element.style.display = ""
-        } else if (storedNodeGroups) {
-            // remove shape: prefix, and date suffix
-            const shapeIdWithoutPrefixAndSuffix = shapeId.split(":")[1]
-            const selectedNodeGroup = storedNodeGroups?.filter((nodeGroup) => {
-                return nodeGroup.id === shapeIdWithoutPrefixAndSuffix
-            })[0]
-
-            setSelectedNode(selectedNodeGroup)
-
-            if (element)
-                element.style.display = "none"
-
-            const { dependencies, affected } = resourceDependencies(storedNodeGroups, selectedNodeGroup, variables, outputs)
-            setDependencies(dependencies)
-            setAffected(affected)
-
-            resetShading(editor!, shapesSnapshot)
-            computeShading(selectedNodeGroup, storedNodeGroups, editor!, dependencies, affected)
-
-            const { textToShow, resourceId } = nodeChangesToString(selectedNodeGroup.nodes.map((node) => {
-                return node.resourceChanges || undefined
-            }).filter((s) => s !== undefined).flat(), showUnknown, showUnchangedAttributes)
-
-            setSidebarWidth(30)
-
-            setDiffText(textToShow || "No changes detected")
-            setSelectedResourceId(resourceId || "")
-        }
-    }
-
-    const refreshChangesDrilldown = (showUnknown: boolean, showUnchangedAttributes: boolean) => {
-        if (storedNodeGroups) {
-            const shapeIdWithoutPrefixAndSuffix = editor?.getSelectedShapeIds()[0].split(":")[1]
-
-            const { textToShow, resourceId } = nodeChangesToString(storedNodeGroups?.filter((nodeGroup) => {
-                return nodeGroup.id === shapeIdWithoutPrefixAndSuffix
-            })[0].nodes.map((node) => {
-                return node.resourceChanges || undefined
-            }).filter((s) => s !== undefined).flat(), showUnknown, showUnchangedAttributes)
-
-            setDiffText(textToShow || "No changes detected")
-            setSelectedResourceId(resourceId || "")
-
-        }
-    }
-
-    const handleShowUnknownChange = (showUnknown: boolean) => {
-        setShowUnknown(showUnknown)
-        refreshChangesDrilldown(showUnknown, showUnchangedAttributes)
-    }
-
-    const handleShowUnchangedAttributesChange = (showUnchangedAttributes: boolean) => {
-        setShowUnchangedAttributes(showUnchangedAttributes)
-        refreshChangesDrilldown(showUnknown, showUnchangedAttributes)
-    }
-
     const refreshWhiteboard = (fromToggle: boolean) => {
         editor?.deleteShapes(Array.from(editor.getPageShapeIds(editor.getCurrentPageId())))
         const model = fromDot(renderInput?.graph || "")
@@ -650,9 +571,9 @@ const TLDWrapper = () => {
         refreshWhiteboard(true)
     }
 
-    const closeSidebar = () => {
-        handleShapeSelectionChange("")
-        editor?.selectNone()
+
+    const setShowSidebar = (value: boolean) => {
+        setSidebarWidth(value ? 30 : 0)
     }
 
 
@@ -670,13 +591,7 @@ const TLDWrapper = () => {
                     assetUrls={assetUrls}
                 />
             </div>
-            {selectedNode && storedNodeGroups && editor ?
-                <DependencyUI dependencies={dependencies}
-                    affected={affected}
-                    sidebarWidth={sidebarWidth}
-                    nodeGroups={storedNodeGroups}
-                    selectedNode={selectedNode}
-                    editor={editor} /> :
+            {sidebarWidth === 0 &&
                 <div className={'absolute top-2 z-200 left-2'}>
                     <ToggleLayers items={
                         [
@@ -727,22 +642,16 @@ const TLDWrapper = () => {
 
                 </div>
             }
-            <EditorHandler
-                editor={editor}
-                handleShapeSelectionChange={handleShapeSelectionChange} />
-
-            {sidebarWidth > 0 &&
-                <Sidebar width={sidebarWidth}
-                    showUnknown={showUnknown}
-                    showUnchanged={showUnchangedAttributes}
-                    title={selectedVarOutput?.name || selectedNode?.name || ""}
-                    text={diffText}
-                    resourceId={selectedResourceId}
-                    subtitle={selectedVarOutput ? selectedVarOutput.hasOwnProperty("outputReferences") ? "Output" : "Variable" : selectedNode?.type || ""}
-                    closeSidebar={() => closeSidebar()}
-                    handleShowUnknownChange={handleShowUnknownChange}
-                    handleShowUnchangedChange={handleShowUnchangedAttributesChange}
-                />
+            {editor &&
+                <SelectionHandler
+                    editor={editor}
+                    nodeGroups={storedNodeGroups}
+                    sidebarWidth={sidebarWidth}
+                    setShowSidebar={setShowSidebar}
+                    shapesSnapshot={shapesSnapshot}
+                    hasPlanJson={renderInput?.planJson ? true : false}
+                    variables={variables}
+                    outputs={outputs} />
             }
         </div>
     );

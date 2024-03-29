@@ -3,12 +3,15 @@ import "./Sidebar.css"
 import CloseIcon from '@mui/icons-material/Close';
 import ResourceDrilldown from "./ResourceDrilldown";
 import { NodeGroup } from "../TLDWrapper";
+import { ChangesBreakdown } from "../jsonPlanManager/jsonPlanManager";
+import ModuleDrilldown from "./ModuleDrilldown";
 
 interface SidebarProps {
     width: number;
     text: string;
     handleShowUnknownChange: (showHidden: boolean) => void;
     handleShowUnchangedChange: (showHidden: boolean) => void;
+    moduleDrilldownData: { category: string, textToShow: string, changesBreakdown: ChangesBreakdown }[];
     resourceId: string;
     showUnknown: boolean;
     showUnchanged: boolean;
@@ -21,6 +24,7 @@ const Sidebar = ({
     text,
     handleShowUnknownChange,
     handleShowUnchangedChange,
+    moduleDrilldownData,
     showUnknown,
     resourceId,
     showUnchanged,
@@ -62,15 +66,17 @@ const Sidebar = ({
                 style={{
                     width: width + "rem",
                 }}>
-
-                <ResourceDrilldown
-                    showUnchanged={showUnchanged}
-                    showUnknown={showUnknown}
-                    text={text}
-                    resourceId={resourceId}
-                    handleShowUnknownChange={handleShowUnknownChange}
-                    handleShowUnchangedChange={handleShowUnchangedChange}
-                />
+                {moduleDrilldownData.length > 0 ?
+                    <ModuleDrilldown moduleDrilldownData={moduleDrilldownData} /> :
+                    <ResourceDrilldown
+                        showUnchanged={showUnchanged}
+                        showUnknown={showUnknown}
+                        text={text}
+                        resourceId={resourceId}
+                        handleShowUnknownChange={handleShowUnknownChange}
+                        handleShowUnchangedChange={handleShowUnchangedChange}
+                    />
+                }
             </div>
 
         </Drawer >
