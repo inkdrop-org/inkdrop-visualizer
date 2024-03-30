@@ -1,7 +1,7 @@
 <p align="center">
   <picture width="100px" align="center">
       <source media="(prefers-color-scheme: dark)" srcset="https://github.com/inkdrop-org/inkdrop-visualizer/assets/86591160/f93f558f-81e8-4d70-9dcd-d7512b3a47d4">
-      <img alt="Terramate" src="https://github.com/inkdrop-org/inkdrop-visualizer/assets/86591160/cfe32c6e-3634-4d68-9749-d2c2d0468ecc" width="100px" align="center">
+      <img alt="Inkdrop" src="https://github.com/inkdrop-org/inkdrop-visualizer/assets/86591160/cfe32c6e-3634-4d68-9749-d2c2d0468ecc" width="100px" align="center">
     </picture>
   <h1 align="center">Terraform Visualizer</h1>
   <p align="center">
@@ -18,7 +18,7 @@
 
 <p align="center">
   <picture align="center">
-    <img src="https://github.com/inkdrop-org/inkdrop-visualizer/assets/86591160/622d59f5-65ca-4e3f-a94b-a33ad468ffbc" alt="demo" height="450px"> 
+    <img src="https://github.com/inkdrop-org/inkdrop-visualizer/assets/86591160/622d59f5-65ca-4e3f-a94b-a33ad468ffbc" alt="demo"> 
   </picture>
 </p>
 <p align="center">
