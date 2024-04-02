@@ -153,12 +153,12 @@ export const openUrl = (url: string) => {
 const runTerraformGraph = async () => {
 
     if ((argv as any).planfile) {
-        const { stdout: showStdout, stderr: showStderr } = await execAsync(`terraform show -json ${path.resolve((argv as any).planfile)}`, {
+        const { stdout: showStdout, stderr: showStderr } = await execAsync(`terraform show --json ${path.resolve((argv as any).planfile)}`, {
             cwd: path.resolve((argv as any).path || "."),
             maxBuffer: MAX_BUFFER_SIZE
         })
             .catch((err) => {
-                console.error("Error while running 'terraform show -json':\n"
+                console.error("Error while running 'terraform show --json':\n"
                     + err)
                 process.exit(1);
             })
@@ -169,7 +169,7 @@ const runTerraformGraph = async () => {
         planJson = showStdout
     }
 
-    const { stdout: versionStdout, stderr: versionStderr } = await execAsync('terraform -v -json', {
+    const { stdout: versionStdout, stderr: versionStderr } = await execAsync('terraform -v --json', {
         cwd: path.resolve((argv as any).path || "."),
         maxBuffer: MAX_BUFFER_SIZE
     })
@@ -187,7 +187,7 @@ const runTerraformGraph = async () => {
     const version = JSON.parse(versionStdout).terraform_version
     const addGraphPlanFlag = semver.gte(version, "1.7.0")
 
-    const graphCommand = addGraphPlanFlag ? 'terraform graph -type=plan' : 'terraform graph'
+    const graphCommand = addGraphPlanFlag ? 'terraform graph --type=plan' : 'terraform graph'
 
     console.log("Computing terraform graph...")
     const { stdout: graphStdout, stderr: graphStderr } = await execAsync(graphCommand, {
