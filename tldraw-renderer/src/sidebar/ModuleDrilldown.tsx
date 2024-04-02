@@ -1,18 +1,26 @@
-import { Accordion, AccordionDetails, AccordionSummary } from "@mui/material";
+import { Accordion, AccordionDetails, AccordionSummary, Checkbox, FormControlLabel, FormGroup } from "@mui/material";
 import { ChangesBreakdown } from "../jsonPlanManager/jsonPlanManager";
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ChangesBadge from "./ChangesBadge";
 
 interface ModuleDrilldownProps {
     moduleDrilldownData: { category: string, textToShow: string, changesBreakdown: ChangesBreakdown }[];
+    handleShowUnknownChange: (showHidden: boolean) => void;
+    handleShowUnchangedChange: (showHidden: boolean) => void;
+    showUnknown: boolean;
+    showUnchanged: boolean;
 }
 
 const ModuleDrilldown = ({
-    moduleDrilldownData
+    moduleDrilldownData,
+    handleShowUnknownChange,
+    handleShowUnchangedChange,
+    showUnknown,
+    showUnchanged
 }: ModuleDrilldownProps) => {
     return (
         <>
-            <div className="bg-[#302B35] text-white overflow-scroll h-full grow rounded text-xs">
+            <div className="bg-[#302B35] p-5 text-white overflow-scroll h-full grow rounded text-xs">
                 {moduleDrilldownData.map((data, index) => {
                     return (
                         <Accordion key={index} disableGutters sx={{
@@ -25,13 +33,14 @@ const ModuleDrilldown = ({
                             <AccordionSummary
                                 sx={{
                                     borderBottom: "1px solid white",
+                                    padding: "0",
                                 }}
                                 expandIcon={<ExpandMoreIcon sx={{
                                     color: "white"
                                 }} />}>
                                 <div className="flex items-center">
-                                    <div className="text-lg text-white truncate max-w-20">{data.category}</div>
-                                    <div className="flex">
+                                    <div className="text-lg text-white truncate max-w-[250px]">{data.category}</div>
+                                    <div className="flex ml-3">
                                         {
                                             Object.entries(data.changesBreakdown).map(([action, number]) => (
                                                 <ChangesBadge key={index + "-" + action} action={action} number={number} />
@@ -45,7 +54,7 @@ const ModuleDrilldown = ({
                                     borderBottom: "1px solid white",
                                 }}
                             >
-                                <div className="bg-[#302B35] text-white overflow-scroll h-full p-4 grow rounded text-xs max-h-[70vh]"
+                                <div className="bg-[#302B35] text-white overflow-scroll h-full p-4 grow rounded text-xs max-h-[50vh]"
                                     style={{ fontFamily: '"Cascadia Code", sans-serif', }}
                                     dangerouslySetInnerHTML={{ __html: data.textToShow }}
                                 />
@@ -54,11 +63,6 @@ const ModuleDrilldown = ({
                     )
                 })}
             </div>
-            {/*
-            <div className="bg-[#302B35] text-white overflow-scroll h-full p-4 grow rounded text-xs"
-                style={{ fontFamily: '"Cascadia Code", sans-serif', }}
-                dangerouslySetInnerHTML={{ __html: text }}
-            />
             <div className="w-[28rem] my-4 h-[1px] bg-[#B2AEB6]" />
             <div className="mb-6 flex">
                 <div className="grow">
@@ -89,33 +93,7 @@ const ModuleDrilldown = ({
                             }} onChange={(e, checked) => handleShowUnchangedChange(checked)} control={<Checkbox />} label="Show unchanged attributes" />
                     </FormGroup>
                 </div>
-                {resourceId &&
-                    <div className="w-[45%] flex text-right">
-                        <div className="text-sm text-ellipsis overflow-hidden whitespace-nowrap">{"AWS ID: " + resourceId}</div>
-                        <Tooltip title={justCopied ? "Copied!" : "Copy AWS ID"}
-                            onClose={() => setTimeout(() => setJustCopied(false), 500)}
-                            placement="top">
-                            <IconButton
-                                sx={{
-                                    width: "25px",
-                                    height: "25px",
-                                }}
-                                size="small"
-                                onClick={() => {
-                                    setJustCopied(true);
-                                    navigator.clipboard.writeText(resourceId);
-                                }}
-                            >
-                                <ContentCopyIcon sx={{
-                                    width: "18px",
-                                    height: "18px"
-                                }} />
-                            </IconButton>
-                        </Tooltip>
-                    </div>
-                }
             </div>
-            */}
         </ >
     )
 }

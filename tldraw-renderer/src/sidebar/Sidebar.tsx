@@ -67,7 +67,13 @@ const Sidebar = ({
                     width: width + "rem",
                 }}>
                 {moduleDrilldownData.length > 0 ?
-                    <ModuleDrilldown moduleDrilldownData={moduleDrilldownData} /> :
+                    <ModuleDrilldown
+                        moduleDrilldownData={moduleDrilldownData}
+                        handleShowUnknownChange={handleShowUnknownChange}
+                        handleShowUnchangedChange={handleShowUnchangedChange}
+                        showUnknown={showUnknown}
+                        showUnchanged={showUnchanged}
+                    /> :
                     <ResourceDrilldown
                         showUnchanged={showUnchanged}
                         showUnknown={showUnknown}
