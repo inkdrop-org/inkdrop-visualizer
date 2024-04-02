@@ -153,7 +153,7 @@ export const openUrl = (url: string) => {
 const runTerraformGraph = async () => {
 
     if ((argv as any).planfile) {
-        const { stdout: showStdout, stderr: showStderr } = await execAsync(`terraform show -json ${path.resolve((argv as any).planfile)}`, {
+        const { stdout: showStdout, stderr: showStderr } = await execAsync(`terraform show -json "${path.resolve((argv as any).planfile)}"`, {
             cwd: path.resolve((argv as any).path || "."),
             maxBuffer: MAX_BUFFER_SIZE
         })
