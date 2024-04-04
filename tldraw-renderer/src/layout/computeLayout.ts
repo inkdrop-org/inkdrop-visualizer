@@ -52,6 +52,15 @@ export const computeLayout = (nodeGroups: Map<string, NodeGroup>, computeTerrafo
             }
         }))
 
+    g.nodes().filter((id) => {
+        return !g.children(id) || g.children(id)!.length === 0
+    }).forEach((id) => {
+        const frameId = g.parent(id)
+        if (frameId) {
+            nodeGroups.get(id)!.frameShapeId = "shape:" + frameId + ":" + date
+        }
+    })
+
     editor?.createShapes(
         g.nodes().filter((id) => {
             return !g.children(id) || g.children(id)!.length === 0

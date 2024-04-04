@@ -132,3 +132,48 @@ export const nodeChangesToString = (nodeChanges: Object[], showKnownAfterApply: 
     const resourceId = getResourceId(nodeChanges[0])
     return { textToShow: result, resourceId };
 };
+
+export type ChangesBreakdown = {
+    create: number;
+    update: number;
+    delete: number;
+    unchanged: number;
+}
+
+export const getChangesBreakdown = (nodeChanges: Object[]) => {
+    const breakdown: ChangesBreakdown = {
+        create: 0,
+        update: 0,
+        delete: 0,
+        unchanged: 0
+    };
+
+    nodeChanges.forEach((nodeChange: any) => {
+        if (nodeChange.change.actions) {
+            if (nodeChange.change.actions.length === 1) {
+                switch (nodeChange.change.actions[0]) {
+                    case "create":
+                        breakdown.create++;
+                        break;
+                    case "update":
+                        breakdown.update++;
+                        break;
+                    case "delete":
+                        breakdown.delete++;
+                        break;
+                    default:
+                        breakdown.unchanged++;
+                        break
+                }
+            } else {
+                if (nodeChange.change.actions.includes("create") || nodeChange.change.actions.includes("delete") || nodeChange.change.actions.includes("update")) {
+                    breakdown.update++;
+                } else {
+                    breakdown.unchanged++;
+                }
+            }
+        }
+    });
+
+    return breakdown;
+}

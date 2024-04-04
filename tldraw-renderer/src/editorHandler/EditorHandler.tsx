@@ -1,6 +1,5 @@
 import { Editor, useValue } from "@tldraw/tldraw";
 import { useEffect, useRef, useState } from "react";
-import { NodeGroup } from "../TLDWrapper";
 import { Button } from "@mui/material";
 import DownloadIcon from '@mui/icons-material/Download';
 
@@ -23,7 +22,7 @@ const EditorHandler = ({
     const selectedShapeId = useValue("shape selection", () => {
         if (!editor) return "";
         const selectedShapes = editor.getSelectedShapes()
-        if (selectedShapes.length === 1 && selectedShapes[0].type === "node") {
+        if (selectedShapes.length === 1 && (selectedShapes[0].type === "node" || selectedShapes[0].type === "frame")) {
             return selectedShapes[0].id
         }
         else return ""

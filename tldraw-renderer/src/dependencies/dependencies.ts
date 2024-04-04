@@ -345,3 +345,32 @@ export const resourceDependencies = (nodes: NodeGroup[], selectedNode: NodeGroup
         affected
     }
 }
+
+export const moduleDependencies = (nodes: NodeGroup[], selectedModule: string, variables: TFVariableOutput[], outputs: TFVariableOutput[]) => {
+    const moduleNodes = nodes.filter((n) => n.moduleName === selectedModule)
+    const deps: Dependency[] = []
+    const aff: Dependency[] = []
+    moduleNodes.forEach((node) => {
+        const { dependencies, affected } = resourceDependencies(nodes, node, variables, outputs)
+        dependencies.forEach((d) => {
+            if (!deps.some((dep) => dep.module === d.module) && d.module !== selectedModule)
+                deps.push({
+                    type: "module" as any,
+                    module: d.module,
+                    name: d.module
+                })
+        })
+        affected.forEach((a) => {
+            if (!aff.some((dep) => dep.module === a.module) && a.module !== selectedModule)
+                aff.push({
+                    type: "module" as any,
+                    module: a.module,
+                    name: a.module
+                })
+        })
+    })
+    return {
+        dependencies: deps,
+        affected: aff
+    }
+}
