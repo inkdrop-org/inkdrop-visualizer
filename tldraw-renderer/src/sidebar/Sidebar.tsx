@@ -2,9 +2,9 @@ import { Checkbox, Drawer, FormControlLabel, FormGroup, IconButton, Tooltip, Typ
 import "./Sidebar.css"
 import CloseIcon from '@mui/icons-material/Close';
 import ResourceDrilldown from "./ResourceDrilldown";
-import { NodeGroup } from "../TLDWrapper";
 import { ChangesBreakdown } from "../jsonPlanManager/jsonPlanManager";
 import ModuleDrilldown from "./ModuleDrilldown";
+import ChangesBadge from "./ChangesBadge";
 
 interface SidebarProps {
     width: number;
@@ -33,6 +33,52 @@ const Sidebar = ({
     closeSidebar,
 
 }: SidebarProps) => {
+
+    const formatActionText = (action: string) => {
+        switch (action) {
+            case "create":
+                return "Created"
+            case "update":
+                return "Updated"
+            case "delete":
+                return "Deleted"
+            case "unchanged":
+                return "Unchanged"
+            default:
+                return ""
+        }
+    }
+
+    const moduleChanges = () => {
+        const moduleChanges: ChangesBreakdown = {
+            create: 0,
+            update: 0,
+            delete: 0,
+            unchanged: 0,
+        }
+        moduleDrilldownData.map((moduleChange) => moduleChange.changesBreakdown)
+            .forEach((changesBreakdown) => {
+                moduleChanges.create += changesBreakdown.create
+                moduleChanges.update += changesBreakdown.update
+                moduleChanges.delete += changesBreakdown.delete
+                moduleChanges.unchanged += changesBreakdown.unchanged
+            })
+        return (
+            <div className="flex items-center">
+                {
+                    Object.entries(moduleChanges).map(([action, number]) => (
+                        <>
+                            <ChangesBadge key={"module-change-" + action} action={action} number={number} />
+                            <div className=" text-sm mr-4">
+                                {formatActionText(action)}
+                            </div>
+                        </>
+                    ))
+                }
+            </div>
+        )
+    }
+
     return (
         <Drawer
             anchor={"right"}
@@ -53,12 +99,20 @@ const Sidebar = ({
                 </Tooltip>
             </div>
             <div className="top-5 pl-4 pt-4 max-w-[20rem]">
-                <div className={"mb-1 max-w-full text-2xl truncate"}>
-                    {title}
-                </div>
-                <div className="max-w-full text-xs truncate text-[#666666]">
-                    {subtitle}
-                </div>
+                {title &&
+                    <div className={"mb-1 max-w-full text-2xl truncate"}>
+                        {title}
+                    </div>
+                }
+                {subtitle &&
+                    <div className="max-w-full text-xs truncate text-[#666666]">
+                        {subtitle}
+                    </div>
+                }
+                {
+                    moduleDrilldownData.length > 0 &&
+                    moduleChanges()
+                }
                 <div className="w-[28rem] my-4 h-[1px] bg-[#B2AEB6]" />
             </div>
             <div

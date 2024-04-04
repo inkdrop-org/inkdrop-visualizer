@@ -7,6 +7,7 @@ import { Editor } from "@tldraw/tldraw";
 import { computeShading, resetShading } from "../editorHandler/shading";
 import { ChangesBreakdown, getChangesBreakdown, nodeChangesToString } from "../jsonPlanManager/jsonPlanManager";
 import EditorHandler from "../editorHandler/EditorHandler";
+import { getMacroCategory } from "../utils/awsCategories";
 
 interface SelectionHandlerProps {
     editor: Editor,
@@ -30,11 +31,12 @@ const SelectionHandler = ({
     outputs
 }: SelectionHandlerProps) => {
     const [selectedNode, setSelectedNode] = useState<NodeGroup | undefined>()
+    const [selectedModule, setSelectedModule] = useState<string>("")
+    const [currentShapeId, setCurrentShapeId] = useState<string>("")
     const [moduleDrilldownData, setModuleDrilldownData] = useState<{ category: string, textToShow: string, changesBreakdown: ChangesBreakdown }[]>([])
     const [diffText, setDiffText] = useState<string>("")
     const [dependencies, setDependencies] = useState<Dependency[]>([])
     const [affected, setAffected] = useState<Dependency[]>([])
-    const [selectedVarOutput, setSelectedVarOutput] = useState<TFVariableOutput | undefined>()
     const [selectedResourceId, setSelectedResourceId] = useState<string>("")
     const [showUnknown, setShowUnknown] = useState<boolean>(false)
     const [showUnchangedAttributes, setShowUnchangedAttributes] = useState<boolean>(false)
@@ -44,12 +46,14 @@ const SelectionHandler = ({
         editor.selectNone()
     }
 
-    const processModuleChanges = (moduleChanges: { category: string, resourceChanges: any[] }[]) => {
+    const processModuleChanges = (moduleChanges: { category: string, resourceChanges: any[] }[], newShowUnknownValue?: boolean, newShowUnchangedValue?: boolean) => {
         const categories = Array.from(new Set(moduleChanges.map((moduleChange) => moduleChange.category)))
         return categories.map((category) => {
-            const resourceChanges = moduleChanges.filter((moduleChange) => moduleChange.category === category).map((moduleChange) => moduleChange.resourceChanges).flat()
+            const resourceChanges = moduleChanges.filter((moduleChange) => moduleChange.category === getMacroCategory(category)).map((moduleChange) => moduleChange.resourceChanges).flat()
             const changesBreakdown = getChangesBreakdown(resourceChanges)
-            const { textToShow } = nodeChangesToString(resourceChanges, showUnknown, showUnchangedAttributes)
+            const { textToShow } = nodeChangesToString(resourceChanges,
+                newShowUnknownValue !== undefined ? newShowUnknownValue : showUnknown,
+                newShowUnchangedValue !== undefined ? newShowUnchangedValue : showUnchangedAttributes)
             return {
                 category,
                 textToShow,
@@ -58,26 +62,27 @@ const SelectionHandler = ({
         })
     }
 
-    const handleFrameSelection = (frameId: string, storedNodeGroups: NodeGroup[]) => {
+    const handleFrameSelection = (frameId: string, storedNodeGroups: NodeGroup[], newShowUnknownValue?: boolean, newShowUnchangedValue?: boolean) => {
         setSelectedNode(undefined)
         const childrenNodes = storedNodeGroups.filter((nodeGroup) => {
             return nodeGroup.frameShapeId === frameId
         })
+        setSelectedModule(childrenNodes[0]?.moduleName || "")
         const moduleChanges = childrenNodes.map((nodeGroup) => {
             return {
-                category: nodeGroup.category,
+                category: getMacroCategory(nodeGroup.category),
                 resourceChanges: nodeGroup.nodes.map((node) => node.resourceChanges || undefined).flat().filter((s) => s !== undefined)
             }
         })
-        const moduleDrilldownData = processModuleChanges(moduleChanges)
+        const moduleDrilldownData = processModuleChanges(moduleChanges, newShowUnknownValue, newShowUnchangedValue)
         setModuleDrilldownData(moduleDrilldownData)
 
         setShowSidebar(true)
     }
 
-    const handleShapeSelectionChange = (shapeId: string) => {
+    const handleShapeSelectionChange = (shapeId: string, newShowUnknownValue?: boolean, newShowUnchangedValue?: boolean) => {
+        setCurrentShapeId(shapeId)
         const element = document.querySelector(".tlui-navigation-zone") as HTMLElement
-        setSelectedVarOutput(undefined)
         if (!hasPlanJson || shapeId === "") {
             setSelectedNode(undefined)
             setShowSidebar(false)
@@ -89,8 +94,9 @@ const SelectionHandler = ({
                 element.style.display = ""
         } else if (nodeGroups && editor) {
             const shape = editor.getShape(shapeId as any)
+            resetShading(editor!, shapesSnapshot)
             if (shape?.type === "frame") {
-                handleFrameSelection(shapeId, nodeGroups)
+                handleFrameSelection(shapeId, nodeGroups, newShowUnknownValue, newShowUnchangedValue)
             } else {
                 // remove shape: prefix, and date suffix
                 const shapeIdWithoutPrefixAndSuffix = shapeId.split(":")[1]
@@ -107,12 +113,13 @@ const SelectionHandler = ({
                 setDependencies(dependencies)
                 setAffected(affected)
 
-                resetShading(editor!, shapesSnapshot)
                 computeShading(selectedNodeGroup, nodeGroups, editor!, dependencies, affected)
 
                 const { textToShow, resourceId } = nodeChangesToString(selectedNodeGroup.nodes.map((node) => {
                     return node.resourceChanges || undefined
-                }).filter((s) => s !== undefined).flat(), showUnknown, showUnchangedAttributes)
+                }).filter((s) => s !== undefined).flat(),
+                    newShowUnknownValue !== undefined ? newShowUnknownValue : showUnknown,
+                    newShowUnchangedValue !== undefined ? newShowUnchangedValue : showUnchangedAttributes)
 
                 setShowSidebar(true)
 
@@ -122,30 +129,14 @@ const SelectionHandler = ({
         }
     }
 
-    const refreshChangesDrilldown = (showUnknown: boolean, showUnchangedAttributes: boolean) => {
-        if (nodeGroups) {
-            const shapeIdWithoutPrefixAndSuffix = editor?.getSelectedShapeIds()[0].split(":")[1]
-
-            const { textToShow, resourceId } = nodeChangesToString(nodeGroups?.filter((nodeGroup) => {
-                return nodeGroup.id === shapeIdWithoutPrefixAndSuffix
-            })[0].nodes.map((node) => {
-                return node.resourceChanges || undefined
-            }).filter((s) => s !== undefined).flat(), showUnknown, showUnchangedAttributes)
-
-            setDiffText(textToShow || "No changes detected")
-            setSelectedResourceId(resourceId || "")
-
-        }
-    }
-
     const handleShowUnknownChange = (showUnknown: boolean) => {
         setShowUnknown(showUnknown)
-        refreshChangesDrilldown(showUnknown, showUnchangedAttributes)
+        handleShapeSelectionChange(currentShapeId, showUnknown, showUnchangedAttributes)
     }
 
     const handleShowUnchangedAttributesChange = (showUnchangedAttributes: boolean) => {
         setShowUnchangedAttributes(showUnchangedAttributes)
-        refreshChangesDrilldown(showUnknown, showUnchangedAttributes)
+        handleShapeSelectionChange(currentShapeId, showUnknown, showUnchangedAttributes)
     }
 
     return (
@@ -162,10 +153,10 @@ const SelectionHandler = ({
                     showUnknown={showUnknown}
                     moduleDrilldownData={moduleDrilldownData}
                     showUnchanged={showUnchangedAttributes}
-                    title={selectedVarOutput?.name || selectedNode?.name || ""}
+                    title={selectedNode?.name || selectedModule || ""}
                     text={diffText}
                     resourceId={selectedResourceId}
-                    subtitle={selectedVarOutput ? selectedVarOutput.hasOwnProperty("outputReferences") ? "Output" : "Variable" : selectedNode?.type || ""}
+                    subtitle={selectedNode?.type || ""}
                     closeSidebar={() => closeSidebar()}
                     handleShowUnknownChange={handleShowUnknownChange}
                     handleShowUnchangedChange={handleShowUnchangedAttributesChange}

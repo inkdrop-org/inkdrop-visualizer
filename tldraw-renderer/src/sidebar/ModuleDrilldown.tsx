@@ -21,7 +21,11 @@ const ModuleDrilldown = ({
     return (
         <>
             <div className="bg-[#302B35] p-5 text-white overflow-scroll h-full grow rounded text-xs">
-                {moduleDrilldownData.map((data, index) => {
+                {moduleDrilldownData.sort((a, b) => {
+                    const arg1 = a.category === "Other" ? "Z" : a.category
+                    const arg2 = b.category === "Other" ? "Z" : b.category
+                    return arg1.localeCompare(arg2)
+                }).map((data, index) => {
                     return (
                         <Accordion key={index} disableGutters sx={{
                             "&.MuiPaper-root": {
@@ -39,7 +43,7 @@ const ModuleDrilldown = ({
                                     color: "white"
                                 }} />}>
                                 <div className="flex items-center">
-                                    <div className="text-lg text-white truncate max-w-[250px]">{data.category}</div>
+                                    <div className="text-base text-white truncate max-w-[250px]">{data.category}</div>
                                     <div className="flex ml-3">
                                         {
                                             Object.entries(data.changesBreakdown).map(([action, number]) => (
