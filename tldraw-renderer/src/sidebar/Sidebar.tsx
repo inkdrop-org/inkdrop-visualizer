@@ -87,8 +87,9 @@ const Sidebar = ({
             sx={{
                 "& .MuiPaper-root": {
                     backgroundColor: "#F7F7F8",
-                    borderLeft: "1px solid"
-                }
+                    borderLeft: "1px solid",
+                    zIndex: 2001
+                },
             }}
         >
             <div className="absolute top-4 right-4">

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import Sidebar from "../sidebar/Sidebar";
-import { Dependency, resourceDependencies } from "../dependencies/dependencies";
+import { Dependency, moduleDependencies, resourceDependencies } from "../dependencies/dependencies";
 import { NodeGroup, TFVariableOutput } from "../TLDWrapper";
 import DependencyUI from "../dependencies/DependenciesUI";
 import { Editor } from "@tldraw/tldraw";
@@ -75,6 +75,9 @@ const SelectionHandler = ({
             }
         })
         const moduleDrilldownData = processModuleChanges(moduleChanges, newShowUnknownValue, newShowUnchangedValue)
+        const { dependencies, affected } = moduleDependencies(storedNodeGroups, childrenNodes[0]?.moduleName || "root_module", variables, outputs)
+        setDependencies(dependencies)
+        setAffected(affected)
         setModuleDrilldownData(moduleDrilldownData)
 
         setShowSidebar(true)
@@ -88,6 +91,7 @@ const SelectionHandler = ({
             setShowSidebar(false)
             setDependencies([])
             setAffected([])
+            setSelectedModule("")
             setDiffText("")
             resetShading(editor!, shapesSnapshot)
             if (element)
@@ -141,12 +145,13 @@ const SelectionHandler = ({
 
     return (
         <>
-            {selectedNode && nodeGroups && editor &&
+            {(selectedNode || selectedModule) && nodeGroups && editor &&
                 <DependencyUI dependencies={dependencies}
                     affected={affected}
                     sidebarWidth={sidebarWidth}
                     nodeGroups={nodeGroups}
-                    selectedNode={selectedNode}
+                    moduleName={selectedNode?.moduleName || selectedModule}
+                    type={selectedNode ? "resource" : "module"}
                     editor={editor} />}
             {sidebarWidth > 0 &&
                 <Sidebar width={sidebarWidth}

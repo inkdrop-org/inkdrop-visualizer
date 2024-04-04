@@ -20,8 +20,8 @@ export const computeShading = (selectedNode: NodeGroup, nodeGroups: NodeGroup[],
         }
     });
     editorShapes.filter((shape) => shape.type === "arrow").forEach((shape) => {
-        const fromId = (shape.props as any).start?.boundShapeId
-        const toId = (shape.props as any).end?.boundShapeId
+        const fromId = (shape.props as any).start?.boundShapeId || ""
+        const toId = (shape.props as any).end?.boundShapeId || ""
         editor.updateShape({ id: shape.id, type: "arrow", opacity: Math.min(editor.getShape(fromId)?.opacity || 0, editor.getShape(toId)?.opacity || 0) })
     })
 }
