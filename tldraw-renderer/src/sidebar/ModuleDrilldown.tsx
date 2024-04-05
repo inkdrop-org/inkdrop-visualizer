@@ -58,8 +58,8 @@ const ModuleDrilldown = ({
                                     borderBottom: "1px solid white",
                                 }}
                             >
-                                <div className="bg-[#302B35] text-white overflow-scroll h-full p-4 grow rounded text-xs max-h-[50vh]"
-                                    style={{ fontFamily: '"Cascadia Code", sans-serif', }}
+                                <div className="bg-[#302B35] text-white overflow-y-scroll overflow-x-hidden h-full p-4 grow rounded text-xs max-h-[50vh]"
+                                    style={{ fontFamily: '"Cascadia Code", sans-serif', scrollbarWidth: "none" }}
                                     dangerouslySetInnerHTML={{ __html: data.textToShow }}
                                 />
                             </AccordionDetails>
