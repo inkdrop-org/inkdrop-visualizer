@@ -33,6 +33,10 @@ async function performActionsToDownloadFile(page: Page) {
         if (svgButton) {
             await svgButton.click();
         }
+
+        //enlarge the window to make sure the whole diagram is visible
+        await page.setViewport({ width: 4000, height: 1080 });
+
         for (const module of modules) {
             const moduleFrame = await (await page.$('.tl-frame-label > [value="module.' + module + '"]'))!.getProperty("parentNode");
             if (moduleFrame) {
