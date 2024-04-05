@@ -58,6 +58,28 @@ To interact with the diagram simply click on the commented image, this will open
 
 We decided to go with a Github action + extension as this keeps all data completely local and doesn't require you to spin up a self-hosted version or to deal with authenication & credentials.
 
+### Automatically Updating Your README with Terraform Diagrams
+
+Inkdrop can automatically update your Terraform project's README with the latest Terraform interactive diagrams. This feature ensures your documentation includes an up-to-date representation of your infrastructure.
+
+When enabled, Inkdrop will:
+- Check if your repository has a README.
+  - If not, it creates one containing the diagram.
+  - If yes, it looks for a placeholder `![Inkdrop Diagram](...)` to replace with the diagram. Without a placeholder, the diagram is not added.
+
+The feature is controlled by the following inputs:
+```yaml
+inkdrop-run:
+    needs: plan
+    uses: inkdrop-org/inkdrop-visualizer/.github/workflows/inkdrop-plan.yml@main
+    with:
+      #...other Inkdrop settings
+      diagram_readme: true # Creates a diagram on the README at the root of the project. Defaults to true
+      modules_diagram_readme: true # Creates a diagram for each directory containing a Terraform module. Defaults to true
+```
+
+The README diagram is interactive, allowing viewers to click and open a local Chrome tab with full functionalities, similar to the PR comment diagram.
+
 ### Configuration
 
 The only thing you need to specify is your Terraform version. Other fields are optional and give you more freedom about your implementation.
@@ -70,6 +92,8 @@ The only thing you need to specify is your Terraform version. Other fields are o
 | `terraform_relative_dir` | Indicates the relative directory of your Terraform configuration. | string | `.`               | No       |
 | `data_branch_name`        | Names the branch to store the Inkdrop images.                  | string | `inkdrop-ci-data` | No       |
 | `inkdrop_version`      | Specifies the version of Inkdrop to use (in the format vX.Y.Z).| string | `latest`            | No       |
+| `diagram_readme`      | Enables automated updating or creation of README with Terraform diagrams.| boolean | `true` | No       |
+| `modules_diagram_readme` | Creates a diagram for each directory containing a Terraform module in the README.| boolean | `true`  | No       |
 
 Here's a link to a [github action example](/github-action-integration/example-plan-and-run-inkdrop.yml)
 
