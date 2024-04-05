@@ -173,51 +173,52 @@ export class NodeShapeUtil extends BaseBoxShapeUtil<NodeShape> {
         // Append the text element to the main group
         g.appendChild(typeText);
 
-        const iconWidth = 58; // The width of the image
-
+        const iconWidth = 58; // The width of the SVG icon
+        const iconHeight = 58; // The height of the SVG icon
         const rectCenterX = shape.props.w / 2;
-        const iconX = rectCenterX - (iconWidth / 2); // The x coordinate for the centered image
+        const iconX = rectCenterX - (iconWidth / 2); // Center the icon
+        const iconY = shape.props.h - iconHeight - 14; // Position the icon with a bottom margin
 
-        // Calculate the y coordinate to position the image with a 30px margin from the bottom
-        const iconHeight = 58; // The height of the image
-        const iconY = shape.props.h - iconHeight - 14; // The y coordinate for the positioned image with bottom margin
-
-
-        // Check if the PNG image can be converted to a data URL in the browser
-        const icon = document.createElementNS(xmlns, 'image');
+        // Fetch and embed the SVG icon
         try {
-            const dataURL = await convertImageToDataURL(shape.props.iconPath);
-            icon.setAttributeNS('http://www.w3.org/1999/xlink', 'href', dataURL as string);
+            const response = await fetch(shape.props.iconPath.replace(".png", ".svg")); //Use svg icons
+            const svgText = await response.text();
+
+            const iconHolder = document.createElement('div');
+            iconHolder.innerHTML = svgText;
+            const iconSVG = iconHolder.querySelector('svg');
+            if (!iconSVG) {
+                throw new Error('SVG icon not found in fetched content');
+            }
+
+            // Configure SVG to fit the specified area
+            iconSVG.setAttribute('x', iconX.toString());
+            iconSVG.setAttribute('y', iconY.toString());
+            iconSVG.setAttribute('width', iconWidth.toString());
+            iconSVG.setAttribute('height', iconHeight.toString());
+
+            // Defining a clipPath for rounded corners
+            const clipPathId = `clip-round-corners-${Math.random().toString(36).substr(2, 9)}`;
+            const clipPath = document.createElementNS(xmlns, 'clipPath');
+            clipPath.setAttributeNS(null, 'id', clipPathId);
+            const clipRect = document.createElementNS(xmlns, 'rect');
+            clipRect.setAttributeNS(null, 'x', "0");
+            clipRect.setAttributeNS(null, 'y', "0");
+            clipRect.setAttributeNS(null, 'width', "64");
+            clipRect.setAttributeNS(null, 'height', "64");
+            clipRect.setAttributeNS(null, 'rx', '4');
+            clipRect.setAttributeNS(null, 'ry', '4');
+            clipPath.appendChild(clipRect);
+            g.appendChild(clipPath);
+
+            // Apply the clipPath to the icon
+            iconSVG.setAttributeNS(null, 'clip-path', 'url(#' + clipPathId + ')');
+
+            g.appendChild(iconSVG);
+
         } catch (err) {
-            console.error('Error converting image to data URL', err);
+            console.error('Error fetching or embedding SVG icon', err);
         }
-        icon.setAttributeNS(null, 'x', iconX.toString());
-        icon.setAttributeNS(null, 'y', iconY.toString());
-        icon.setAttributeNS(null, 'width', iconWidth.toString());
-        icon.setAttributeNS(null, 'height', iconHeight.toString());
-
-        // Create a <clipPath> element to apply rounded corners to the image
-        const clipPath = document.createElementNS(xmlns, 'clipPath');
-        clipPath.setAttributeNS(null, 'id', 'rounded-corners');
-        const clipRect = document.createElementNS(xmlns, 'rect');
-        clipRect.setAttributeNS(null, 'x', iconX.toString());
-        clipRect.setAttributeNS(null, 'y', iconY.toString());
-        clipRect.setAttributeNS(null, 'width', iconWidth.toString());
-        clipRect.setAttributeNS(null, 'height', iconHeight.toString());
-        clipRect.setAttributeNS(null, 'rx', '4'); // Set the desired radius for rounded corners
-        clipRect.setAttributeNS(null, 'ry', '4');
-        clipPath.appendChild(clipRect);
-        g.appendChild(clipPath);
-
-        // Apply the clipPath to the image
-        icon.setAttributeNS(null, 'clip-path', 'url(#rounded-corners)');
-
-        // Add an 'onerror' event to handle loading errors
-        icon.onerror = (e) => {
-            console.error('Failed to load image', e);
-        };
-
-        g.appendChild(icon);
 
         if (!["no-op", "read"].includes(shape.props.state)) {
             const textContent = shape.props.numberOfChanges.toString();
