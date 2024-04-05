@@ -2,7 +2,7 @@
 This page is a guide on how to add Inkdrop to your github workflow.
 
 ![image](https://github.com/inkdrop-org/inkdrop-ci-chrome-extension/assets/86591160/ebcd7d11-3827-43cc-9e42-2307877a2023)
-If you'd like to see Inkdrop in action in a repository here is a [link](https://github.com/inkdrop-org/inkdrop-gh-action-example/pull/2).
+If you'd like to see Inkdrop in action in a repository here is a [link](https://github.com/inkdrop-org/inkdrop-gh-action-example/pull/5).
 
 Adding inkdrop to your CI process will allow you to:
 
