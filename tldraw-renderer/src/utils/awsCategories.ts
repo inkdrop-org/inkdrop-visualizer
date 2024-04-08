@@ -1,4 +1,4 @@
-type MacroCategory = 'Compute' | 'Networking' | 'Security' | 'Databases' | 'Other';
+type MacroCategory = 'Compute' | 'Networking' | 'Security' | 'Storage' | 'Other';
 
 export const getMacroCategory = (category: string) => {
     const macroCategories: { [key: string]: MacroCategory } = {
@@ -26,12 +26,17 @@ export const getMacroCategory = (category: string) => {
         'Web Security': 'Security',
 
         // Databases categories
-        'Databases': 'Databases',
-        'Data Management': 'Databases',
-        'Graph Database': 'Databases',
-        'In-Memory Database': 'Databases',
-        'NoSQL Database': 'Databases',
-        'Time Series Database': 'Databases',
+        'Databases': 'Storage',
+        'Data Management': 'Storage',
+        'Graph Database': 'Storage',
+        'In-Memory Database': 'Storage',
+        'NoSQL Database': 'Storage',
+        'Time Series Database': 'Storage',
+        "Storage": 'Storage',
+        "File Transfer": 'Storage',
+        "Data Orchestration": 'Storage',
+        "Data Recovery": 'Storage',
+        "Container Registry": 'Storage',
 
         // This serves as a default for categories not explicitly mapped above
     };

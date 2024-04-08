@@ -118,7 +118,7 @@ export class NodeShapeUtil extends BaseBoxShapeUtil<NodeShape> {
                                         shape.props.state === "delete" ? "#E22134" : "#F2960D",
                                     fontSize: "12px"
                                 }}
-                                className='mt-1 mr-1 rounded-full h-4 min-w-6 text-center leading-[14px]'>
+                                className='mt-1 mr-1 rounded-full h-4 min-w-6 text-center leading-[15px]'>
                                 {shape.props.numberOfChanges}
                             </div>
                         }

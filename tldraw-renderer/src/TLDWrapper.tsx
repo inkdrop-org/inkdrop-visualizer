@@ -14,6 +14,7 @@ import { getResourceNameAndType } from './utils/resources';
 import { filterOutNotNeededArgs } from './utils/filterPlanJson';
 import { demoShapes } from './layout/demoShapes';
 import SelectionHandler from './selection/SelectionHandler';
+import { getMacroCategory } from './utils/awsCategories';
 
 
 const customShapeUtils = [NodeShapeUtil]
@@ -264,16 +265,18 @@ const TLDWrapper = () => {
     const findAndSetCategories = (nodeGroups: Map<string, NodeGroup>) => {
         const catList: string[] = []
         nodeGroups.forEach((nodeGroup, key) => {
-            const category = nodeGroup.category
-            if (!catList.includes(category)) {
-                catList.push(category)
+            const macroCategory = getMacroCategory(nodeGroup.category)
+            if (!catList.includes(macroCategory)) {
+                catList.push(macroCategory)
             }
         })
 
         //sort alphabetically
         catList.sort((a, b) => {
-            if (a < b) return -1
-            if (a > b) return 1
+            const newA = a === "Other" ? "zzz" : a
+            const newB = b === "Other" ? "zzz" : b
+            if (newA < newB) return -1
+            if (newA > newB) return 1
             return 0
         })
 
@@ -390,7 +393,7 @@ const TLDWrapper = () => {
         // Remove nodeGroups whose category is not selected
         Array.from(nodeGroups.keys()).forEach((key) => {
             const nodeGroup = nodeGroups.get(key)
-            if (nodeGroup && deselectedCategoriesRef.current!.includes(nodeGroup.category)) {
+            if (nodeGroup && deselectedCategoriesRef.current!.includes(getMacroCategory(nodeGroup.category))) {
                 nodeGroups.delete(key)
             }
         })
