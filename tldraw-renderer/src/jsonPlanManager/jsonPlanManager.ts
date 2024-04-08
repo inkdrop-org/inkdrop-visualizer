@@ -62,6 +62,8 @@ const getColoredAction = (action: string) => {
             return `<span class="yellow-text">${action}</span>`
         case "delete":
             return `<span class="red-text">${action}</span>`
+        case "no-op":
+            return `<span class="gray-text">unchanged</span>`
         default:
             return action
     }
