@@ -42,6 +42,7 @@ export const computeLayout = (nodeGroups: Map<string, NodeGroup>, computeTerrafo
             return {
                 id: "shape:" + id + ":" + date as TLShapeId,
                 type: "frame",
+                parentId: g.parent(id) ? "shape:" + g.parent(id) + ":" + date as TLShapeId : undefined,
                 x: node.x - node.width / 2,
                 y: node.y - node.height / 2,
                 props: {
