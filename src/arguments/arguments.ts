@@ -27,6 +27,11 @@ export const argv = yargs(hideBin(process.argv))
         type: 'boolean',
         example: "inkdrop --debug",
     })
+    .option('subdirs', {
+        describe: 'Runs Inkdrop for each one of the specified sub-directories in the Terraform project. Diagrams are shown in the browser, under the path of the sub-directory.',
+        type: 'array',
+        example: "inkdrop --subdirs module1 module2",
+    })
     .options('modules', {
         describe: 'In CI mode, create a diagram for each specified module',
         type: 'array',

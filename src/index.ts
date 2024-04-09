@@ -37,7 +37,7 @@ if ((argv as any).debug) {
 }
 
 if ((argv as any).planfile) {
-    if (!fs.existsSync((argv as any).planfile) || !fs.lstatSync((argv as any).planfile).isFile()) {
+    if (!(argv as any).subdirs && (!fs.existsSync((argv as any).planfile) || !fs.lstatSync((argv as any).planfile).isFile())) {
         console.error(`The path to the plan file is invalid: ${(argv as any).planfile}`);
         process.exit(1);
     }
@@ -98,18 +98,24 @@ app.post('/debug-log', (req, res) => {
     res.status(200).json({ message: 'Log received' });
 })
 
-let planJson = ""
-let graph = ""
+const planJson: any = {}
+const graph: any = {}
 
 const debug: boolean = (argv as any).debug || false
 const detailed: boolean = (argv as any).detailed || false
 const showUnchanged: boolean = (argv as any).showUnchanged || false
 const opacityFull: boolean = (argv as any).opacityFull || false
 
+const subdirs: string[] = (argv as any).subdirs || []
+
 app.get('/get-render-input', (req, res) => {
+    const referer = req.get('Referer');
+
+    const path = referer?.split(":")[2].split("/").slice(1).filter((s) => s !== "").join("/")
+
     res.status(200).json({
-        planJson,
-        graph,
+        planJson: planJson[path || ""],
+        graph: graph[path || ""],
         detailed,
         debug,
         showUnchanged,
@@ -152,60 +158,67 @@ export const openUrl = (url: string) => {
 
 const runTerraformGraph = async () => {
 
-    if ((argv as any).planfile) {
-        const { stdout: showStdout, stderr: showStderr } = await execAsync(`terraform show -json "${path.resolve((argv as any).planfile)}"`, {
+    subdirs.forEach(async (subdir: string) => {
+        if (subdir !== ".") {
+            app.use(`/${subdir}`, express.static(path.resolve(__dirname, '..', 'build')));
+        }
+        if ((argv as any).planfile) {
+            const { stdout: showStdout, stderr: showStderr } = await execAsync(`terraform show -json "${(argv as any).planfile}"`, {
+                cwd: path.resolve(path.join(((argv as any).path || "."), subdir)),
+                maxBuffer: MAX_BUFFER_SIZE
+            })
+                .catch((err) => {
+                    console.error("Error while running 'terraform show -json':\n"
+                        + err)
+                    process.exit(1);
+                })
+            if (showStderr) {
+                console.error(`${showStderr}`);
+                process.exit(1);
+            }
+            planJson[subdir !== "." ? subdir : ""] = showStdout
+        }
+
+        const { stdout: versionStdout, stderr: versionStderr } = await execAsync('terraform -v -json', {
             cwd: path.resolve((argv as any).path || "."),
             maxBuffer: MAX_BUFFER_SIZE
         })
             .catch((err) => {
-                console.error("Error while running 'terraform show -json':\n"
+                console.error("Error while running 'terraform version':\n"
                     + err)
                 process.exit(1);
             })
-        if (showStderr) {
-            console.error(`${showStderr}`);
+
+        if (versionStderr) {
+            console.error(`${versionStderr}`);
             process.exit(1);
         }
-        planJson = showStdout
-    }
 
-    const { stdout: versionStdout, stderr: versionStderr } = await execAsync('terraform -v -json', {
-        cwd: path.resolve((argv as any).path || "."),
-        maxBuffer: MAX_BUFFER_SIZE
-    })
-        .catch((err) => {
-            console.error("Error while running 'terraform version':\n"
-                + err)
-            process.exit(1);
+        const version = JSON.parse(versionStdout).terraform_version
+        const addGraphPlanFlag = semver.gte(version, "1.7.0")
+
+        const graphCommand = addGraphPlanFlag ? 'terraform graph -type=plan' : 'terraform graph'
+
+        console.log("Computing terraform graph...")
+        const { stdout: graphStdout, stderr: graphStderr } = await execAsync(graphCommand, {
+            cwd: path.resolve(path.join(((argv as any).path || "."), subdir)),
+            maxBuffer: MAX_BUFFER_SIZE
         })
+            .catch((err) => {
+                console.error("Error while running 'terraform graph':\n"
+                    + err)
+                process.exit(1);
+            })
 
-    if (versionStderr) {
-        console.error(`${versionStderr}`);
-        process.exit(1);
-    }
-
-    const version = JSON.parse(versionStdout).terraform_version
-    const addGraphPlanFlag = semver.gte(version, "1.7.0")
-
-    const graphCommand = addGraphPlanFlag ? 'terraform graph -type=plan' : 'terraform graph'
-
-    console.log("Computing terraform graph...")
-    const { stdout: graphStdout, stderr: graphStderr } = await execAsync(graphCommand, {
-        cwd: path.resolve((argv as any).path || "."),
-        maxBuffer: MAX_BUFFER_SIZE
-    })
-        .catch((err) => {
-            console.error("Error while running 'terraform graph':\n"
-                + err)
+        if (graphStderr) {
+            console.error(`${graphStderr}`);
             process.exit(1);
-        })
+        }
 
-    if (graphStderr) {
-        console.error(`${graphStderr}`);
-        process.exit(1);
-    }
+        graph[subdir !== "." ? subdir : ""] = graphStdout
+    })
 
-    graph = graphStdout
+
     const ci = (argv as any).ci || false
     const svg = (argv as any).svg || false
 
