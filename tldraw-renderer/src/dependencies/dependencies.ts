@@ -36,6 +36,8 @@ export const getVariablesAndOutputs = (nodeGroups: Map<string, NodeGroup>, planJ
 
     nodeGroups.forEach((nodeGroup) => {
         const moduleName = nodeGroup.moduleName
+        const parentModules = nodeGroup.parentModules
+
         const nodeVariableRefs: string[] = []
         const nodeOutputRefs: string[] = []
         nodeGroup.nodes.forEach((node) => {
@@ -43,9 +45,8 @@ export const getVariablesAndOutputs = (nodeGroups: Map<string, NodeGroup>, planJ
             const address = node.nodeModel.id.split(" ")[1]
             const { resourceType, resourceName } = getResourceNameAndType(address)
 
-            // To be changed for nested modules
             const basePath = moduleName ?
-                planJson?.configuration?.root_module?.module_calls?.[moduleName!].module :
+                getRecursiveBasePath(planJson?.configuration?.root_module?.module_calls, parentModules, moduleName).module :
                 planJson?.configuration?.root_module
 
             Object.entries(basePath?.resources?.filter((r: any) => {
@@ -68,23 +69,26 @@ export const getVariablesAndOutputs = (nodeGroups: Map<string, NodeGroup>, planJ
 
         if (moduleName) {
             if (variables.filter((v) => v.module === moduleName).length === 0) {
-                const parentModule = "root_module"
-                variables.push(...Object.keys(planJson?.configuration?.root_module?.module_calls?.[moduleName]?.module?.variables || {}).map((key) => {
-                    return {
-                        name: key,
-                        module: moduleName,
-                        type: "variable" as any,
-                        expressionReferences: makeUnique(planJson?.configuration?.root_module?.module_calls?.[moduleName]?.expressions?.[key]?.references?.map((r: any) => {
-                            const type = r.startsWith("var.") ? "variable" : r.startsWith("module.") ? "output" : "unknown"
-                            const module = type === "variable" ? parentModule : type === "output" ? r.split(".")[1] : ""
-                            return {
-                                type,
-                                module,
-                                name: type === "variable" ? r.split(".")[1] : r.split(".")[2],
-                            }
-                        }).filter((e: any) => e.name && !e.name.includes("[")) || [])
-                    }
-                }))
+                const parentModule = parentModules.length > 0 ? parentModules[parentModules.length - 1] : "root_module"
+                variables.push(...Object.keys(
+                    getRecursiveBasePath(planJson?.configuration?.root_module?.module_calls, parentModules, moduleName)?.module?.variables
+                    || {}).map((key) => {
+                        return {
+                            name: key,
+                            module: moduleName,
+                            type: "variable" as any,
+                            expressionReferences: makeUnique(
+                                getRecursiveBasePath(planJson?.configuration?.root_module?.module_calls, parentModules, moduleName)?.expressions?.[key]?.references?.map((r: any) => {
+                                    const type = r.startsWith("var.") ? "variable" : r.startsWith("module.") ? "output" : "unknown"
+                                    const module = type === "variable" ? parentModule : type === "output" ? r.split(".")[1] : ""
+                                    return {
+                                        type,
+                                        module,
+                                        name: type === "variable" ? r.split(".")[1] : r.split(".")[2],
+                                    }
+                                }).filter((e: any) => e.name && !e.name.includes("[")) || [])
+                        }
+                    }))
             }
             if (outputs.filter((v) => v.module === moduleName).length === 0) {
                 outputs.push(...Object.keys(planJson?.configuration?.root_module?.module_calls?.[moduleName]?.module?.outputs || {}).map((key) => {
@@ -93,7 +97,7 @@ export const getVariablesAndOutputs = (nodeGroups: Map<string, NodeGroup>, planJ
                         name: key,
                         module: moduleName,
                         type: "output" as any,
-                        expressionReferences: makeUnique(planJson?.configuration?.root_module?.module_calls?.[moduleName]?.module?.outputs?.[key]?.expression?.references?.map((r: any) => {
+                        expressionReferences: makeUnique(getRecursiveBasePath(planJson?.configuration?.root_module?.module_calls, parentModules, moduleName)?.module?.outputs?.[key]?.expression?.references?.map((r: any) => {
                             const type = r.startsWith("var.") ? "variable" : r.startsWith("module.") ? "output" : "resource"
                             const module = type === "variable" || type === "resource" ? thisModule : type === "output" ? r.split(".")[1] : ""
                             return {
@@ -126,6 +130,13 @@ export const getVariablesAndOutputs = (nodeGroups: Map<string, NodeGroup>, planJ
     })
 
     return { variables, outputs }
+}
+
+const getRecursiveBasePath = (moduleCalls: any, parentModules: string[], moduleName: string): any => {
+    if (parentModules.length === 0) {
+        return moduleCalls[moduleName]
+    }
+    return getRecursiveBasePath(moduleCalls[parentModules[0]].module.module_calls, parentModules.slice(1), moduleName)
 }
 
 const getNodeGroupName = (nameType: string, nodeModule: string, nodeGroups: Map<string, NodeGroup>) => {
@@ -340,6 +351,7 @@ export const resourceDependencies = (nodes: NodeGroup[], selectedNode: NodeGroup
             name: n.type + "." + n.name
         }
     })], selectedNode)
+
     return {
         dependencies,
         affected

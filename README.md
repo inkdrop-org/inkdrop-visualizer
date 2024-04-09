@@ -22,7 +22,7 @@
   </picture>
 </p>
 <p align="center">
-  <a href="https://github.com/inkdrop-org/inkdrop-gh-action-example/pull/2">🚀 CI Intergration</a> | <a href="https://demo.inkdrop.ai">💻 Interactive Demo</a> | <a href="https://github.com/inkdrop-org/inkdrop-visualizer/issues/new">🙌 Give Feedback</a>
+  <a href="https://github.com/inkdrop-org/inkdrop-gh-action-example/pull/5">🚀 CI Intergration</a> | <a href="https://demo.inkdrop.ai">💻 Interactive Demo</a> | <a href="https://github.com/inkdrop-org/inkdrop-visualizer/issues/new">🙌 Give Feedback</a>
 </p>
 
 ## Overview
