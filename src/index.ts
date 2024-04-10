@@ -12,6 +12,7 @@ import semver from 'semver';
 import cors from 'cors';
 import { warnUserIfNotLatestVersion } from './utils/fetchLatestVersion';
 import { getCurrentFormattedDate } from './utils/time';
+import { URL } from 'url';
 
 const MAX_BUFFER_SIZE = 10 * 1024 * 1024; // 10 MB
 
@@ -111,17 +112,29 @@ const subdirs: string[] = (argv as any).subdirs || []
 app.get('/get-render-input', (req, res) => {
     const referer = req.get('Referer');
 
-    const path = referer?.split(":")[2].split("/").slice(1).filter((s) => s !== "").join("/")
+    if (referer) {
+        const url = new URL(referer);
+        let path = url.pathname
+        if (path && path.startsWith("/")) {
+            path = path.slice(1);
+        }
+        if (path && path.endsWith("/")) {
+            path = path.slice(0, -1)
+        }
 
-    res.status(200).json({
-        planJson: planJson[path || ""],
-        graph: graph[path || ""],
-        detailed,
-        debug,
-        showUnchanged,
-        ci,
-        opacityFull
-    });
+        console.log(path)
+        if (path && subdirs.includes(path)) {
+            res.status(200).json({
+                planJson: planJson[path || ""],
+                graph: graph[path || ""],
+                detailed,
+                debug,
+                showUnchanged,
+                ci,
+                opacityFull
+            });
+        }
+    }
 })
 
 // Start the server
@@ -225,7 +238,7 @@ const runTerraformGraph = async () => {
     if (ci || svg) {
         runHeadlessBrowserAndExportSVG(server, argv)
     } else {
-        openUrl(`http://localhost:${PORT}/`);
+        //openUrl(`http://localhost:${PORT}/`);
     }
 }
 
