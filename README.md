@@ -113,4 +113,5 @@ Feel free to reach out:
 antoine@inkdrop.ai
 
 https://calendly.com/antoine-inkdrop/25-min
+
 https://calendly.com/alberto-inkdrop/30min
