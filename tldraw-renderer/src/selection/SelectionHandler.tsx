@@ -3,7 +3,7 @@ import Sidebar from "../sidebar/Sidebar";
 import { Dependency, moduleDependencies, resourceDependencies } from "../dependencies/dependencies";
 import { NodeGroup, TFVariableOutput } from "../TLDWrapper";
 import DependencyUI from "../dependencies/DependenciesUI";
-import { Editor } from "@tldraw/tldraw";
+import { Editor, TLShapeId } from "@tldraw/tldraw";
 import { computeShading, resetShading } from "../editorHandler/shading";
 import { ChangesBreakdown, getChangesBreakdown, nodeChangesToString } from "../jsonPlanManager/jsonPlanManager";
 import EditorHandler from "../editorHandler/EditorHandler";
@@ -62,12 +62,25 @@ const SelectionHandler = ({
         })
     }
 
+    const isNestedChildOfFrame = (nodeFrameId: string, frameId: string): boolean => {
+        if (!nodeFrameId) return false
+        if (nodeFrameId === frameId) {
+            return true
+        }
+        const parentFrame = editor.getShapeParent(nodeFrameId as TLShapeId)
+        if (parentFrame) {
+            return isNestedChildOfFrame(parentFrame.id, frameId)
+        }
+        return false
+    }
+
     const handleFrameSelection = (frameId: string, storedNodeGroups: NodeGroup[], newShowUnknownValue?: boolean, newShowUnchangedValue?: boolean) => {
         setSelectedNode(undefined)
         const childrenNodes = storedNodeGroups.filter((nodeGroup) => {
-            return nodeGroup.frameShapeId === frameId
+            return nodeGroup.frameShapeId && isNestedChildOfFrame(nodeGroup.frameShapeId, frameId)
         })
-        setSelectedModule(childrenNodes[0]?.moduleName || "")
+        const moduleName = (editor.getShape(frameId as TLShapeId)?.props as any).name || ""
+        setSelectedModule(moduleName)
         const moduleChanges = childrenNodes.map((nodeGroup) => {
             return {
                 category: getMacroCategory(nodeGroup.category),
@@ -75,7 +88,7 @@ const SelectionHandler = ({
             }
         })
         const moduleDrilldownData = processModuleChanges(moduleChanges, newShowUnknownValue, newShowUnchangedValue)
-        const { dependencies, affected } = moduleDependencies(storedNodeGroups, childrenNodes[0]?.moduleName || "root_module", variables, outputs)
+        const { dependencies, affected } = moduleDependencies(storedNodeGroups, moduleName || "root_module", variables, outputs)
         setDependencies(dependencies)
         setAffected(affected)
         setModuleDrilldownData(moduleDrilldownData)
