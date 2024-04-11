@@ -129,6 +129,7 @@ app.get('/get-render-input', (req, res) => {
                 detailed,
                 debug,
                 showUnchanged,
+                subdirs,
                 ci,
                 opacityFull
             });

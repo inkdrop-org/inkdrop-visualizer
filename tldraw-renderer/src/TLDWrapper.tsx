@@ -15,6 +15,7 @@ import { filterOutNotNeededArgs } from './utils/filterPlanJson';
 import { demoShapes } from './layout/demoShapes';
 import SelectionHandler from './selection/SelectionHandler';
 import { getMacroCategory } from './utils/awsCategories';
+import NavigationMenu from './navigation/NavigationMenu';
 
 
 const customShapeUtils = [NodeShapeUtil]
@@ -71,6 +72,7 @@ type RenderInput = {
     showUnchanged: boolean,
     ci: boolean,
     opacityFull: boolean
+    subdirs: string[]
 }
 
 const assetUrls = getAssetUrls()
@@ -85,6 +87,7 @@ const TLDWrapper = () => {
     const categoriesRef = useRef<string[]>([])
     const showDebugRef = useRef<boolean>(false)
     const deselectedCategoriesRef = useRef<string[]>([])
+    const [subdirs, setSubdirs] = useState<string[]>([])
     const [sidebarWidth, setSidebarWidth] = useState<number>(0)
     const [shapesSnapshot, setShapesSnapshot] = useState<string>("")
     const [storedNodeGroups, setStoredNodeGroups] = useState<NodeGroup[]>()
@@ -96,6 +99,7 @@ const TLDWrapper = () => {
         showDebugRef.current = renderInput.debug
         const detailed = renderInput.detailed
         debugLog("Detailed view is " + (detailed ? "on" : "off") + ".")
+        setSubdirs(renderInput.subdirs)
         const showUnchanged = renderInput.showUnchanged
         renderInput.planJson &&
             debugLog("Unchanged resources are " + (showUnchanged ? "shown" : "hidden") + ".")
@@ -594,6 +598,18 @@ const TLDWrapper = () => {
                     assetUrls={assetUrls}
                 />
             </div>
+            {sidebarWidth === 0 && subdirs.length > 0 &&
+                <div className={'absolute top-2 z-200 right-2'}>
+                    <NavigationMenu selected={subdirs.find((s) => {
+                        let trimmedPathname = window.location.pathname.slice(1)
+                        if (trimmedPathname.endsWith("/")) {
+                            trimmedPathname = trimmedPathname.slice(0, -1)
+                        }
+                        return s === trimmedPathname
+                    }
+                    ) || ""} subdirs={subdirs} />
+                </div>
+            }
             {sidebarWidth === 0 &&
                 <div className={'absolute top-2 z-200 left-2'}>
                     <ToggleLayers items={
