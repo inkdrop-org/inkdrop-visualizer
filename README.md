@@ -18,7 +18,7 @@
 
 <p align="center">
   <picture align="center">
-    <a href="https://demo.inkdrop.ai/" target="_blank" rel="noopener noreferrer"><img src="https://github.com/inkdrop-org/inkdrop-visualizer/assets/86591160/5de99a85-2636-40c8-b82d-7f64c7dc7178" alt="demo"></a> 
+    <a href="https://demo.inkdrop.ai/"><img src="https://github.com/inkdrop-org/inkdrop-visualizer/assets/86591160/5de99a85-2636-40c8-b82d-7f64c7dc7178" alt="demo"></a> 
   </picture>
 </p>
 <p align="center">
