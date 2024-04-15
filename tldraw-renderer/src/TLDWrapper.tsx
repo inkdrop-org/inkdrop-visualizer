@@ -576,7 +576,7 @@ const TLDWrapper = () => {
 
 
     const setShowSidebar = (value: boolean) => {
-        setSidebarWidth(value ? 30 : 0)
+        setSidebarWidth(value ? 24 : 0)
     }
 
 

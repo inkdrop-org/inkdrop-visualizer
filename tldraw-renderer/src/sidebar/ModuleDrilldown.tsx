@@ -5,18 +5,14 @@ import ChangesBadge from "./ChangesBadge";
 
 interface ModuleDrilldownProps {
     moduleDrilldownData: { category: string, textToShow: string, changesBreakdown: ChangesBreakdown }[];
-    handleShowUnknownChange: (showHidden: boolean) => void;
-    handleShowUnchangedChange: (showHidden: boolean) => void;
-    showUnknown: boolean;
-    showUnchanged: boolean;
+    handleShowAllChange: (showHidden: boolean) => void;
+    showAll: boolean;
 }
 
 const ModuleDrilldown = ({
     moduleDrilldownData,
-    handleShowUnknownChange,
-    handleShowUnchangedChange,
-    showUnknown,
-    showUnchanged
+    handleShowAllChange,
+    showAll,
 }: ModuleDrilldownProps) => {
     return (
         <>
@@ -42,8 +38,10 @@ const ModuleDrilldown = ({
                                 expandIcon={<ExpandMoreIcon sx={{
                                     color: "white"
                                 }} />}>
-                                <div className="flex items-center">
-                                    <div className="text-base text-white truncate max-w-[250px]">{data.category}</div>
+                                <div className="flex items-center"
+                                    style={{ scrollbarWidth: "none" }}
+                                >
+                                    <div className="text-sm text-white truncate max-w-[250px]">{data.category}</div>
                                     <div className="flex ml-3">
                                         {
                                             Object.entries(data.changesBreakdown).map(([action, number]) => (
@@ -58,8 +56,8 @@ const ModuleDrilldown = ({
                                     borderBottom: "1px solid white",
                                 }}
                             >
-                                <div className="bg-[#302B35] text-white overflow-y-scroll overflow-x-hidden h-full p-4 grow rounded text-xs max-h-[50vh] break-words"
-                                    style={{ fontFamily: '"Cascadia Code", sans-serif', scrollbarWidth: "none" }}
+                                <div className="bg-[#302B35] text-white overflow-y-scroll overflow-x-hidden h-full grow rounded text-[0.7rem] max-h-[50vh] break-words"
+                                    style={{ fontFamily: '"Cascadia Code", sans-serif', scrollbarWidth: "none", lineHeight: "1rem" }}
                                     dangerouslySetInnerHTML={{ __html: data.textToShow }}
                                 />
                             </AccordionDetails>
@@ -67,12 +65,12 @@ const ModuleDrilldown = ({
                     )
                 })}
             </div>
-            <div className="w-[28rem] my-4 h-[1px] bg-[#B2AEB6]" />
-            <div className="mb-6 flex">
+            <div className="w-[22rem] my-4 h-[1px] bg-[#B2AEB6]" />
+            <div className="mb-4 flex">
                 <div className="grow">
                     <FormGroup>
                         <FormControlLabel
-                            checked={showUnknown}
+                            checked={showAll}
                             sx={{
                                 margin: 0,
                                 "& .MuiCheckbox-root": {
@@ -82,19 +80,7 @@ const ModuleDrilldown = ({
                                 "& .MuiTypography-body1": {
                                     fontSize: "0.875rem"
                                 }
-                            }} onChange={(e, checked) => handleShowUnknownChange(checked)} control={<Checkbox />} label="Show unknown attributes" />
-                        <FormControlLabel
-                            checked={showUnchanged}
-                            sx={{
-                                margin: 0,
-                                "& .MuiCheckbox-root": {
-                                    padding: 0,
-                                    paddingRight: "0.25rem",
-                                },
-                                "& .MuiTypography-body1": {
-                                    fontSize: "0.875rem"
-                                }
-                            }} onChange={(e, checked) => handleShowUnchangedChange(checked)} control={<Checkbox />} label="Show unchanged attributes" />
+                            }} onChange={(e, checked) => handleShowAllChange(checked)} control={<Checkbox />} label="Show all attributes" />
                     </FormGroup>
                 </div>
             </div>

@@ -105,7 +105,7 @@ const DependencyUI = ({
             <div className="absolute top-0 left-0 bg-[#F7F7F8] z-[2000] w-full border-b border-black"
                 style={{ paddingRight: sidebarWidth + "rem" }}
             >
-                <div className="flex items-center h-12 px-4">
+                <div className="flex items-center h-[2.4rem] px-4">
                     <div className="text-sm min-w-max">{
                         dependencies.length === 0 ? "No dependencies found" :
                             type === "module" ?
@@ -113,7 +113,7 @@ const DependencyUI = ({
                                 "This resource depends on"
 
                     }</div>
-                    <div className="overflow-x-auto px-4 whitespace-nowrap"
+                    <div className="overflow-x-auto px-4 whitespace-nowrap h-[25px]"
                         style={{ scrollbarWidth: "none" }}
                     >
                         {dependenciesMap(dependencies)}
@@ -123,7 +123,7 @@ const DependencyUI = ({
             <div className="absolute bottom-0 left-0 bg-[#F7F7F8] z-[2000] w-full border-t border-black"
                 style={{ paddingRight: sidebarWidth + "rem" }}
             >
-                <div className="flex items-center h-12 px-4">
+                <div className="flex items-center h-[2.4rem] px-4">
                     <div className="text-sm min-w-max">{
                         affected.length === 0 ?
                             type === "module" ?
@@ -134,7 +134,7 @@ const DependencyUI = ({
                                 "Components that depend on this"
                     }
                     </div>
-                    <div className="overflow-x-auto px-4 whitespace-nowrap"
+                    <div className="overflow-x-auto px-4 whitespace-nowrap h-[25px]"
                         style={{ scrollbarWidth: "none" }}
                     >
                         {dependenciesMap(affected)}
