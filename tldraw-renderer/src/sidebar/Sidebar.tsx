@@ -9,12 +9,10 @@ import ChangesBadge from "./ChangesBadge";
 interface SidebarProps {
     width: number;
     text: string;
-    handleShowUnknownChange: (showHidden: boolean) => void;
-    handleShowUnchangedChange: (showHidden: boolean) => void;
+    handleShowAllChange: (showHidden: boolean) => void;
     moduleDrilldownData: { category: string, textToShow: string, changesBreakdown: ChangesBreakdown }[];
     resourceId: string;
-    showUnknown: boolean;
-    showUnchanged: boolean;
+    showAll: boolean;
     closeSidebar: () => void;
     title: string
     subtitle: string
@@ -22,12 +20,10 @@ interface SidebarProps {
 const Sidebar = ({
     width,
     text,
-    handleShowUnknownChange,
-    handleShowUnchangedChange,
+    handleShowAllChange,
     moduleDrilldownData,
-    showUnknown,
+    showAll,
     resourceId,
-    showUnchanged,
     title,
     subtitle,
     closeSidebar,
@@ -64,12 +60,16 @@ const Sidebar = ({
                 moduleChanges.unchanged += changesBreakdown.unchanged
             })
         return (
-            <div className="flex items-center">
+            <div className="flex items-center w-[22rem] overflow-x-scroll"
+                style={{
+                    scrollbarWidth: "none"
+                }}
+            >
                 {
                     Object.entries(moduleChanges).map(([action, number]) => (
                         <>
                             <ChangesBadge key={"module-change-" + action} action={action} number={number} />
-                            <div className=" text-sm mr-4">
+                            <div className=" text-xs mr-2">
                                 {formatActionText(action)}
                             </div>
                         </>
@@ -114,7 +114,7 @@ const Sidebar = ({
                     moduleDrilldownData.length > 0 &&
                     moduleChanges()
                 }
-                <div className="w-[28rem] my-4 h-[1px] bg-[#B2AEB6]" />
+                <div className="w-[22rem] my-4 h-[1px] bg-[#B2AEB6]" />
             </div>
             <div
                 className="overflow-hidden h-full flex flex-col px-4"
@@ -124,18 +124,14 @@ const Sidebar = ({
                 {moduleDrilldownData.length > 0 ?
                     <ModuleDrilldown
                         moduleDrilldownData={moduleDrilldownData}
-                        handleShowUnknownChange={handleShowUnknownChange}
-                        handleShowUnchangedChange={handleShowUnchangedChange}
-                        showUnknown={showUnknown}
-                        showUnchanged={showUnchanged}
+                        handleShowAllChange={handleShowAllChange}
+                        showAll={showAll}
                     /> :
                     <ResourceDrilldown
-                        showUnchanged={showUnchanged}
-                        showUnknown={showUnknown}
+                        showAll={showAll}
                         text={text}
                         resourceId={resourceId}
-                        handleShowUnknownChange={handleShowUnknownChange}
-                        handleShowUnchangedChange={handleShowUnchangedChange}
+                        handleShowAllChange={handleShowAllChange}
                     />
                 }
             </div>

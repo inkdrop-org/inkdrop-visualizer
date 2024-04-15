@@ -38,22 +38,20 @@ const SelectionHandler = ({
     const [dependencies, setDependencies] = useState<Dependency[]>([])
     const [affected, setAffected] = useState<Dependency[]>([])
     const [selectedResourceId, setSelectedResourceId] = useState<string>("")
-    const [showUnknown, setShowUnknown] = useState<boolean>(false)
-    const [showUnchangedAttributes, setShowUnchangedAttributes] = useState<boolean>(false)
+    const [showAll, setShowAll] = useState<boolean>(false)
 
     const closeSidebar = () => {
         handleShapeSelectionChange("")
         editor.selectNone()
     }
 
-    const processModuleChanges = (moduleChanges: { category: string, resourceChanges: any[] }[], newShowUnknownValue?: boolean, newShowUnchangedValue?: boolean) => {
+    const processModuleChanges = (moduleChanges: { category: string, resourceChanges: any[] }[], newShowAllValue?: boolean) => {
         const categories = Array.from(new Set(moduleChanges.map((moduleChange) => moduleChange.category)))
         return categories.map((category) => {
             const resourceChanges = moduleChanges.filter((moduleChange) => moduleChange.category === getMacroCategory(category)).map((moduleChange) => moduleChange.resourceChanges).flat()
             const changesBreakdown = getChangesBreakdown(resourceChanges)
             const { textToShow } = nodeChangesToString(resourceChanges,
-                newShowUnknownValue !== undefined ? newShowUnknownValue : showUnknown,
-                newShowUnchangedValue !== undefined ? newShowUnchangedValue : showUnchangedAttributes)
+                newShowAllValue !== undefined ? newShowAllValue : showAll)
             return {
                 category,
                 textToShow,
@@ -74,7 +72,7 @@ const SelectionHandler = ({
         return false
     }
 
-    const handleFrameSelection = (frameId: string, storedNodeGroups: NodeGroup[], newShowUnknownValue?: boolean, newShowUnchangedValue?: boolean) => {
+    const handleFrameSelection = (frameId: string, storedNodeGroups: NodeGroup[], newShowAllValue?: boolean) => {
         setSelectedNode(undefined)
         const childrenNodes = storedNodeGroups.filter((nodeGroup) => {
             return nodeGroup.frameShapeId && isNestedChildOfFrame(nodeGroup.frameShapeId, frameId)
@@ -87,7 +85,7 @@ const SelectionHandler = ({
                 resourceChanges: nodeGroup.nodes.map((node) => node.resourceChanges || undefined).flat().filter((s) => s !== undefined)
             }
         })
-        const moduleDrilldownData = processModuleChanges(moduleChanges, newShowUnknownValue, newShowUnchangedValue)
+        const moduleDrilldownData = processModuleChanges(moduleChanges, newShowAllValue)
         const { dependencies, affected } = moduleDependencies(storedNodeGroups, moduleName || "root_module", variables, outputs)
         setDependencies(dependencies)
         setAffected(affected)
@@ -96,7 +94,7 @@ const SelectionHandler = ({
         setShowSidebar(true)
     }
 
-    const handleShapeSelectionChange = (shapeId: string, newShowUnknownValue?: boolean, newShowUnchangedValue?: boolean) => {
+    const handleShapeSelectionChange = (shapeId: string, newShowAllValue?: boolean) => {
         setCurrentShapeId(shapeId)
         const element = document.querySelector(".tlui-navigation-zone") as HTMLElement
         if (!hasPlanJson || shapeId === "") {
@@ -110,10 +108,12 @@ const SelectionHandler = ({
             if (element)
                 element.style.display = ""
         } else if (nodeGroups && editor) {
+            if (element)
+                element.style.display = "none"
             const shape = editor.getShape(shapeId as any)
             resetShading(editor!, shapesSnapshot)
             if (shape?.type === "frame") {
-                handleFrameSelection(shapeId, nodeGroups, newShowUnknownValue, newShowUnchangedValue)
+                handleFrameSelection(shapeId, nodeGroups, newShowAllValue)
             } else {
                 // remove shape: prefix, and date suffix
                 const shapeIdWithoutPrefixAndSuffix = shapeId.split(":")[1]
@@ -122,9 +122,6 @@ const SelectionHandler = ({
                 })[0]
                 setModuleDrilldownData([])
                 setSelectedNode(selectedNodeGroup)
-
-                if (element)
-                    element.style.display = "none"
 
                 const { dependencies, affected } = resourceDependencies(nodeGroups, selectedNodeGroup, variables, outputs)
                 setDependencies(dependencies)
@@ -135,8 +132,7 @@ const SelectionHandler = ({
                 const { textToShow, resourceId } = nodeChangesToString(selectedNodeGroup.nodes.map((node) => {
                     return node.resourceChanges || undefined
                 }).filter((s) => s !== undefined).flat(),
-                    newShowUnknownValue !== undefined ? newShowUnknownValue : showUnknown,
-                    newShowUnchangedValue !== undefined ? newShowUnchangedValue : showUnchangedAttributes)
+                    newShowAllValue !== undefined ? newShowAllValue : showAll)
 
                 setShowSidebar(true)
 
@@ -146,14 +142,9 @@ const SelectionHandler = ({
         }
     }
 
-    const handleShowUnknownChange = (showUnknown: boolean) => {
-        setShowUnknown(showUnknown)
-        handleShapeSelectionChange(currentShapeId, showUnknown, showUnchangedAttributes)
-    }
-
-    const handleShowUnchangedAttributesChange = (showUnchangedAttributes: boolean) => {
-        setShowUnchangedAttributes(showUnchangedAttributes)
-        handleShapeSelectionChange(currentShapeId, showUnknown, showUnchangedAttributes)
+    const handleShowAllChange = (showAll: boolean) => {
+        setShowAll(showAll)
+        handleShapeSelectionChange(currentShapeId, showAll)
     }
 
     return (
@@ -168,16 +159,14 @@ const SelectionHandler = ({
                     editor={editor} />}
             {sidebarWidth > 0 &&
                 <Sidebar width={sidebarWidth}
-                    showUnknown={showUnknown}
+                    showAll={showAll}
                     moduleDrilldownData={moduleDrilldownData}
-                    showUnchanged={showUnchangedAttributes}
                     title={selectedNode?.name || selectedModule || ""}
                     text={diffText}
                     resourceId={selectedResourceId}
                     subtitle={selectedNode?.type || ""}
                     closeSidebar={() => closeSidebar()}
-                    handleShowUnknownChange={handleShowUnknownChange}
-                    handleShowUnchangedChange={handleShowUnchangedAttributesChange}
+                    handleShowAllChange={handleShowAllChange}
                 />
             }
             <EditorHandler
