@@ -7,7 +7,6 @@ import { NodeModel, RootGraphModel, SubgraphModel, fromDot } from "ts-graphviz"
 import { terraformResourcesCsv } from './terraformResourcesCsv';
 import '@tldraw/tldraw/tldraw.css'
 import { fetchIsDemo, getRenderInput, sendData, sendDebugLog } from './utils/storage';
-import ToggleLayers from './layers/ToggleLayers';
 import { computeLayout } from './layout/computeLayout';
 import { getVariablesAndOutputs } from './dependencies/dependencies';
 import { getResourceNameAndType } from './utils/resources';
@@ -44,6 +43,7 @@ export type NodeGroup = {
     moduleName?: string
     parentModules: string[]
     state: ResourceState
+    shapeId?: string
     frameShapeId?: string
 }
 
@@ -58,12 +58,12 @@ export type TFVariableOutput = {
     }[]
 }
 
-type Tag = {
+export type Tag = {
     name: string,
     value: string
 }
 
-type RenderInput = {
+export type RenderInput = {
     planJson: string,
     graph: string,
     detailed: boolean,
@@ -536,47 +536,15 @@ const TLDWrapper = () => {
         })
     }
 
-    const refreshWhiteboard = (fromToggle: boolean) => {
+    const refreshWhiteboard = () => {
         editor?.deleteShapes(Array.from(editor.getPageShapeIds(editor.getCurrentPageId())))
         const model = fromDot(renderInput?.graph || "")
-        parseModel(model, fromToggle)
-    }
-
-    const toggleDetailed = async () => {
-        renderInput!.detailed = !renderInput?.detailed
-        refreshWhiteboard(true)
-    }
-
-    const toggleShowUnchanged = async () => {
-        renderInput!.showUnchanged = !renderInput?.showUnchanged
-        refreshWhiteboard(true)
-    }
-
-    const toggleCategory = (category: string) => {
-        if (deselectedCategoriesRef.current.includes(category)) {
-            deselectedCategoriesRef.current = deselectedCategoriesRef.current.filter((cat) => {
-                return cat !== category
-            })
-        } else {
-            deselectedCategoriesRef.current.push(category)
-        }
-        refreshWhiteboard(true)
-    }
-
-    const toggleTag = (tag: string) => {
-        if (selectedTagsRef.current.includes(tag)) {
-            selectedTagsRef.current = selectedTagsRef.current.filter((t) => {
-                return t !== tag
-            })
-        } else {
-            selectedTagsRef.current.push(tag)
-        }
-        refreshWhiteboard(true)
+        parseModel(model, true)
     }
 
 
     const setShowSidebar = (value: boolean) => {
-        setSidebarWidth(value ? 24 : 0)
+        setSidebarWidth(value ? 23 : 0)
     }
 
 
@@ -585,7 +553,10 @@ const TLDWrapper = () => {
             position: "fixed",
             inset: 0,
         }}>
-            <div className={'h-full transition-all'} style={{ marginRight: sidebarWidth + "rem" }}
+            <div className={'h-full transition-all'} style={{
+                marginLeft: "14rem",
+                marginRight: sidebarWidth + "rem"
+            }}
             >
                 <Tldraw
                     shapeUtils={customShapeUtils}
@@ -594,57 +565,6 @@ const TLDWrapper = () => {
                     assetUrls={assetUrls}
                 />
             </div>
-            {sidebarWidth === 0 &&
-                <div className={'absolute top-2 z-200 left-2'}>
-                    <ToggleLayers items={
-                        [
-                            {
-                                name: "Debug",
-                                items: [
-                                    {
-                                        name: "Unchanged resources",
-                                        value: renderInput?.showUnchanged || false,
-                                        action: toggleShowUnchanged
-                                    },
-                                    {
-                                        name: "Detailed diagram",
-                                        value: renderInput?.detailed || false,
-                                        action: toggleDetailed
-                                    },
-                                ]
-                            },
-                            {
-                                name: "Categories",
-                                items:
-                                    categoriesRef.current.map((category) => {
-                                        return {
-                                            name: category,
-                                            value: deselectedCategoriesRef.current.includes(category) ? false : true,
-                                            action: () => {
-                                                toggleCategory(category)
-                                            }
-                                        }
-                                    })
-                            }, {
-                                name: "Tags",
-                                items:
-                                    tagsRef.current.map((tag) => tag.name).filter((tag, index, self) => {
-                                        return self.indexOf(tag) === index
-                                    }).map((tag) => {
-                                        return {
-                                            name: tag,
-                                            value: selectedTagsRef.current.includes(tag),
-                                            action: () => {
-                                                toggleTag(tag)
-                                            }
-                                        }
-                                    })
-                            }
-                        ]
-                    } />
-
-                </div>
-            }
             {editor &&
                 <SelectionHandler
                     editor={editor}
@@ -654,7 +574,14 @@ const TLDWrapper = () => {
                     shapesSnapshot={shapesSnapshot}
                     hasPlanJson={renderInput?.planJson ? true : false}
                     variables={variables}
-                    outputs={outputs} />
+                    outputs={outputs}
+                    refreshWhiteboard={refreshWhiteboard}
+                    selectedTagsRef={selectedTagsRef}
+                    categoriesRef={categoriesRef}
+                    deselectedCategoriesRef={deselectedCategoriesRef}
+                    renderInput={renderInput}
+                    tagsRef={tagsRef}
+                />
             }
         </div>
     );

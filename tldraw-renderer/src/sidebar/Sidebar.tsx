@@ -92,14 +92,14 @@ const Sidebar = ({
                 },
             }}
         >
-            <div className="absolute top-4 right-4">
+            <div className="absolute top-4 right-3">
                 <Tooltip title="Close sidebar" placement="bottom">
                     <IconButton onClick={() => closeSidebar()} >
                         <CloseIcon />
                     </IconButton>
                 </Tooltip>
             </div>
-            <div className="top-5 pl-4 pt-4 max-w-[20rem]">
+            <div className="top-5 pl-3 pt-4 max-w-[20rem]">
                 {title &&
                     <div className={"mb-1 max-w-full text-2xl truncate"}>
                         {title}
@@ -117,7 +117,7 @@ const Sidebar = ({
                 <div className="w-[22rem] my-4 h-[1px] bg-[#B2AEB6]" />
             </div>
             <div
-                className="overflow-hidden h-full flex flex-col px-4"
+                className="overflow-hidden h-full flex flex-col px-3"
                 style={{
                     width: width + "rem",
                 }}>

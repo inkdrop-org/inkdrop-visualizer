@@ -1,13 +1,14 @@
-import { useState } from "react";
+import { MutableRefObject, useEffect, useState } from "react";
 import Sidebar from "../sidebar/Sidebar";
 import { Dependency, moduleDependencies, resourceDependencies } from "../dependencies/dependencies";
-import { NodeGroup, TFVariableOutput } from "../TLDWrapper";
+import { NodeGroup, RenderInput, TFVariableOutput, Tag } from "../TLDWrapper";
 import DependencyUI from "../dependencies/DependenciesUI";
 import { Editor, TLShapeId } from "@tldraw/tldraw";
 import { computeShading, resetShading } from "../editorHandler/shading";
 import { ChangesBreakdown, getChangesBreakdown, nodeChangesToString } from "../jsonPlanManager/jsonPlanManager";
 import EditorHandler from "../editorHandler/EditorHandler";
 import { getMacroCategory } from "../utils/awsCategories";
+import NavigationBar from "../navigation/NavigationBar";
 
 interface SelectionHandlerProps {
     editor: Editor,
@@ -18,6 +19,12 @@ interface SelectionHandlerProps {
     hasPlanJson: boolean
     variables: TFVariableOutput[]
     outputs: TFVariableOutput[]
+    renderInput: RenderInput | undefined
+    tagsRef: MutableRefObject<Tag[]>
+    selectedTagsRef: MutableRefObject<string[]>
+    categoriesRef: MutableRefObject<string[]>
+    deselectedCategoriesRef: MutableRefObject<string[]>
+    refreshWhiteboard: () => void
 }
 
 const SelectionHandler = ({
@@ -28,10 +35,18 @@ const SelectionHandler = ({
     shapesSnapshot,
     hasPlanJson,
     variables,
-    outputs
+    outputs,
+    renderInput,
+    tagsRef,
+    selectedTagsRef,
+    categoriesRef,
+    deselectedCategoriesRef,
+    refreshWhiteboard
 }: SelectionHandlerProps) => {
     const [selectedNode, setSelectedNode] = useState<NodeGroup | undefined>()
     const [selectedModule, setSelectedModule] = useState<string>("")
+    const [modulesTree, setModulesTree] = useState<any>()
+    const [filtersTree, setFiltersTree] = useState<any>()
     const [currentShapeId, setCurrentShapeId] = useState<string>("")
     const [moduleDrilldownData, setModuleDrilldownData] = useState<{ category: string, textToShow: string, changesBreakdown: ChangesBreakdown }[]>([])
     const [diffText, setDiffText] = useState<string>("")
@@ -40,9 +55,69 @@ const SelectionHandler = ({
     const [selectedResourceId, setSelectedResourceId] = useState<string>("")
     const [showAll, setShowAll] = useState<boolean>(false)
 
+    useEffect(() => {
+        setFiltersTree(generateFiltersTree())
+        setModulesTree(generateModulesTree())
+    }, [nodeGroups])
+
     const closeSidebar = () => {
         handleShapeSelectionChange("")
         editor.selectNone()
+    }
+
+    const generateModulesTree = () => {
+        const modulesTree: any = {
+            root: null
+        }
+        nodeGroups?.forEach((nodeGroup) => {
+            if (nodeGroup.moduleName) {
+                if (nodeGroup.parentModules.length === 0) {
+                    if (!modulesTree.root) {
+                        modulesTree.root = {}
+                    }
+                    if (!modulesTree.root[nodeGroup.moduleName]) {
+                        modulesTree.root[nodeGroup.moduleName] = {}
+                    }
+                    modulesTree.root[nodeGroup.moduleName][nodeGroup.type + "." + nodeGroup.name] = null
+                }
+                else {
+                    let currentModule = modulesTree.root
+                    nodeGroup.parentModules.forEach((parentModule) => {
+                        if (!currentModule[parentModule]) {
+                            currentModule[parentModule] = {}
+                        }
+                        currentModule = currentModule[parentModule]
+                    })
+                    if (!currentModule[nodeGroup.moduleName]) {
+                        currentModule[nodeGroup.moduleName] = {}
+                    }
+                    currentModule[nodeGroup.moduleName][nodeGroup.type + "." + nodeGroup.name] = null
+                }
+            }
+        })
+        return modulesTree
+    }
+
+    const generateFiltersTree = () => {
+        const filtersTree: any = {
+            root: {
+                "Select Filters": {
+                    "Debug": {
+                        "Unchanged resources": null,
+                        "Detailed diagram": null
+                    },
+                    "Categories": {},
+                    "Tags": {}
+                }
+            }
+        }
+        categoriesRef.current.forEach((category) => {
+            filtersTree.root["Select Filters"]["Categories"][category] = null
+        })
+        tagsRef.current.forEach((tag) => {
+            filtersTree.root["Select Filters"]["Tags"][tag.name] = null
+        })
+        return filtersTree
     }
 
     const processModuleChanges = (moduleChanges: { category: string, resourceChanges: any[] }[], newShowAllValue?: boolean) => {
@@ -147,6 +222,29 @@ const SelectionHandler = ({
         handleShapeSelectionChange(currentShapeId, showAll)
     }
 
+    const centerEditor = (shapeId: string) => {
+        editor.centerOnPoint({
+            x: editor.getShapePageBounds(shapeId as TLShapeId)!.x + (editor.getShape(shapeId as TLShapeId)!.props as any).w / 2,
+            y: editor.getShapePageBounds(shapeId as TLShapeId)!.y + (editor.getShape(shapeId as TLShapeId)!.props as any).h / 2
+        }, { duration: 300 })
+    }
+
+    const selectModule = (moduleName: string) => {
+        const frameId = nodeGroups?.find((nodeGroup) => nodeGroup.moduleName === moduleName)?.frameShapeId
+        if (frameId) {
+            editor.select(frameId as TLShapeId)
+            centerEditor(frameId)
+        }
+    }
+
+    const selectResource = (resourceType: string, resourceName: string) => {
+        const node = nodeGroups?.find((nodeGroup) => nodeGroup.type === resourceType && nodeGroup.name === resourceName)
+        if (node) {
+            editor.select((node.shapeId || "") as TLShapeId)
+            centerEditor(node.shapeId || "")
+        }
+    }
+
     return (
         <>
             {(selectedNode || selectedModule) && nodeGroups && editor &&
@@ -169,6 +267,18 @@ const SelectionHandler = ({
                     handleShowAllChange={handleShowAllChange}
                 />
             }
+            <NavigationBar
+                modulesTree={modulesTree}
+                filtersTree={filtersTree}
+                selectModule={selectModule}
+                selectResource={selectResource}
+                selectedModule={selectedModule}
+                nodeGroups={nodeGroups}
+                selectedTagsRef={selectedTagsRef}
+                deselectedCategoriesRef={deselectedCategoriesRef}
+                refreshWhiteboard={refreshWhiteboard}
+                renderInput={renderInput}
+            />
             <EditorHandler
                 editor={editor}
                 handleShapeSelectionChange={handleShapeSelectionChange} />
