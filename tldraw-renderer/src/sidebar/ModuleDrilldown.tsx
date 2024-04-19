@@ -65,13 +65,14 @@ const ModuleDrilldown = ({
                     )
                 })}
             </div>
-            <div className="w-[22rem] my-4 h-[1px] bg-[#B2AEB6]" />
-            <div className="mb-4 flex">
+            <div className="w-[21.5rem] mt-2 h-[1px] bg-[#B2AEB6]" />
+            <div className="flex">
                 <div className="grow">
                     <FormGroup>
                         <FormControlLabel
                             checked={showAll}
                             sx={{
+                                height: "2.4rem",
                                 margin: 0,
                                 "& .MuiCheckbox-root": {
                                     padding: 0,

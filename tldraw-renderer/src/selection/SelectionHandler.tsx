@@ -11,7 +11,7 @@ import { getMacroCategory } from "../utils/awsCategories";
 import NavigationBar from "../navigation/NavigationBar";
 
 interface SelectionHandlerProps {
-    editor: Editor,
+    editor: Editor | null,
     nodeGroups: NodeGroup[] | undefined
     sidebarWidth: number
     setShowSidebar: (showSidebar: boolean) => void
@@ -62,7 +62,7 @@ const SelectionHandler = ({
 
     const closeSidebar = () => {
         handleShapeSelectionChange("")
-        editor.selectNone()
+        editor!.selectNone()
     }
 
     const generateModulesTree = () => {
@@ -102,10 +102,6 @@ const SelectionHandler = ({
         const filtersTree: any = {
             root: {
                 "Select Filters": {
-                    "Debug": {
-                        "Unchanged resources": null,
-                        "Detailed diagram": null
-                    },
                     "Categories": {},
                     "Tags": {}
                 }
@@ -140,7 +136,7 @@ const SelectionHandler = ({
         if (nodeFrameId === frameId) {
             return true
         }
-        const parentFrame = editor.getShapeParent(nodeFrameId as TLShapeId)
+        const parentFrame = editor!.getShapeParent(nodeFrameId as TLShapeId)
         if (parentFrame) {
             return isNestedChildOfFrame(parentFrame.id, frameId)
         }
@@ -152,7 +148,7 @@ const SelectionHandler = ({
         const childrenNodes = storedNodeGroups.filter((nodeGroup) => {
             return nodeGroup.frameShapeId && isNestedChildOfFrame(nodeGroup.frameShapeId, frameId)
         })
-        const moduleName = (editor.getShape(frameId as TLShapeId)?.props as any).name || ""
+        const moduleName = (editor!.getShape(frameId as TLShapeId)?.props as any).name || ""
         setSelectedModule(moduleName)
         const moduleChanges = childrenNodes.map((nodeGroup) => {
             return {
@@ -223,16 +219,16 @@ const SelectionHandler = ({
     }
 
     const centerEditor = (shapeId: string) => {
-        editor.centerOnPoint({
-            x: editor.getShapePageBounds(shapeId as TLShapeId)!.x + (editor.getShape(shapeId as TLShapeId)!.props as any).w / 2,
-            y: editor.getShapePageBounds(shapeId as TLShapeId)!.y + (editor.getShape(shapeId as TLShapeId)!.props as any).h / 2
+        editor!.centerOnPoint({
+            x: editor!.getShapePageBounds(shapeId as TLShapeId)!.x + (editor!.getShape(shapeId as TLShapeId)!.props as any).w / 2,
+            y: editor!.getShapePageBounds(shapeId as TLShapeId)!.y + (editor!.getShape(shapeId as TLShapeId)!.props as any).h / 2
         }, { duration: 300 })
     }
 
     const selectModule = (moduleName: string) => {
         const frameId = nodeGroups?.find((nodeGroup) => nodeGroup.moduleName === moduleName)?.frameShapeId
         if (frameId) {
-            editor.select(frameId as TLShapeId)
+            editor!.select(frameId as TLShapeId)
             centerEditor(frameId)
         }
     }
@@ -240,7 +236,7 @@ const SelectionHandler = ({
     const selectResource = (resourceType: string, resourceName: string) => {
         const node = nodeGroups?.find((nodeGroup) => nodeGroup.type === resourceType && nodeGroup.name === resourceName)
         if (node) {
-            editor.select((node.shapeId || "") as TLShapeId)
+            editor!.select((node.shapeId || "") as TLShapeId)
             centerEditor(node.shapeId || "")
         }
     }
@@ -279,9 +275,11 @@ const SelectionHandler = ({
                 refreshWhiteboard={refreshWhiteboard}
                 renderInput={renderInput}
             />
-            <EditorHandler
-                editor={editor}
-                handleShapeSelectionChange={handleShapeSelectionChange} />
+            {editor &&
+                <EditorHandler
+                    editor={editor}
+                    handleShapeSelectionChange={handleShapeSelectionChange} />
+            }
         </>
     )
 }

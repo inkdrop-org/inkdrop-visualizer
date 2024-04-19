@@ -29,6 +29,7 @@ export default class CustomDataProvider<T = any> implements TreeDataProvider {
         itemId: TreeItemIndex,
         newChildren: TreeItemIndex[]
     ): Promise<void> {
+        if (!this.data.items[itemId]) return
         this.data.items[itemId].children = newChildren
         this.data.items[itemId].isFolder = (newChildren.length > 0)
         Object.values(this.handlers).forEach(handler => handler([itemId]))

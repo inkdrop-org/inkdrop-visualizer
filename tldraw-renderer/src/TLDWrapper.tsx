@@ -565,24 +565,22 @@ const TLDWrapper = () => {
                     assetUrls={assetUrls}
                 />
             </div>
-            {editor &&
-                <SelectionHandler
-                    editor={editor}
-                    nodeGroups={storedNodeGroups}
-                    sidebarWidth={sidebarWidth}
-                    setShowSidebar={setShowSidebar}
-                    shapesSnapshot={shapesSnapshot}
-                    hasPlanJson={renderInput?.planJson ? true : false}
-                    variables={variables}
-                    outputs={outputs}
-                    refreshWhiteboard={refreshWhiteboard}
-                    selectedTagsRef={selectedTagsRef}
-                    categoriesRef={categoriesRef}
-                    deselectedCategoriesRef={deselectedCategoriesRef}
-                    renderInput={renderInput}
-                    tagsRef={tagsRef}
-                />
-            }
+            <SelectionHandler
+                editor={editor}
+                nodeGroups={storedNodeGroups}
+                sidebarWidth={sidebarWidth}
+                setShowSidebar={setShowSidebar}
+                shapesSnapshot={shapesSnapshot}
+                hasPlanJson={renderInput?.planJson ? true : false}
+                variables={variables}
+                outputs={outputs}
+                refreshWhiteboard={refreshWhiteboard}
+                selectedTagsRef={selectedTagsRef}
+                categoriesRef={categoriesRef}
+                deselectedCategoriesRef={deselectedCategoriesRef}
+                renderInput={renderInput}
+                tagsRef={tagsRef}
+            />
         </div>
     );
 };

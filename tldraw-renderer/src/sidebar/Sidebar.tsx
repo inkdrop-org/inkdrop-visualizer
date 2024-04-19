@@ -92,16 +92,16 @@ const Sidebar = ({
                 },
             }}
         >
-            <div className="absolute top-4 right-3">
+            <div className="absolute top-1 right-1">
                 <Tooltip title="Close sidebar" placement="bottom">
                     <IconButton onClick={() => closeSidebar()} >
                         <CloseIcon />
                     </IconButton>
                 </Tooltip>
             </div>
-            <div className="top-5 pl-3 pt-4 max-w-[20rem]">
+            <div className="pl-3 max-w-[20rem]">
                 {title &&
-                    <div className={"mb-1 max-w-full text-2xl truncate"}>
+                    <div className={"max-w-full text-xl truncate leading-[2.4rem]"}>
                         {title}
                     </div>
                 }
@@ -114,7 +114,7 @@ const Sidebar = ({
                     moduleDrilldownData.length > 0 &&
                     moduleChanges()
                 }
-                <div className="w-[22rem] my-4 h-[1px] bg-[#B2AEB6]" />
+                <div className="w-[21.5rem] my-2 h-[1px] bg-[#B2AEB6]" />
             </div>
             <div
                 className="overflow-hidden h-full flex flex-col px-3"
