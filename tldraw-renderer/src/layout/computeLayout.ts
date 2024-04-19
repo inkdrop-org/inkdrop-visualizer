@@ -67,9 +67,11 @@ export const computeLayout = (nodeGroups: Map<string, NodeGroup>, computeTerrafo
             return !g.children(id) || g.children(id)!.length === 0
         }).map((id) => {
             const node = g.node(id);
+            const shapeId = "shape:" + id + ":" + date as TLShapeId
+            nodeGroups.get(id)!.shapeId = shapeId
 
             return {
-                id: "shape:" + id + ":" + date as TLShapeId,
+                id: shapeId,
                 type: "node",
                 x: node.x - node.width / 2,
                 y: node.y - node.height / 2,

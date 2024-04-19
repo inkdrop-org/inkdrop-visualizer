@@ -102,7 +102,7 @@ const DependencyUI = ({
 
     return (
         <>
-            <div className="absolute top-0 left-0 bg-[#F7F7F8] z-[2000] w-full border-b border-black"
+            <div className="absolute top-0 left-0 bg-[#F7F7F8] z-[2000] w-full border-b border-black pl-56"
                 style={{ paddingRight: sidebarWidth + "rem" }}
             >
                 <div className="flex items-center h-[2.4rem] px-4">
@@ -120,7 +120,7 @@ const DependencyUI = ({
                     </div>
                 </div>
             </div>
-            <div className="absolute bottom-0 left-0 bg-[#F7F7F8] z-[2000] w-full border-t border-black"
+            <div className="absolute bottom-0 left-0 bg-[#F7F7F8] z-[2000] w-full border-t border-black pl-56"
                 style={{ paddingRight: sidebarWidth + "rem" }}
             >
                 <div className="flex items-center h-[2.4rem] px-4">

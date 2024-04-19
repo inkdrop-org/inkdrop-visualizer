@@ -19,17 +19,18 @@ const ResourceDrilldown = ({
     const [justCopied, setJustCopied] = useState(false);
     return (
         <>
-            <div className="bg-[#302B35] text-white overflow-scroll h-full p-4 grow rounded text-[0.7rem]"
+            <div className="bg-[#302B35] text-white overflow-y-scroll overflow-x-hidden break-words h-full p-4 grow rounded text-[0.7rem]"
                 style={{ fontFamily: '"Cascadia Code", sans-serif', lineHeight: "1rem" }}
                 dangerouslySetInnerHTML={{ __html: text }}
             />
-            <div className="w-[22rem] my-4 h-[1px] bg-[#B2AEB6]" />
-            <div className="mb-4 flex">
-                <div className="grow">
+            <div className="w-[21.5rem] mt-2 h-[1px] bg-[#B2AEB6]" />
+            <div className="flex" style={{ display: 'flex', alignItems: 'center', height: '2.4rem' }}>
+                <div className="grow" style={{ display: 'flex', alignItems: 'center' }}>
                     <FormGroup>
                         <FormControlLabel
                             checked={showAll}
                             sx={{
+                                height: "2.4rem",
                                 margin: 0,
                                 "& .MuiCheckbox-root": {
                                     padding: 0,
@@ -37,20 +38,31 @@ const ResourceDrilldown = ({
                                 },
                                 "& .MuiTypography-body1": {
                                     fontSize: "0.875rem"
-                                }
-                            }} onChange={(e, checked) => handleShowAllChange(checked)} control={<Checkbox />} label="Show all attributes" />
+                                },
+                                display: 'flex',
+                                alignItems: 'center'
+                            }}
+                            onChange={(e, checked) => handleShowAllChange(checked)}
+                            control={<Checkbox />}
+                            label="Show all attributes"
+                        />
                     </FormGroup>
                 </div>
                 {resourceId &&
-                    <div className="flex text-right">
-                        <Typography sx={{ fontSize: "0.875rem" }}>{"Copy AWS ID"}</Typography>
-                        <Tooltip title={justCopied ? "Copied!" : "Copy"}
+                    <div className="flex" style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+                        <Typography sx={{ fontSize: '0.875rem', lineHeight: '2.4rem' }}>
+                            {'Copy AWS ID'}
+                        </Typography>
+                        <Tooltip title={justCopied ? 'Copied!' : 'Copy'}
                             onClose={() => setTimeout(() => setJustCopied(false), 500)}
                             placement="top">
                             <IconButton
                                 sx={{
-                                    width: "25px",
-                                    height: "25px",
+                                    width: '25px',
+                                    height: '25px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center'
                                 }}
                                 size="small"
                                 onClick={() => {
@@ -58,10 +70,7 @@ const ResourceDrilldown = ({
                                     navigator.clipboard.writeText(resourceId);
                                 }}
                             >
-                                <ContentCopyIcon sx={{
-                                    width: "18px",
-                                    height: "18px"
-                                }} />
+                                <ContentCopyIcon sx={{ width: '18px', height: '18px' }} />
                             </IconButton>
                         </Tooltip>
                     </div>
