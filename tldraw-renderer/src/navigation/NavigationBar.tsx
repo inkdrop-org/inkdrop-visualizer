@@ -149,6 +149,7 @@ const NavigationBar = ({
                 height: '100vh',  // Make sure the drawer takes full viewport height
                 "& .MuiPaper-root": {
                     width: '14rem',
+                    overflow: 'hidden',
                     backgroundColor: "#F7F7F8",
                     borderRight: "1px solid",
                     zIndex: 2001,
@@ -164,7 +165,7 @@ const NavigationBar = ({
                 </div>
             </div>
             <div className="w-[12.5rem] h-[1px] ml-3 bg-[#B2AEB6]" />
-            <div className='flex-grow overflow-auto'>
+            <div className='flex-grow overflow-x-hidden'>
                 <UncontrolledTreeEnvironment
                     onSelectItems={(items) => { handleFilterSelect(items as string[]) }}
                     dataProvider={filtersDataProvider}
