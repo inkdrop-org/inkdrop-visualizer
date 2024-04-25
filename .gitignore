@@ -1,6 +1,6 @@
 
 /node_modules
-
+.terraform
 /test-project*
 .env
 dist

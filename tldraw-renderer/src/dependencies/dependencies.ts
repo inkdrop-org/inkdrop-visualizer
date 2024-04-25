@@ -1,4 +1,3 @@
-import { find } from "core-js/core/array";
 import { NodeGroup, TFVariableOutput } from "../TLDWrapper";
 import { getResourceNameAndType } from "../utils/resources";
 
@@ -46,22 +45,23 @@ export const getVariablesAndOutputs = (nodeGroups: Map<string, NodeGroup>, planJ
             const { resourceType, resourceName } = getResourceNameAndType(address)
 
             const basePath = moduleName ?
-                getRecursiveBasePath(planJson?.configuration?.root_module?.module_calls, parentModules, moduleName).module :
+                getRecursiveBasePath(planJson?.configuration?.root_module?.module_calls, parentModules, moduleName)?.module :
                 planJson?.configuration?.root_module
 
-            Object.entries(basePath?.resources?.filter((r: any) => {
-                return r.type === resourceType && r.name === resourceName
-            })[0]?.expressions || []).forEach(([key, value]) => {
-                if ((value as any).references) {
-                    (value as any).references.forEach((ref: string) => {
-                        if (ref.startsWith("var.") && !nodeVariableRefs.includes(ref.split(".")[1])) {
-                            nodeVariableRefs.push(ref.split(".")[1])
-                        } else if (ref.startsWith("module.") && !nodeOutputRefs.includes(ref.split("[")[0]) && ref.split(".").length > 2) {
-                            nodeOutputRefs.push(ref.split("[")[0])
-                        }
-                    })
-                }
-            })
+            if (basePath)
+                Object.entries(basePath?.resources?.filter((r: any) => {
+                    return r.type === resourceType && r.name === resourceName
+                })[0]?.expressions || []).forEach(([key, value]) => {
+                    if ((value as any).references) {
+                        (value as any).references.forEach((ref: string) => {
+                            if (ref.startsWith("var.") && !nodeVariableRefs.includes(ref.split(".")[1])) {
+                                nodeVariableRefs.push(ref.split(".")[1])
+                            } else if (ref.startsWith("module.") && !nodeOutputRefs.includes(ref.split("[")[0]) && ref.split(".").length > 2) {
+                                nodeOutputRefs.push(ref.split("[")[0])
+                            }
+                        })
+                    }
+                })
         })
 
         nodeGroup.variableRefs = nodeVariableRefs
@@ -133,10 +133,13 @@ export const getVariablesAndOutputs = (nodeGroups: Map<string, NodeGroup>, planJ
 }
 
 const getRecursiveBasePath = (moduleCalls: any, parentModules: string[], moduleName: string): any => {
+    if (!moduleCalls) {
+        return null
+    }
     if (parentModules.length === 0) {
         return moduleCalls[moduleName]
     }
-    return getRecursiveBasePath(moduleCalls[parentModules[0]].module.module_calls, parentModules.slice(1), moduleName)
+    return getRecursiveBasePath(moduleCalls[parentModules[0]]?.module?.module_calls, parentModules.slice(1), moduleName)
 }
 
 const getNodeGroupName = (nameType: string, nodeModule: string, nodeGroups: Map<string, NodeGroup>) => {
