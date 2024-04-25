@@ -78,7 +78,7 @@ export type RenderInput = {
     showUnchanged: boolean,
     ci: boolean,
     opacityFull: boolean,
-    states: State[]
+    states?: State[]
 }
 
 const assetUrls = getAssetUrls()
@@ -352,7 +352,7 @@ const TLDWrapper = () => {
 
     const parseModel = async (model: RootGraphModel, refreshFromToggle?: boolean) => {
         const computeTerraformPlan = (renderInput?.planJson && renderInput?.planJson !== "") ? true : false
-        const remoteModels = renderInput?.states.map((state) => {
+        const remoteModels = renderInput?.states?.map((state) => {
             return fromDot(state.graph)
         })
         debugLog("Aggregating multiple states graphs...")
@@ -366,8 +366,9 @@ const TLDWrapper = () => {
         })
         debugLog(computeTerraformPlan ? "Terraform plan detected." : "No Terraform plan detected. Using static data.")
         let planJsonObj: any = filterOutNotNeededArgs(computeTerraformPlan ?
-            JSON.parse(renderInput?.planJson!) : undefined)
+            typeof renderInput?.planJson === "string" ? JSON.parse(renderInput?.planJson!) : renderInput?.planJson : undefined)
         const remoteStateJsonObj = transformIntoPlanFormat(renderInput?.states || [])
+
         planJsonObj = {
             ...planJsonObj,
             resource_changes: [...planJsonObj?.resource_changes || [], ...remoteStateJsonObj?.resource_changes || []]
