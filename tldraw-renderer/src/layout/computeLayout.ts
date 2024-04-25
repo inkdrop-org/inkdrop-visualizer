@@ -14,6 +14,24 @@ export const computeLayout = (nodeGroups: Map<string, NodeGroup>, computeTerrafo
         nodeGroup.connectionsOut.forEach((connection) => {
             g.setEdge(key, connection)
         })
+        if (nodeGroup.stateFile) {
+            if (!g.hasNode("state." + nodeGroup.stateFile)) {
+                g.setNode("state." + nodeGroup.stateFile, { label: nodeGroup.stateFile })
+            }
+            if (nodeGroup.parentModules.length > 0) {
+                if (!g.hasNode("module." + nodeGroup.parentModules[0])) {
+                    g.setNode("module." + nodeGroup.parentModules[0], { label: nodeGroup.parentModules[0] })
+                }
+                g.setParent("module." + nodeGroup.parentModules[0], "state." + nodeGroup.stateFile)
+            } else if (nodeGroup.moduleName) {
+                if (!g.hasNode("module." + nodeGroup.moduleName)) {
+                    g.setNode("module." + nodeGroup.moduleName, { label: nodeGroup.moduleName })
+                }
+                g.setParent("module." + nodeGroup.moduleName, "state." + nodeGroup.stateFile)
+            } else {
+                g.setParent(key, "state." + nodeGroup.stateFile)
+            }
+        }
         if (nodeGroup.moduleName) {
             nodeGroup.parentModules.forEach((parentModule, index) => {
                 if (!g.hasNode("module." + parentModule)) {
@@ -30,6 +48,7 @@ export const computeLayout = (nodeGroups: Map<string, NodeGroup>, computeTerrafo
             }
             g.setParent(key, "module." + nodeGroup.moduleName)
         }
+
     })
     dagre.layout(g);
     const date = Date.now()
@@ -42,7 +61,6 @@ export const computeLayout = (nodeGroups: Map<string, NodeGroup>, computeTerrafo
             return {
                 id: "shape:" + id + ":" + date as TLShapeId,
                 type: "frame",
-                parentId: g.parent(id) ? "shape:" + g.parent(id) + ":" + date as TLShapeId : undefined,
                 x: node.x - node.width / 2,
                 y: node.y - node.height / 2,
                 props: {
@@ -52,6 +70,12 @@ export const computeLayout = (nodeGroups: Map<string, NodeGroup>, computeTerrafo
                 }
             }
         }))
+
+    g.nodes().filter((id) => {
+        return g.parent(id)
+    }).forEach((id) => {
+        editor?.reparentShapes(["shape:" + id + ":" + date as TLShapeId], "shape:" + g.parent(id) + ":" + date as TLShapeId)
+    })
 
     g.nodes().filter((id) => {
         return !g.children(id) || g.children(id)!.length === 0

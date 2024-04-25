@@ -106,6 +106,8 @@ const detailed: boolean = (argv as any).detailed || false
 const showUnchanged: boolean = (argv as any).showUnchanged || false
 const opacityFull: boolean = (argv as any).opacityFull || false
 
+const states: any[] = []
+
 app.get('/get-render-input', (req, res) => {
     res.status(200).json({
         planJson,
@@ -114,7 +116,8 @@ app.get('/get-render-input', (req, res) => {
         debug,
         showUnchanged,
         ci,
-        opacityFull
+        opacityFull,
+        states: states
     });
 })
 
@@ -150,18 +153,66 @@ export const openUrl = (url: string) => {
     });
 }
 
-const runTerraformGraph = async () => {
+const cleanup = async () => {
+    await execAsync("rm -rf ./tmp-tf-cache-inkdrop")
+}
 
+const printErrorAndCleanup = async (err: string) => {
+    console.error(err)
+    await cleanup()
+    process.exit(1)
+}
+
+const retrieveRemoteState = async (projectPath: string, graphCommand: string) => {
+    console.log(`Retrieving remote state for ${projectPath}...`)
+    const { stdout: terraformDirPresent } = await execAsync(`if [ ! -d .terraform ]; then echo false; else echo true; fi`, {
+        cwd: path.resolve(projectPath),
+    })
+    if (terraformDirPresent.trim() === "false") {
+        const { stderr: stateStderr } = await execAsync(`export TF_PLUGIN_CACHE_DIR=${path.resolve("./tmp-tf-cache-inkdrop")} && terraform init`, {
+            cwd: path.resolve(projectPath),
+            maxBuffer: MAX_BUFFER_SIZE
+        })
+        if (stateStderr) {
+            printErrorAndCleanup(stateStderr)
+        }
+    }
+    const { stdout: statePullStdout, stderr: statePullStderr } = await execAsync(`terraform state pull`, {
+        cwd: path.resolve(projectPath),
+        maxBuffer: MAX_BUFFER_SIZE
+    })
+    if (statePullStderr) {
+        printErrorAndCleanup(statePullStderr)
+    }
+    const { stdout: graphStdout, stderr: graphStderr } = await execAsync(graphCommand, {
+        cwd: path.resolve(projectPath),
+        maxBuffer: MAX_BUFFER_SIZE
+    })
+    if (graphStderr) {
+        printErrorAndCleanup(graphStderr)
+    }
+    states.push({
+        name: projectPath,
+        state: statePullStdout,
+        graph: graphStdout
+    })
+    if (terraformDirPresent.trim() === "false") {
+        await execAsync(`rm -rf .terraform`, {
+            cwd: path.resolve(projectPath)
+        })
+    }
+}
+
+const runTerraformCommands = async () => {
     if ((argv as any).planfile) {
         const { stdout: showStdout, stderr: showStderr } = await execAsync(`terraform show -json "${path.resolve((argv as any).planfile)}"`, {
             cwd: path.resolve((argv as any).path || "."),
             maxBuffer: MAX_BUFFER_SIZE
+        }).catch((err) => {
+            console.error("Error while running 'terraform show -json':\n"
+                + err)
+            process.exit(1);
         })
-            .catch((err) => {
-                console.error("Error while running 'terraform show -json':\n"
-                    + err)
-                process.exit(1);
-            })
         if (showStderr) {
             console.error(`${showStderr}`);
             process.exit(1);
@@ -206,6 +257,20 @@ const runTerraformGraph = async () => {
     }
 
     graph = graphStdout
+
+    const stateDirs = (argv as any).stateDirs || []
+    if (stateDirs.length > 0) {
+        await execAsync("rm -rf ./tmp-tf-cache-inkdrop && mkdir ./tmp-tf-cache-inkdrop",
+            {
+                cwd: path.resolve((argv as any).path || "."),
+                maxBuffer: MAX_BUFFER_SIZE
+            })
+    }
+    for (const stateDir of stateDirs) {
+        await retrieveRemoteState(stateDir, graphCommand)
+    }
+    await cleanup()
+
     const ci = (argv as any).ci || false
     const svg = (argv as any).svg || false
 
@@ -216,4 +281,4 @@ const runTerraformGraph = async () => {
     }
 }
 
-runTerraformGraph()
+runTerraformCommands()

@@ -61,6 +61,10 @@ export const argv = yargs(hideBin(process.argv))
         describe: 'Sets the opacity of unchanged resources to 100%.',
         type: 'boolean',
     })
+    .option('state-dirs', {
+        describe: 'List of directories containing Terraform state files. This option allows Inkdrop to retrieve state information from multiple configured environments.',
+        type: 'array',
+    })
     .version('version', 'Show version number', version)
     .alias('version', 'v')
     .example([
@@ -72,6 +76,7 @@ export const argv = yargs(hideBin(process.argv))
         ['$0 --ci --modules module1 module2', 'In CI mode, creates a diagram for each specified module.'],
         ['$0 --path ./repos/my-tf-project', 'Sets the working directory.'],
         ['$0 --renderer-port 8080', 'Sets a custom rendering service port.'],
+        ['$0 plan.out --state-dirs ./path/to/tf/project1 ./path/to/tf/project2', 'Retrieves state information from multiple configured environments.'],
         ['$0 plan.out --show-unchanged', 'Visualizes changes including resources with no changes.'],
         ['$0 plan.out --svg', 'Saves an SVG of the diagram locally.'],
         ['$0 plan.out --show-unchanged --opacity-full', 'Sets the opacity of unchanged resources to 100%.'],

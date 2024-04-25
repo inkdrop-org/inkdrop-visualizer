@@ -45,6 +45,7 @@ export type NodeGroup = {
     state: ResourceState
     shapeId?: string
     frameShapeId?: string
+    stateFile: string
 }
 
 export type TFVariableOutput = {
@@ -63,6 +64,12 @@ export type Tag = {
     value: string
 }
 
+type State = {
+    name: string,
+    state: string,
+    graph: string
+}
+
 export type RenderInput = {
     planJson: string,
     graph: string,
@@ -70,7 +77,8 @@ export type RenderInput = {
     debug: boolean,
     showUnchanged: boolean,
     ci: boolean,
-    opacityFull: boolean
+    opacityFull: boolean,
+    states: State[]
 }
 
 const assetUrls = getAssetUrls()
@@ -200,6 +208,40 @@ const TLDWrapper = () => {
         return { processedBlockId: blockId, isData, isVariable, isResource, isLocal, isOutput, isProvider, isModule, isResourceWithName, moduleName, parentModules }
     }
 
+    const transformIntoPlanFormat = (stateData: State[]) => {
+        const resourceChanges: any[] = []
+        stateData.forEach((s) => resourceChanges.push(
+            ...JSON.parse(s.state).resources.map((resource: any) => {
+                const addressBase = resource.module ? `${resource.module}.` : '';
+                const address = `${addressBase}${resource.type}.${resource.name}`;
+                const providerName = resource.provider.replace('provider["', '').replace('"]', '');
+
+                const change = {
+                    actions: ["no-op"],
+                    before: resource.instances[0].attributes,
+                    after: resource.instances[0].attributes,
+                };
+
+                return {
+                    address,
+                    module_address: resource.module ? `.${resource.module}` : '',
+                    mode: resource.mode,
+                    type: resource.type,
+                    name: resource.name,
+                    provider_name: providerName,
+                    inkdrop_metadata: {
+                        state_name: s.name,
+                    },
+                    change
+                };
+            })));
+
+        return {
+            resource_changes: resourceChanges
+        };
+    }
+
+
     const addNodeToGroup = (node: NodeModel, nodeGroups: Map<string, NodeGroup>, mainBlock: boolean, jsonArray?: Papa.ParseResult<unknown>, planJsonObj?: any, computeTerraformPlan?: boolean) => {
         let centralPart = node.id.split(" ")[1]
         if (centralPart) {
@@ -207,13 +249,16 @@ const TLDWrapper = () => {
 
             if (isResourceWithName) {
                 const { resourceType, resourceName } = getResourceNameAndType(processedBlockId)
+                let stateFile = ""
                 if (resourceType && resourceName && jsonArray) {
                     let resourceChanges: any[] = []
                     if (computeTerraformPlan) {
-
                         resourceChanges = planJsonObj.resource_changes.filter((resource: any) => {
                             return resource.address === node.id.split(" ")[1] || resource.address.startsWith(node.id.split(" ")[1] + "[")
                         })
+                        if (resourceChanges.length > 0) {
+                            stateFile = resourceChanges[0].inkdrop_metadata?.state_name || ""
+                        }
                     }
 
                     let numberOfChanges = 0
@@ -251,7 +296,8 @@ const TLDWrapper = () => {
                                 iconPath: row["Icon Path"].trim(),
                                 connectionsIn: [],
                                 connectionsOut: [],
-                                moduleName: moduleName
+                                moduleName: moduleName,
+                                stateFile: stateFile
                             })
                         }
                     })
@@ -305,17 +351,37 @@ const TLDWrapper = () => {
 
     const parseModel = async (model: RootGraphModel, refreshFromToggle?: boolean) => {
         const computeTerraformPlan = (renderInput?.planJson && renderInput?.planJson !== "") ? true : false
+        const remoteModels = renderInput?.states.map((state) => {
+            return fromDot(state.graph)
+        })
+        remoteModels?.forEach((remoteModel) => {
+            remoteModel.subgraphs[0].nodes.forEach((node) => {
+                model.subgraphs[0].addNode(node)
+            })
+            remoteModel.subgraphs[0].edges.forEach((edge) => {
+                model.subgraphs[0].addEdge(edge)
+            })
+        })
         debugLog(computeTerraformPlan ? "Terraform plan detected." : "No Terraform plan detected. Using static data.")
-        const planJsonObj = filterOutNotNeededArgs(computeTerraformPlan ?
-            typeof renderInput?.planJson === "string" ? JSON.parse(renderInput?.planJson!) : renderInput?.planJson : undefined)
+        let planJsonObj: any = filterOutNotNeededArgs(computeTerraformPlan ?
+            JSON.parse(renderInput?.planJson!) : undefined)
+        const remoteStateJsonObj = transformIntoPlanFormat(computeTerraformPlan ?
+            renderInput?.states! : [])
+        planJsonObj = {
+            ...planJsonObj,
+            resource_changes: [...planJsonObj?.resource_changes, ...remoteStateJsonObj?.resource_changes]
+        }
+
         const nodeGroups = new Map<string, NodeGroup>()
         const jsonArray = Papa.parse(terraformResourcesCsv, { delimiter: ",", header: true })
+
         debugLog("Adding main resources...")
         model.subgraphs.forEach((subgraph) => {
             subgraph.nodes.forEach((node) => {
                 addNodeToGroup(node, nodeGroups, true, jsonArray, planJsonObj, computeTerraformPlan)
             })
         })
+
         debugLog("Adding main resources... Done.")
 
         debugLog("Aggregating secondary resources...")
