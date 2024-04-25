@@ -15,21 +15,21 @@ export const computeLayout = (nodeGroups: Map<string, NodeGroup>, computeTerrafo
             g.setEdge(key, connection)
         })
         if (nodeGroup.stateFile) {
-            if (!g.hasNode("state." + nodeGroup.stateFile)) {
-                g.setNode("state." + nodeGroup.stateFile, { label: nodeGroup.stateFile })
+            if (!g.hasNode("State " + nodeGroup.stateFile)) {
+                g.setNode("State " + nodeGroup.stateFile, { label: nodeGroup.stateFile })
             }
             if (nodeGroup.parentModules.length > 0) {
                 if (!g.hasNode("module." + nodeGroup.parentModules[0])) {
                     g.setNode("module." + nodeGroup.parentModules[0], { label: nodeGroup.parentModules[0] })
                 }
-                g.setParent("module." + nodeGroup.parentModules[0], "state." + nodeGroup.stateFile)
+                g.setParent("module." + nodeGroup.parentModules[0], "State " + nodeGroup.stateFile)
             } else if (nodeGroup.moduleName) {
                 if (!g.hasNode("module." + nodeGroup.moduleName)) {
                     g.setNode("module." + nodeGroup.moduleName, { label: nodeGroup.moduleName })
                 }
-                g.setParent("module." + nodeGroup.moduleName, "state." + nodeGroup.stateFile)
+                g.setParent("module." + nodeGroup.moduleName, "State " + nodeGroup.stateFile)
             } else {
-                g.setParent(key, "state." + nodeGroup.stateFile)
+                g.setParent(key, "State " + nodeGroup.stateFile)
             }
         }
         if (nodeGroup.moduleName) {
@@ -93,6 +93,7 @@ export const computeLayout = (nodeGroups: Map<string, NodeGroup>, computeTerrafo
             const node = g.node(id);
             const shapeId = "shape:" + id + ":" + date as TLShapeId
             nodeGroups.get(id)!.shapeId = shapeId
+            const inExternalState = nodeGroups.get(id)!.stateFile ? true : false
 
             return {
                 id: shapeId,
@@ -106,7 +107,7 @@ export const computeLayout = (nodeGroups: Map<string, NodeGroup>, computeTerrafo
                     numberOfChanges: nodeGroups.get(id)?.numberOfChanges,
                     state: nodeGroups.get(id)?.state,
                 },
-                opacity: !opacityFull && computeTerraformPlan && (["no-op", "read"].includes(nodeGroups.get(id)?.state || "no-op") &&
+                opacity: !opacityFull && !inExternalState && computeTerraformPlan && (["no-op", "read"].includes(nodeGroups.get(id)?.state || "no-op") &&
                     !g.nodes().some((nodeId) => {
                         g.children(nodeId) && g.children(nodeId)!.length > 0 && g.children(nodeId)!.includes(id)
                     })) ? 0.2 : 1

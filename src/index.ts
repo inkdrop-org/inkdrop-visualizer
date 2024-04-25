@@ -192,7 +192,7 @@ const retrieveRemoteState = async (projectPath: string, graphCommand: string) =>
         printErrorAndCleanup(graphStderr)
     }
     states.push({
-        name: projectPath,
+        name: projectPath.split("/").pop(),
         state: statePullStdout,
         graph: graphStdout
     })

@@ -252,13 +252,14 @@ const TLDWrapper = () => {
                 let stateFile = ""
                 if (resourceType && resourceName && jsonArray) {
                     let resourceChanges: any[] = []
-                    if (computeTerraformPlan) {
-                        resourceChanges = planJsonObj.resource_changes.filter((resource: any) => {
-                            return resource.address === node.id.split(" ")[1] || resource.address.startsWith(node.id.split(" ")[1] + "[")
-                        })
-                        if (resourceChanges.length > 0) {
-                            stateFile = resourceChanges[0].inkdrop_metadata?.state_name || ""
-                        }
+                    resourceChanges = planJsonObj?.resource_changes?.filter((resource: any) => {
+                        return resource.address === node.id.split(" ")[1] || resource.address.startsWith(node.id.split(" ")[1] + "[")
+                    })
+                    if (resourceChanges.length > 0) {
+                        stateFile = resourceChanges[0].inkdrop_metadata?.state_name || ""
+                    }
+                    if (!computeTerraformPlan) {
+                        resourceChanges = []
                     }
 
                     let numberOfChanges = 0
@@ -354,6 +355,7 @@ const TLDWrapper = () => {
         const remoteModels = renderInput?.states.map((state) => {
             return fromDot(state.graph)
         })
+        debugLog("Aggregating multiple states graphs...")
         remoteModels?.forEach((remoteModel) => {
             remoteModel.subgraphs[0].nodes.forEach((node) => {
                 model.subgraphs[0].addNode(node)
@@ -365,11 +367,10 @@ const TLDWrapper = () => {
         debugLog(computeTerraformPlan ? "Terraform plan detected." : "No Terraform plan detected. Using static data.")
         let planJsonObj: any = filterOutNotNeededArgs(computeTerraformPlan ?
             JSON.parse(renderInput?.planJson!) : undefined)
-        const remoteStateJsonObj = transformIntoPlanFormat(computeTerraformPlan ?
-            renderInput?.states! : [])
+        const remoteStateJsonObj = transformIntoPlanFormat(renderInput?.states || [])
         planJsonObj = {
             ...planJsonObj,
-            resource_changes: [...planJsonObj?.resource_changes, ...remoteStateJsonObj?.resource_changes]
+            resource_changes: [...planJsonObj?.resource_changes || [], ...remoteStateJsonObj?.resource_changes || []]
         }
 
         const nodeGroups = new Map<string, NodeGroup>()
@@ -434,23 +435,25 @@ const TLDWrapper = () => {
             // Remove nodeGroups whose first node has no resourceChanges
             Array.from(nodeGroups.keys()).forEach((key) => {
                 const nodeGroup = nodeGroups.get(key)
-                if (nodeGroup && nodeGroup.numberOfChanges === 0) {
+                if (nodeGroup && nodeGroup.numberOfChanges === 0 && !nodeGroup.stateFile) {
                     debugLog("Removing unchanged main resource: " + nodeGroup.id)
                     nodeGroups.delete(key)
                 }
             })
             // Remove nodes whose resourceChanges are empty
             nodeGroups.forEach((nodeGroup) => {
-                nodeGroup.nodes = nodeGroup.nodes.filter((node) => {
-                    const keep = node.resourceChanges && node.resourceChanges.some((resourceChange) => {
-                        const actions = resourceChange.change.actions
-                        return actions.length > 0 && actions.some((action: string) => action !== "no-op" && action !== "read")
+                if (!nodeGroup.stateFile) {
+                    nodeGroup.nodes = nodeGroup.nodes.filter((node) => {
+                        const keep = node.resourceChanges && node.resourceChanges.some((resourceChange) => {
+                            const actions = resourceChange.change.actions
+                            return actions.length > 0 && actions.some((action: string) => action !== "no-op" && action !== "read")
+                        })
+                        if (!keep) {
+                            debugLog("Removing unchanged secondary resource: " + node.nodeModel.id.split(" ")[1])
+                        }
+                        return keep
                     })
-                    if (!keep) {
-                        debugLog("Removing unchanged secondary resource: " + node.nodeModel.id.split(" ")[1])
-                    }
-                    return keep
-                })
+                }
             })
             debugLog("Removing unchanged resources... Done.")
         }
