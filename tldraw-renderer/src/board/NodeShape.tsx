@@ -75,10 +75,10 @@ export class NodeShapeUtil extends BaseBoxShapeUtil<NodeShape> {
             borderColor: "black",
             backgroundColor: "white",
             numberOfChanges: 0,
-            name: "AWS Service",
+            name: "Resource",
             iconPath: "",
             state: "no-op",
-            resourceType: "AWS Service"
+            resourceType: "Resource Type"
         }
     }
 

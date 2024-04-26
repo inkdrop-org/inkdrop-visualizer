@@ -20,7 +20,7 @@ async function performActionsToDownloadFile(page: Page) {
         if (selectAllButton) {
             await selectAllButton.click();
         } else {
-            console.error("No AWS Terraform resources found in graph.")
+            console.error("No valid Terraform resources found in graph.")
             console.error("Please ensure that you have run Inkdrop inside your Terraform project directory, or specify the path to your Terraform project using the --path argument.")
             process.exit(1)
         }
