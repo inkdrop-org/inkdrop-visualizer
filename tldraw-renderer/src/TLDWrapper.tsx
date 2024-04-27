@@ -194,7 +194,7 @@ const TLDWrapper = () => {
         const isOutput = blockId.startsWith("output.")
         const isProvider = blockId.startsWith("provider[")
 
-        const isResource = blockId.startsWith("aws_")
+        const isResource = blockId.startsWith("aws_") || blockId.startsWith("google_")
 
         if (!isData && !isVariable && !isLocal && !isOutput && !isProvider && !isResource && !isModule) {
             console.warn("Unknown block type", blockId)
@@ -276,7 +276,7 @@ const TLDWrapper = () => {
 
 
                     jsonArray.data.forEach((row: any) => {
-                        if (row[mainBlock ? "Main Diagram Blocks" : "Missing Resources"].split(",").some((s: string) => s === resourceType)) {
+                        if (row[mainBlock ? "Main Diagram Blocks" : "Secondary Diagram Blocks"].split(",").some((s: string) => s === resourceType)) {
                             debugLog("Adding main resource: " + node.id.split(" ")[1])
                             nodeGroups.set(node.id.split(" ")[1], {
                                 nodes: [{
@@ -558,7 +558,7 @@ const TLDWrapper = () => {
                     if (resourceType && resourceName && jsonArray && !isNodePresent &&
                         jsonArray.data.some((row: any) => {
                             return row["Main Diagram Blocks"].split(",").some((s: string) => s === nodeGroup.type) &&
-                                (row["Missing Resources"].split(",").some((s: string) => s === resourceType) ||
+                                (row["Secondary Diagram Blocks"].split(",").some((s: string) => s === resourceType) ||
                                     row["Data Sources"].split(",").some((s: string) => s === resourceType))
                         })) {
                         const newNode = subgraph.nodes.filter((n) => { return n.id === (edge.targets[start ? 1 : 0] as any).id })[0]

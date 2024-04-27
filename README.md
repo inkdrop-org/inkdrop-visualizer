@@ -35,8 +35,6 @@ Benefits:
 - Document your infrastructure automatically.
 - Onboard engineers to a new project 10 times faster.
 
-![Static Badge](https://img.shields.io/badge/Note%3A%20-%20Inkdrop%20currently%20only%20works%20for%20AWS%20resources.-blue)
-
 ## Quick Install
 **With Brew:**
 
