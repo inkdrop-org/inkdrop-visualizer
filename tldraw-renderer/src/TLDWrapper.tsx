@@ -194,7 +194,7 @@ const TLDWrapper = () => {
         const isOutput = blockId.startsWith("output.")
         const isProvider = blockId.startsWith("provider[")
 
-        const isResource = blockId.startsWith("aws_") || blockId.startsWith("google_")
+        const isResource = blockId.startsWith("aws_") || blockId.startsWith("google_") || blockId.startsWith("azurerm_")
 
         if (!isData && !isVariable && !isLocal && !isOutput && !isProvider && !isResource && !isModule) {
             console.warn("Unknown block type", blockId)

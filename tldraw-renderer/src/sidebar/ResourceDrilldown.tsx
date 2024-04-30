@@ -51,7 +51,7 @@ const ResourceDrilldown = ({
                 {resourceId &&
                     <div className="flex" style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
                         <Typography sx={{ fontSize: '0.875rem', lineHeight: '2.4rem' }}>
-                            {'Copy AWS ID'}
+                            {'Copy ID'}
                         </Typography>
                         <Tooltip title={justCopied ? 'Copied!' : 'Copy'}
                             onClose={() => setTimeout(() => setJustCopied(false), 500)}
