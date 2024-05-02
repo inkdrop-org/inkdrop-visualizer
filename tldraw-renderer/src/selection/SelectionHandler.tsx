@@ -3,12 +3,16 @@ import Sidebar from "../sidebar/Sidebar";
 import { Dependency, moduleDependencies, resourceDependencies } from "../dependencies/dependencies";
 import { NodeGroup, RenderInput, TFVariableOutput, Tag } from "../TLDWrapper";
 import DependencyUI from "../dependencies/DependenciesUI";
-import { Editor, TLShapeId } from "@tldraw/tldraw";
+import { Box2d, Editor, TLShapeId } from "@tldraw/tldraw";
 import { computeShading, resetShading } from "../editorHandler/shading";
 import { ChangesBreakdown, getChangesBreakdown, nodeChangesToString } from "../jsonPlanManager/jsonPlanManager";
 import EditorHandler from "../editorHandler/EditorHandler";
 import { getMacroCategory } from "../utils/awsCategories";
 import NavigationBar from "../navigation/NavigationBar";
+import { IconButton, TextField } from "@mui/material";
+import SendIcon from '@mui/icons-material/Send';
+import { getResourceCode } from "../utils/storage";
+import { promptBuild } from "../prompt/promptBuild";
 
 interface SelectionHandlerProps {
     editor: Editor | null,
@@ -45,6 +49,8 @@ const SelectionHandler = ({
 }: SelectionHandlerProps) => {
     const [selectedNode, setSelectedNode] = useState<NodeGroup | undefined>()
     const [selectedModule, setSelectedModule] = useState<string>("")
+    const [textFieldCoordinates, setTextFieldCoordinates] = useState<any | undefined>()
+    const [request, setRequest] = useState<string>("")
     const [modulesTree, setModulesTree] = useState<any>()
     const [filtersTree, setFiltersTree] = useState<any>()
     const [currentShapeId, setCurrentShapeId] = useState<string>("")
@@ -165,9 +171,32 @@ const SelectionHandler = ({
         setShowSidebar(true)
     }
 
+    const submitRequest = async () => {
+        const selectedResourceCode = await getResourceCode([selectedNode?.id || ""])
+
+        const dependencyIds = [...dependencies, ...affected].filter((dep) => {
+            return dep.type === "resource"
+        }).map((dep) => {
+            return dep.module && dep.module !== "root_module" ? "module." + dep.module + "." + dep.name : dep.name
+        })
+
+        const dependenciesCode = await getResourceCode(dependencyIds)
+        const dependenciesIdAndCode = dependencyIds.map((id, index) => {
+            return {
+                id,
+                code: dependenciesCode[index]
+            }
+        })
+        console.log(promptBuild(request, {
+            id: selectedNode?.id || "",
+            code: selectedResourceCode
+        }, dependenciesIdAndCode))
+    }
+
     const handleShapeSelectionChange = (shapeId: string, newShowAllValue?: boolean) => {
         setCurrentShapeId(shapeId)
         const element = document.querySelector(".tlui-navigation-zone") as HTMLElement
+        setTextFieldCoordinates(undefined)
         if (!hasPlanJson || shapeId === "") {
             setSelectedNode(undefined)
             setShowSidebar(false)
@@ -191,6 +220,11 @@ const SelectionHandler = ({
                 const selectedNodeGroup = nodeGroups?.filter((nodeGroup) => {
                     return nodeGroup.id === shapeIdWithoutPrefixAndSuffix
                 })[0]
+                const selectedShapeBounds = editor.getShapePageBounds(shapeId as TLShapeId)!
+                setTextFieldCoordinates(editor?.pageToScreen({
+                    x: selectedShapeBounds.x + selectedShapeBounds.w / 2,
+                    y: selectedShapeBounds.y + selectedShapeBounds.h
+                }))
                 setModuleDrilldownData([])
                 setSelectedNode(selectedNodeGroup)
 
@@ -243,6 +277,22 @@ const SelectionHandler = ({
 
     return (
         <>
+            {
+                textFieldCoordinates &&
+                <div className="bg-white absolute z-[2000] translate-x-[-50%] flex"
+                    style={
+                        {
+                            top: textFieldCoordinates.y,
+                            left: textFieldCoordinates.x,
+                        }
+                    }
+                >
+                    <TextField size="small" value={request} onChange={(e) => setRequest(e.target.value)} />
+                    <IconButton onClick={() => submitRequest()}>
+                        <SendIcon />
+                    </IconButton>
+                </div>
+            }
             {(selectedNode || selectedModule) && nodeGroups && editor &&
                 <DependencyUI dependencies={dependencies}
                     affected={affected}

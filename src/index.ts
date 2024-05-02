@@ -98,6 +98,83 @@ app.post('/debug-log', (req, res) => {
     res.status(200).json({ message: 'Log received' });
 })
 
+const findResource = async (resourceId: string) => {
+    const cwdPath = path.resolve(".");
+
+    const { stdout: files } = await execAsync('find . -type f -name "*.tf"', { cwd: cwdPath });
+    const filesArr = files.trim().split("\n");
+
+    const matches = resourceId.match(/^module\.([^\.]+)\.([^\.]+)\.([^[]+)(\[\d+\])?$/);
+    if (!matches) {
+        console.error("Invalid resource ID format.");
+        return;
+    }
+
+    const [, moduleName, resourceType, resourceName] = matches;
+
+    for (const file of filesArr) {
+        const fileContent = await readFileContents(file, cwdPath);
+        if (fileContent.includes(`module "${moduleName}"`)) {
+            const sourceMatch = fileContent.match(new RegExp(`module "${moduleName}"\\s*\\{[^\\}]*source\\s*=\\s*"([^"]+)"`, 's'));
+            if (sourceMatch && sourceMatch[1]) {
+                const moduleSourcePath = path.resolve(cwdPath, sourceMatch[1]);
+                return await findResourceInModule(moduleSourcePath, resourceName, resourceType);
+            }
+        }
+    }
+    return null;
+};
+
+const findResourceInModule = async (modulePath: string, resourceName: string, resourceType: string) => {
+    const { stdout: moduleFiles } = await execAsync(`find ${modulePath} -type f -name "*.tf"`);
+    const moduleFilesArr = moduleFiles.trim().split("\n");
+
+    for (const tfFile of moduleFilesArr) {
+        const content = await readFileContents(tfFile, modulePath);
+        const found = extractResourceBlock(content, resourceName, resourceType);
+        if (found) {
+            return found;
+        }
+    }
+    return null;
+};
+
+const extractResourceBlock = (content: string, resourceName: string, resourceType: string): string | null => {
+    const pattern = new RegExp(`resource\\s+"${resourceType}"\\s+"${resourceName}"\\s*\\{`, 'g');
+    let match;
+    while ((match = pattern.exec(content))) {
+        const startIndex = match.index + match[0].length;
+        let openBraces = 1;
+        let index = startIndex;
+
+        while (openBraces > 0 && index < content.length) {
+            if (content[index] === '{') openBraces++;
+            else if (content[index] === '}') openBraces--;
+            index++;
+        }
+
+        if (openBraces === 0) {
+            // Successfully found a resource block with balanced braces
+            return content.substring(match.index, index);
+        }
+    }
+    return null;
+};
+
+const readFileContents = async (filePath: string, basePath: string) => {
+    const { stdout: content } = await execAsync(`cat ${path.resolve(basePath, filePath)}`);
+    return content;
+};
+
+app.post('/resource-code', async (req, res) => {
+    const resourceIds = req.body.resourceIds;
+    const resourceCodes = await Promise.all(resourceIds.map(async (resourceId: string) => {
+        return findResource(resourceId);
+    }));
+    res.status(200).json({ value: resourceCodes });
+});
+
+
 let planJson = ""
 let graph = ""
 

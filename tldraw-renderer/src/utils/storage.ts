@@ -32,6 +32,27 @@ export const fetchIsDemo = async () => {
     }
 }
 
+export const getResourceCode = async (resourceIds: string[]) => {
+    if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.id) {
+        try {
+            const response = await fetch(`/resource-code`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    resourceIds
+                }),
+            });
+            const data = await response.json();
+            return data.value;
+        } catch (error) {
+            console.error('Failed to fetch /resource-code', error);
+            return '';
+        }
+    }
+}
+
 export const sendDebugLog = async (log: string) => {
     if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.id) {
         try {
