@@ -6,7 +6,7 @@ import { getAssetUrls } from '@tldraw/assets/selfHosted';
 import { NodeModel, RootGraphModel, SubgraphModel, fromDot } from "ts-graphviz"
 import { terraformResourcesCsv } from './terraformResourcesCsv';
 import '@tldraw/tldraw/tldraw.css'
-import { fetchIsDemo, getRenderInput, sendData, sendDebugLog } from './utils/storage';
+import { fetchIsDemo, getRenderInput, sendCodeChanges, sendData, sendDebugLog } from './utils/storage';
 import { computeLayout } from './layout/computeLayout';
 import { getVariablesAndOutputs } from './dependencies/dependencies';
 import { getResourceNameAndType } from './utils/resources';
@@ -14,6 +14,7 @@ import { filterOutNotNeededArgs } from './utils/filterPlanJson';
 import { demoShapes } from './layout/demoShapes';
 import SelectionHandler from './selection/SelectionHandler';
 import { getMacroCategory } from './utils/awsCategories';
+import { CodeChange } from './ai/generateCode';
 
 
 const customShapeUtils = [NodeShapeUtil]
@@ -618,6 +619,10 @@ const TLDWrapper = () => {
         setSidebarWidth(value ? 23 : 0)
     }
 
+    const updateCode = async (codeChanges: CodeChange[]) => {
+        await sendCodeChanges(codeChanges)
+    }
+
 
     return (
         <div style={{
@@ -651,6 +656,7 @@ const TLDWrapper = () => {
                 deselectedCategoriesRef={deselectedCategoriesRef}
                 renderInput={renderInput}
                 tagsRef={tagsRef}
+                updateCode={updateCode}
             />
         </div>
     );

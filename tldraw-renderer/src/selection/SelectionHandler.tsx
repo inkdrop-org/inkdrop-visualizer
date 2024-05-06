@@ -13,6 +13,7 @@ import { IconButton, TextField } from "@mui/material";
 import SendIcon from '@mui/icons-material/Send';
 import { getResourceCode } from "../utils/storage";
 import { promptBuild } from "../prompt/promptBuild";
+import { CodeChange, generateCode } from "../ai/generateCode";
 
 interface SelectionHandlerProps {
     editor: Editor | null,
@@ -29,6 +30,7 @@ interface SelectionHandlerProps {
     categoriesRef: MutableRefObject<string[]>
     deselectedCategoriesRef: MutableRefObject<string[]>
     refreshWhiteboard: () => void
+    updateCode: (codeChanges: CodeChange[]) => void
 }
 
 const SelectionHandler = ({
@@ -45,7 +47,8 @@ const SelectionHandler = ({
     selectedTagsRef,
     categoriesRef,
     deselectedCategoriesRef,
-    refreshWhiteboard
+    refreshWhiteboard,
+    updateCode
 }: SelectionHandlerProps) => {
     const [selectedNode, setSelectedNode] = useState<NodeGroup | undefined>()
     const [selectedModule, setSelectedModule] = useState<string>("")
@@ -187,10 +190,11 @@ const SelectionHandler = ({
                 code: dependenciesCode[index]
             }
         })
-        console.log(promptBuild(request, {
+        const response = await generateCode(promptBuild(request, {
             id: selectedNode?.id || "",
             code: selectedResourceCode
         }, dependenciesIdAndCode))
+        updateCode(response)
     }
 
     const handleShapeSelectionChange = (shapeId: string, newShowAllValue?: boolean) => {

@@ -98,27 +98,78 @@ app.post('/debug-log', (req, res) => {
     res.status(200).json({ message: 'Log received' });
 })
 
-const findResource = async (resourceId: string) => {
-    const cwdPath = path.resolve(".");
+app.post('/change-code', async (req, res) => {
 
-    const { stdout: files } = await execAsync('find . -type f -name "*.tf"', { cwd: cwdPath });
-    const filesArr = files.trim().split("\n");
+    let changes = req.body.changes;
 
-    const matches = resourceId.match(/^module\.([^\.]+)\.([^\.]+)\.([^[]+)(\[\d+\])?$/);
+    try {
+        await execAsync("mkdir -p inkdrop-changes && rsync -a ./ inkdrop-changes/ --exclude inkdrop-changes", { cwd: path.resolve(".") });
+
+        for (const change of changes) {
+            const { resourceId, code } = change;
+
+            // Parse resourceId to extract module details
+            const resourceMatches = resourceId.match(/^module\.([^\.]+)\.([^\.]+)\.([^[]+)(\[\d+\])?$/);
+            if (!resourceMatches) {
+                return res.status(400).json({ message: 'Invalid resource ID format' });
+            }
+            const [, moduleName, resourceType, resourceName] = resourceMatches;
+
+            // Find the resource file in the copied directory and apply changes
+            const resourceDetails = await findResourceInChanges(resourceId);
+            if (!resourceDetails) {
+                throw new Error("Resource not found in the changes directory.");
+            }
+            const { filePath, block } = resourceDetails;
+
+            let fileContent = await fs.promises.readFile(filePath, 'utf8');
+
+            // Form the new code block
+            const newCodeBlock = `${code}`;
+            fileContent = fileContent.replace(block, newCodeBlock);
+
+            await fs.promises.writeFile(filePath, fileContent, 'utf8');
+        }
+
+        res.status(200).json({ message: 'Changes applied successfully.' });
+    } catch (error) {
+        console.error("Error applying changes:", error);
+        res.status(500).json({ message: 'Failed to apply changes', error: error });
+    }
+});
+
+async function findResourceInChanges(resourceId: string) {
+    const cwdPath = path.resolve('inkdrop-changes');
+    return await findResource(resourceId, cwdPath);
+}
+
+const findResource = async (resourceId: string, basePath = path.resolve('.')) => {
+    const moduleInfoExtractRegExp = /^module\.([^\.]+)\.([^\.]+)\.([^[]+)(\[\d+\])?$/;
+    const matches = resourceId.match(moduleInfoExtractRegExp);
     if (!matches) {
         console.error("Invalid resource ID format.");
-        return;
+        return null;
     }
 
     const [, moduleName, resourceType, resourceName] = matches;
 
+    const { stdout: files } = await execAsync(`find ${basePath} -type f -name "*.tf"`);
+    const filesArr = files.trim().split("\n").filter(Boolean);
+
     for (const file of filesArr) {
-        const fileContent = await readFileContents(file, cwdPath);
+        const fileContent = await readFileContents(file, basePath);
+
         if (fileContent.includes(`module "${moduleName}"`)) {
             const sourceMatch = fileContent.match(new RegExp(`module "${moduleName}"\\s*\\{[^\\}]*source\\s*=\\s*"([^"]+)"`, 's'));
             if (sourceMatch && sourceMatch[1]) {
-                const moduleSourcePath = path.resolve(cwdPath, sourceMatch[1]);
-                return await findResourceInModule(moduleSourcePath, resourceName, resourceType);
+                const moduleSourcePath = path.resolve(basePath, sourceMatch[1]);
+                const { block, newPath } = await findResourceInModule(moduleSourcePath, resourceName, resourceType) || {
+                    block: "",
+                    newPath: ""
+                };
+                if (block) {
+                    return { filePath: newPath, block: block };
+                }
             }
         }
     }
@@ -133,7 +184,10 @@ const findResourceInModule = async (modulePath: string, resourceName: string, re
         const content = await readFileContents(tfFile, modulePath);
         const found = extractResourceBlock(content, resourceName, resourceType);
         if (found) {
-            return found;
+            return {
+                block: found,  // returning the block
+                newPath: tfFile,  // returning the path of the file
+            };  // returning string of the block
         }
     }
     return null;
@@ -143,12 +197,19 @@ const extractResourceBlock = (content: string, resourceName: string, resourceTyp
     const pattern = new RegExp(`resource\\s+"${resourceType}"\\s+"${resourceName}"\\s*\\{`, 'g');
     let match;
     while ((match = pattern.exec(content))) {
-        const startIndex = match.index + match[0].length;
+        const startIndex = match.index;
         let openBraces = 1;
         let index = startIndex;
 
+        let firstBracesParsed = false
+
         while (openBraces > 0 && index < content.length) {
-            if (content[index] === '{') openBraces++;
+            if (content[index] === '{') {
+                if (!firstBracesParsed) firstBracesParsed = true
+                else {
+                    openBraces++
+                }
+            }
             else if (content[index] === '}') openBraces--;
             index++;
         }
@@ -169,7 +230,7 @@ const readFileContents = async (filePath: string, basePath: string) => {
 app.post('/resource-code', async (req, res) => {
     const resourceIds = req.body.resourceIds;
     const resourceCodes = await Promise.all(resourceIds.map(async (resourceId: string) => {
-        return findResource(resourceId);
+        return (await findResource(resourceId))?.block || '';
     }));
     res.status(200).json({ value: resourceCodes });
 });

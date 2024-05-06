@@ -1,3 +1,4 @@
+import { CodeChange } from "../ai/generateCode"
 
 export const getRenderInput = async () => {
     let response
@@ -49,6 +50,22 @@ export const getResourceCode = async (resourceIds: string[]) => {
         } catch (error) {
             console.error('Failed to fetch /resource-code', error);
             return '';
+        }
+    }
+}
+
+export const sendCodeChanges = async (changes: CodeChange[]) => {
+    if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.id) {
+        try {
+            await fetch('/change-code', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ changes }),
+            });
+        } catch (error) {
+            console.error('Failed to fetch /code-changes', error);
         }
     }
 }
