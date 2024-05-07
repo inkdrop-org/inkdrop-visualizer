@@ -20,7 +20,7 @@ export const computeLayout = (nodeGroups: Map<string, NodeGroup>, computeTerrafo
             }
             if (nodeGroup.parentModules.length > 0) {
                 if (!g.hasNode("module." + nodeGroup.parentModules[0])) {
-                    g.setNode("module." + nodeGroup.parentModules[0], { label: nodeGroup.parentModules[0] })
+                    g.setNode("module." + nodeGroup.parentModules[0], { label: "module." + nodeGroup.parentModules[0] })
                 }
                 g.setParent("module." + nodeGroup.parentModules[0], "State " + nodeGroup.stateFile)
             } else if (nodeGroup.moduleName) {
@@ -34,19 +34,25 @@ export const computeLayout = (nodeGroups: Map<string, NodeGroup>, computeTerrafo
         }
         if (nodeGroup.moduleName) {
             nodeGroup.parentModules.forEach((parentModule, index) => {
-                if (!g.hasNode("module." + parentModule)) {
-                    g.setNode("module." + parentModule, { label: parentModule })
+                const parentId = nodeGroup.parentModules.filter((p, i) => i <= index).map((p, i) => {
+                    return "module." + p
+                }).join(".")
+                if (!g.hasNode(parentId)) {
+                    g.setNode(parentId, { label: "module." + parentModule })
                 }
                 if (index !== 0) {
-                    g.setParent("module." + parentModule, "module." + nodeGroup.parentModules[index - 1])
+                    g.setParent(parentId, parentId.split(".").slice(0, -2).join("."))
                 }
             })
-            if (!g.hasNode("module." + nodeGroup.moduleName)) {
-                g.setNode("module." + nodeGroup.moduleName, { label: nodeGroup.moduleName })
+            const moduleId = nodeGroup.parentModules.map((p) => {
+                return "module." + p
+            }).join(".") + ".module." + nodeGroup.moduleName
+            if (!g.hasNode(moduleId)) {
+                g.setNode(moduleId, { label: "module." + nodeGroup.moduleName })
                 if (nodeGroup.parentModules.length > 0)
-                    g.setParent("module." + nodeGroup.moduleName, "module." + nodeGroup.parentModules[nodeGroup.parentModules.length - 1])
+                    g.setParent(moduleId, moduleId.split(".").slice(0, -2).join("."))
             }
-            g.setParent(key, "module." + nodeGroup.moduleName)
+            g.setParent(key, moduleId)
         }
 
     })
@@ -64,7 +70,7 @@ export const computeLayout = (nodeGroups: Map<string, NodeGroup>, computeTerrafo
                 x: node.x - node.width / 2,
                 y: node.y - node.height / 2,
                 props: {
-                    name: id,
+                    name: node.label,
                     w: node.width,
                     h: node.height,
                 }
