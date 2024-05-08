@@ -1,4 +1,4 @@
-import { CodeChange } from "../ai/generateCode"
+import { CodeChange } from "../TLDWrapper"
 
 export const getRenderInput = async () => {
     let response
@@ -57,17 +57,39 @@ export const getResourceCode = async (resourceIds: string[]) => {
 export const sendCodeChanges = async (changes: CodeChange[]) => {
     if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.id) {
         try {
-            await fetch('/change-code', {
+            const response = await fetch('/change-code', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({ changes }),
             });
+            const data = await response.json();
+            return data;
         } catch (error) {
             console.error('Failed to fetch /code-changes', error);
         }
     }
+}
+
+export const generateCode = async (prompt: string) => {
+    if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.id) {
+        try {
+            const response = await fetch('/generate-code', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ prompt }),
+            });
+            const data = await response.json();
+            return data.changes;
+        } catch (error) {
+            console.error('Failed to fetch /generate-code', error);
+            return '';
+        }
+    }
+
 }
 
 export const sendDebugLog = async (log: string) => {

@@ -14,7 +14,8 @@ import { filterOutNotNeededArgs } from './utils/filterPlanJson';
 import { demoShapes } from './layout/demoShapes';
 import SelectionHandler from './selection/SelectionHandler';
 import { getMacroCategory } from './utils/awsCategories';
-import { CodeChange } from './ai/generateCode';
+import { Dialog } from '@mui/material';
+import CodeDiff from './diff/CodeDiff';
 
 
 const customShapeUtils = [NodeShapeUtil]
@@ -47,6 +48,11 @@ export type NodeGroup = {
     shapeId?: string
     frameShapeId?: string
     stateFile: string
+}
+
+export type CodeChange = {
+    resourceId: string;
+    code: string;
 }
 
 export type TFVariableOutput = {
@@ -94,6 +100,7 @@ const TLDWrapper = () => {
     const categoriesRef = useRef<string[]>([])
     const showDebugRef = useRef<boolean>(false)
     const deselectedCategoriesRef = useRef<string[]>([])
+    const [beforeAfter, setBeforeAfter] = useState<{ before: string, after: string } | undefined>()
     const [sidebarWidth, setSidebarWidth] = useState<number>(0)
     const [shapesSnapshot, setShapesSnapshot] = useState<string>("")
     const [storedNodeGroups, setStoredNodeGroups] = useState<NodeGroup[]>()
@@ -101,7 +108,11 @@ const TLDWrapper = () => {
     const [outputs, setOutputs] = useState<TFVariableOutput[]>([])
 
     useEffect(() => {
-        if (!renderInput || !editor || initializedRef.current) return
+        if (!renderInput || !editor) return
+        if (initializedRef.current) {
+            refreshWhiteboard()
+            return
+        }
         showDebugRef.current = renderInput.debug
         const detailed = renderInput.detailed
         debugLog("Detailed view is " + (detailed ? "on" : "off") + ".")
@@ -157,13 +168,14 @@ const TLDWrapper = () => {
         history: undefined
     } as TLStoreOptions))
 
-    useEffect(() => {
-        const getStoredInput = async () => {
-            const data: RenderInput = await getRenderInput()
-            if (Object.keys(data).length > 0) {
-                setRenderInput(data)
-            }
+    const getStoredInput = async () => {
+        const data: RenderInput = await getRenderInput()
+        if (Object.keys(data).length > 0) {
+            setRenderInput(data)
         }
+    }
+
+    useEffect(() => {
         getStoredInput()
     }, [])
 
@@ -620,7 +632,12 @@ const TLDWrapper = () => {
     }
 
     const updateCode = async (codeChanges: CodeChange[]) => {
-        await sendCodeChanges(codeChanges)
+        const beforeAfter: {
+            before: string,
+            after: string
+        } = await sendCodeChanges(codeChanges)
+        setBeforeAfter(beforeAfter)
+        await getStoredInput()
     }
 
 
@@ -641,6 +658,18 @@ const TLDWrapper = () => {
                     assetUrls={assetUrls}
                 />
             </div>
+            <Dialog
+                open={beforeAfter ? true : false}
+                onClose={() => setBeforeAfter(undefined)}
+                maxWidth={"md"}
+                fullWidth={true}
+                aria-labelledby="alert-dialog-title"
+                aria-describedby="alert-dialog-description"
+            >
+                {beforeAfter &&
+                    <CodeDiff oldCode={beforeAfter?.before} newCode={beforeAfter?.after} />
+                }
+            </Dialog>
             <SelectionHandler
                 editor={editor}
                 nodeGroups={storedNodeGroups}

@@ -1,7 +1,7 @@
 import { MutableRefObject, useEffect, useState } from "react";
 import Sidebar from "../sidebar/Sidebar";
 import { Dependency, moduleDependencies, resourceDependencies } from "../dependencies/dependencies";
-import { NodeGroup, RenderInput, TFVariableOutput, Tag } from "../TLDWrapper";
+import { CodeChange, NodeGroup, RenderInput, TFVariableOutput, Tag } from "../TLDWrapper";
 import DependencyUI from "../dependencies/DependenciesUI";
 import { Box2d, Editor, TLShapeId } from "@tldraw/tldraw";
 import { computeShading, resetShading } from "../editorHandler/shading";
@@ -9,11 +9,10 @@ import { ChangesBreakdown, getChangesBreakdown, nodeChangesToString } from "../j
 import EditorHandler from "../editorHandler/EditorHandler";
 import { getMacroCategory } from "../utils/awsCategories";
 import NavigationBar from "../navigation/NavigationBar";
-import { IconButton, TextField } from "@mui/material";
+import { CircularProgress, IconButton, TextField } from "@mui/material";
 import SendIcon from '@mui/icons-material/Send';
-import { getResourceCode } from "../utils/storage";
+import { generateCode, getResourceCode } from "../utils/storage";
 import { promptBuild } from "../prompt/promptBuild";
-import { CodeChange, generateCode } from "../ai/generateCode";
 
 interface SelectionHandlerProps {
     editor: Editor | null,
@@ -30,7 +29,7 @@ interface SelectionHandlerProps {
     categoriesRef: MutableRefObject<string[]>
     deselectedCategoriesRef: MutableRefObject<string[]>
     refreshWhiteboard: () => void
-    updateCode: (codeChanges: CodeChange[]) => void
+    updateCode: (codeChanges: CodeChange[]) => Promise<void>
 }
 
 const SelectionHandler = ({
@@ -48,7 +47,7 @@ const SelectionHandler = ({
     categoriesRef,
     deselectedCategoriesRef,
     refreshWhiteboard,
-    updateCode
+    updateCode,
 }: SelectionHandlerProps) => {
     const [selectedNode, setSelectedNode] = useState<NodeGroup | undefined>()
     const [selectedModule, setSelectedModule] = useState<string>("")
@@ -63,6 +62,7 @@ const SelectionHandler = ({
     const [affected, setAffected] = useState<Dependency[]>([])
     const [selectedResourceId, setSelectedResourceId] = useState<string>("")
     const [showAll, setShowAll] = useState<boolean>(false)
+    const [generating, setGenerating] = useState<boolean>(false)
 
     useEffect(() => {
         setFiltersTree(generateFiltersTree())
@@ -175,6 +175,7 @@ const SelectionHandler = ({
     }
 
     const submitRequest = async () => {
+        setGenerating(true)
         const selectedResourceCode = await getResourceCode([selectedNode?.id || ""])
 
         const dependencyIds = [...dependencies, ...affected].filter((dep) => {
@@ -194,7 +195,8 @@ const SelectionHandler = ({
             id: selectedNode?.id || "",
             code: selectedResourceCode
         }, dependenciesIdAndCode))
-        updateCode(response)
+        await updateCode(response)
+        setGenerating(false)
     }
 
     const handleShapeSelectionChange = (shapeId: string, newShowAllValue?: boolean) => {
@@ -292,8 +294,8 @@ const SelectionHandler = ({
                     }
                 >
                     <TextField size="small" value={request} onChange={(e) => setRequest(e.target.value)} />
-                    <IconButton onClick={() => submitRequest()}>
-                        <SendIcon />
+                    <IconButton disabled={generating} onClick={() => submitRequest()}>
+                        {generating ? <CircularProgress size={20} /> : <SendIcon />}
                     </IconButton>
                 </div>
             }

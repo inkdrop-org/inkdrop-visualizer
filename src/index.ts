@@ -12,6 +12,7 @@ import semver from 'semver';
 import cors from 'cors';
 import { warnUserIfNotLatestVersion } from './utils/fetchLatestVersion';
 import { getCurrentFormattedDate } from './utils/time';
+import { generateCode } from './ai/generateCode';
 
 const MAX_BUFFER_SIZE = 10 * 1024 * 1024; // 10 MB
 
@@ -104,7 +105,7 @@ app.post('/change-code', async (req, res) => {
 
     try {
         await execAsync("mkdir -p inkdrop-changes && rsync -a ./ inkdrop-changes/ --exclude inkdrop-changes", { cwd: path.resolve(".") });
-
+        let before = "", after = ""
         for (const change of changes) {
             const { resourceId, code } = change;
 
@@ -123,20 +124,67 @@ app.post('/change-code', async (req, res) => {
             const { filePath, block } = resourceDetails;
 
             let fileContent = await fs.promises.readFile(filePath, 'utf8');
+            if (!before) {
+                before = fileContent
+            }
 
             // Form the new code block
             const newCodeBlock = `${code}`;
             fileContent = fileContent.replace(block, newCodeBlock);
+            after = fileContent
 
             await fs.promises.writeFile(filePath, fileContent, 'utf8');
         }
 
-        res.status(200).json({ message: 'Changes applied successfully.' });
+        await runTerraformChanges();
+        setTimeout(async () => {
+            graph = originalGraph
+            planJson = originalPlanJson
+        }, 20000)
+        res.status(200).json({ before, after });
     } catch (error) {
         console.error("Error applying changes:", error);
         res.status(500).json({ message: 'Failed to apply changes', error: error });
     }
 });
+
+
+app.post('/generate-code', async (req, res) => {
+    const prompt = req.body.prompt;
+    const changes = await generateCode(prompt);
+    res.status(200).json({ changes });
+})
+
+const runTerraformChanges = async () => {
+    const projectPath = path.resolve('inkdrop-changes');
+    // Run terraform plan
+    await execAsync('terraform plan -out=inkdrop-changes.plan', {
+        cwd: projectPath,
+        maxBuffer: MAX_BUFFER_SIZE
+    });
+    //run terraform show
+    const { stdout: showStdout } = await execAsync('terraform show -json inkdrop-changes.plan', {
+        cwd: projectPath,
+        maxBuffer: MAX_BUFFER_SIZE
+    });
+    planJson = showStdout
+
+    // run terraform version
+    const { stdout: versionStdout } = await execAsync('terraform -v -json',
+        {
+            cwd: projectPath,
+        })
+    const version = JSON.parse(versionStdout).terraform_version
+    const addGraphPlanFlag = semver.gte(version, "1.7.0")
+    const graphCommand = addGraphPlanFlag ? 'terraform graph -type=plan' : 'terraform graph'
+
+    //run terraform graph
+    const { stdout: graphStdout } = await execAsync(graphCommand, {
+        cwd: projectPath,
+        maxBuffer: MAX_BUFFER_SIZE
+    })
+    graph = graphStdout
+}
 
 async function findResourceInChanges(resourceId: string) {
     const cwdPath = path.resolve('inkdrop-changes');
@@ -237,7 +285,9 @@ app.post('/resource-code', async (req, res) => {
 
 
 let planJson = ""
+let originalPlanJson = ""
 let graph = ""
+let originalGraph = ""
 
 const debug: boolean = (argv as any).debug || false
 const detailed: boolean = (argv as any).detailed || false
@@ -356,6 +406,7 @@ const runTerraformCommands = async () => {
             process.exit(1);
         }
         planJson = showStdout
+        originalPlanJson = showStdout
     }
 
     const { stdout: versionStdout, stderr: versionStderr } = await execAsync('terraform -v -json', {
@@ -395,6 +446,7 @@ const runTerraformCommands = async () => {
     }
 
     graph = graphStdout
+    originalGraph = graphStdout
 
     const stateDirs = (argv as any).stateDirs || []
     if (stateDirs.length > 0) {
