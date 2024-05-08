@@ -54,21 +54,33 @@ export const getResourceCode = async (resourceIds: string[]) => {
     }
 }
 
-export const sendCodeChanges = async (changes: CodeChange[]) => {
-    if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.id) {
-        try {
+export const sendCodeChanges = async (changes: CodeChange[], timeout = 240000) => { // default timeout set to 30 seconds
+    const controller = new AbortController();
+    const { signal } = controller;
+
+    // Set up a timeout to abort the fetch if it takes longer than specified
+    const timeoutId = setTimeout(() => {
+        controller.abort();
+    }, timeout);
+
+    try {
+        if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.id) {
             const response = await fetch('/change-code', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({ changes }),
+                signal,
             });
+            clearTimeout(timeoutId); // Clear the timeout if the fetch completes in time
             const data = await response.json();
             return data;
-        } catch (error) {
-            console.error('Failed to fetch /code-changes', error);
         }
+    } catch (error) {
+        console.error('Failed to fetch /code-changes', error);
+    } finally {
+        clearTimeout(timeoutId); // Ensure timeout is cleared on error or success
     }
 }
 
