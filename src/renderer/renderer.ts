@@ -15,16 +15,16 @@ let imgsCount = modules.length + 1
 
 async function performActionsToDownloadFile(page: Page) {
     page.waitForSelector('.tlui-layout').then(async () => {
-        await page.mouse.click(0, 0, { button: 'right' });
+        await page.mouse.click(400, 0, { button: 'right' });
         const selectAllButton = await page.$('[data-testid="menu-item.select-all"]');
         if (selectAllButton) {
             await selectAllButton.click();
         } else {
             console.error("No valid Terraform resources found in graph.")
             console.error("Please ensure that you have run Inkdrop inside your Terraform project directory, or specify the path to your Terraform project using the --path argument.")
-            process.exit(1)
+            //process.exit(1)
         }
-        await page.mouse.click(0, 0, { button: 'right' });
+        await page.mouse.click(400, 0, { button: 'right' });
         const exportAsButton = await page.$('[data-testid="menu-item.export-as"]');
         if (exportAsButton) {
             await exportAsButton.click();
@@ -89,7 +89,7 @@ export async function runHeadlessBrowserAndExportSVG(server: Server, argv: any) 
         launchArgs.push("--no-sandbox");
     }
 
-    const browser = await puppeteer.launch({ headless: true, args: launchArgs });
+    const browser = await puppeteer.launch({ headless: false, args: launchArgs });
     const page = await browser.newPage();
     const ci = (argv as any).ci || false
     const PORT = (argv as any).rendererPort || 3000
