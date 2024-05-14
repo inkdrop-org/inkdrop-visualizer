@@ -12,6 +12,7 @@ import semver from 'semver';
 import cors from 'cors';
 import { warnUserIfNotLatestVersion } from './utils/fetchLatestVersion';
 import { getCurrentFormattedDate } from './utils/time';
+const zipFile = require('is-zip-file');
 
 const MAX_BUFFER_SIZE = 10 * 1024 * 1024; // 10 MB
 
@@ -205,19 +206,27 @@ const retrieveRemoteState = async (projectPath: string, graphCommand: string) =>
 
 const runTerraformCommands = async () => {
     if ((argv as any).planfile) {
-        const { stdout: showStdout, stderr: showStderr } = await execAsync(`terraform show -json "${path.resolve((argv as any).planfile)}"`, {
-            cwd: path.resolve((argv as any).path || "."),
-            maxBuffer: MAX_BUFFER_SIZE
-        }).catch((err) => {
-            console.error("Error while running 'terraform show -json':\n"
-                + err)
-            process.exit(1);
-        })
-        if (showStderr) {
-            console.error(`${showStderr}`);
-            process.exit(1);
+        zipFile.isZip((argv as any).planfile, async (err: any, isZip: boolean) => {
+            if (isZip) {
+                const { stdout: showStdout, stderr: showStderr } = await execAsync(`terraform show -json "${path.resolve((argv as any).planfile)}"`, {
+                    cwd: path.resolve((argv as any).path || "."),
+                    maxBuffer: MAX_BUFFER_SIZE
+                }).catch((err) => {
+                    console.error("Error while running 'terraform show -json':\n"
+                        + err)
+                    process.exit(1);
+                })
+                if (showStderr) {
+                    console.error(`${showStderr}`);
+                    process.exit(1);
+                }
+                planJson = showStdout
+            }
+            else {
+                planJson = fs.readFileSync((argv as any).planfile, 'utf8')
+            }
         }
-        planJson = showStdout
+        )
     }
 
     const { stdout: versionStdout, stderr: versionStderr } = await execAsync('terraform -v -json', {
