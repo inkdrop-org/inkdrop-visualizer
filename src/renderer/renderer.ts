@@ -20,8 +20,7 @@ async function performActionsToDownloadFile(page: Page) {
         if (selectAllButton) {
             await selectAllButton.click();
         } else {
-            console.error("No valid Terraform resources found in graph.")
-            console.error("Please ensure that you have run Inkdrop inside your Terraform project directory, or specify the path to your Terraform project using the --path argument.")
+            console.warn("Empty diagram detected. No SVG will be created.")
             process.exit(1)
         }
         await page.mouse.click(400, 0, { button: 'right' });
