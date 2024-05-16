@@ -1,6 +1,6 @@
 {
   "name": "inkdrop-visualizer",
-  "version": "1.1.44",
+  "version": "1.1.45",
   "description": "",
   "main": "src/index.js",
   "scripts": {
@@ -40,6 +40,7 @@
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.17.1",
+    "is-zip-file": "^1.0.2",
     "ncp": "^2.0.0",
     "progress": "^2.0.3",
     "puppeteer": "22.6.0",

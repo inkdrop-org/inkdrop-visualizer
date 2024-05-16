@@ -73,7 +73,7 @@ At the top left of the UI you can filter the diagram by resource type, tags and 
 | Argument           | Description                                                           | Example Usage                              |
 |--------------------|-----------------------------------------------------------------------|--------------------------------------------|
 | (no argument)      | Automatically launches a browser tab to display the diagram interactively.| `inkdrop`                              |
-| `plan-filename`   | Visualizes the impact of changes defined in a specified terraform plan file. | `inkdrop plan.out`                  |
+| `plan-filename`   | Visualizes the impact of changes defined in a specified terraform plan (or plan JSON) file. | `inkdrop plan.out`                  |
 | `--state-dirs`     | List of directories that contain Terraform configuration files with configured backends. This option allows visualizing multiple states in a single diagram.        | `inkdrop plan.out --state-dirs ./path/to/tf/dir1 ./path/to/tf/dir2`                           |
 | `--help`, `-h`     | Displays help information about the CLI tool and its commands.        | `inkdrop --help`                           |
 | `--version`, `-v`  | Shows the current version number of the CLI tool.                     | `inkdrop --version`                        |

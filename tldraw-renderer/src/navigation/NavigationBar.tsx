@@ -236,23 +236,25 @@ const NavigationBar = ({
             </div>
 
             <div className="w-[12.5rem] mt-2 h-[1px] bg-[#B2AEB6] mr-3 ml-3" />
-            <FormGroup>
-                <FormControlLabel
-                    checked={renderInput?.showUnchanged}
-                    sx={{
-                        height: "2.4rem",
-                        margin: "0 0 0 0.75rem",
-                        "& .MuiCheckbox-root": {
-                            padding: 0,
-                            paddingRight: "0.25rem",
-                        },
-                        "& .MuiTypography-body1": {
-                            fontSize: "0.875rem"
-                        }
-                    }} onChange={() => toggleShowUnchanged()} control={<Checkbox
-                        disableRipple
-                    />} label="Show unchanged" />
-            </FormGroup>
+            {renderInput &&
+                <FormGroup>
+                    <FormControlLabel
+                        checked={renderInput?.showUnchanged}
+                        sx={{
+                            height: "2.4rem",
+                            margin: "0 0 0 0.75rem",
+                            "& .MuiCheckbox-root": {
+                                padding: 0,
+                                paddingRight: "0.25rem",
+                            },
+                            "& .MuiTypography-body1": {
+                                fontSize: "0.875rem"
+                            }
+                        }} onChange={() => toggleShowUnchanged()} control={<Checkbox
+                            disableRipple
+                        />} label="Show unchanged" />
+                </FormGroup>
+            }
         </Drawer >
     )
 }
