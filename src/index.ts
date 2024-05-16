@@ -264,6 +264,12 @@ const runTerraformCommands = async () => {
         console.error(`${graphStderr}`);
         process.exit(1);
     }
+    if (graphStdout.split("\n").length < 10 && graphStdout.match(/.+subgraph\s*"root"\s*{\s*}.*/gs)) {
+        //Empty graph
+        console.error("No valid Terraform resources found in graph.")
+        console.error("Please ensure that you have run Inkdrop inside your Terraform project directory, or specify the path to your Terraform project using the --path argument.")
+        process.exit(1);
+    }
 
     graph = graphStdout
 
