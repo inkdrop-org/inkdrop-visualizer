@@ -67,7 +67,7 @@ const SelectionHandler = ({
 
     const generateModulesTree = () => {
         const modulesTree: any = {
-            root: null
+            root: {}
         }
         nodeGroups?.forEach((nodeGroup) => {
             if (nodeGroup.moduleName) {
