@@ -44,9 +44,10 @@ export const computeLayout = (nodeGroups: Map<string, NodeGroup>, computeTerrafo
                     g.setParent(parentId, parentId.split(".").slice(0, -2).join("."))
                 }
             })
-            const moduleId = nodeGroup.parentModules.map((p) => {
-                return "module." + p
-            }).join(".") + ".module." + nodeGroup.moduleName
+            const moduleId = nodeGroup.parentModules.length > 0 ?
+                nodeGroup.parentModules.map((p) => {
+                    return "module." + p
+                }).join(".") + ".module." + nodeGroup.moduleName : "module." + nodeGroup.moduleName
             if (!g.hasNode(moduleId)) {
                 g.setNode(moduleId, { label: "module." + nodeGroup.moduleName })
                 if (nodeGroup.parentModules.length > 0)
