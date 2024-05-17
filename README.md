@@ -99,8 +99,7 @@ The runner will comment an SVG Image in the PR. Using the Inkdrop extension this
 If you encounter any issues while using inkdrop, please use the `--debug` flag and report the issue. We're looking forward to help.
 
 ### Telemetry
-As this is a local CLI tool we have no information about your setup. The only telemetry we collect is a simple ping to our server, to estimate usage of the tool. 
-To turn it off simply use the flag `--telemetry-off`
+As this is a local CLI tool we have no information about your setup. The only telemetry we collect is a simple ping to our server, to estimate usage of the tool and the command line arguments you are using. To turn it off simply use the flag `--telemetry-off`.
 
 ### Development
 We welcome contributions and feedback! Feel free to open GitHub issues for bugs or feature requests.
