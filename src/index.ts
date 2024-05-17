@@ -28,9 +28,9 @@ if (process.env.INKDROP_DEMO === "true") {
     app.use(cors());
 }
 
-// Send a ping to the telemetry server, containing the used version of inkdrop
+// Send a ping to the telemetry server, containing the used version of inkdrop, and the options that were used
 if (!(argv as any).telemetryOff) {
-    sendPing()
+    sendPing(argv)
 }
 
 if ((argv as any).debug) {
