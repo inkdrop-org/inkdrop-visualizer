@@ -2,8 +2,8 @@ name: Docker Build and Push
 
 on:
   push:
-    branches:
-      - inkdrop-docker
+    tags:
+      - 'v*'
 
 jobs:
   build:
@@ -26,15 +26,15 @@ jobs:
       id: extract_version
       run: echo ::set-output name=VERSION::${GITHUB_REF#refs/tags/}
 
-    #VERSION=${{ steps.extract_version.outputs.VERSION }}
-    #VERSION=${VERSION#v}
     - name: Build Docker image
       run: |
-        VERSION=testbranch
+        VERSION=${{ steps.extract_version.outputs.VERSION }}
+        VERSION=${VERSION#v}
         docker build -t inkdroporg/inkdrop:${VERSION} -t inkdroporg/inkdrop:latest .
 
     - name: Push Docker image to Docker Hub
       run: |
-        VERSION=testbranch
+        VERSION=${{ steps.extract_version.outputs.VERSION }}
+        VERSION=${VERSION#v}
         docker push inkdroporg/inkdrop:${VERSION}
         docker push inkdroporg/inkdrop:latest
