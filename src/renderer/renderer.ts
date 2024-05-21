@@ -82,7 +82,7 @@ export async function runHeadlessBrowserAndExportSVG(server: Server, argv: any) 
             }
         })
     }
-    const noSandbox = (argv as any).disableSandbox || false;
+    const noSandbox = (argv as any).disableSandbox || process.env.INKDROP_DOCKER === "true" || false;
     const launchArgs = [];
     if (noSandbox) {
         launchArgs.push("--no-sandbox");
