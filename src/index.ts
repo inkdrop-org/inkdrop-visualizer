@@ -123,7 +123,7 @@ app.get('/get-render-input', (req, res) => {
 })
 
 // Start the server
-const server = app.listen(PORT, 'localhost', () => {
+const server = app.listen(PORT, process.env.INKDROP_DOCKER === "true" ? '0.0.0.0' : 'localhost', () => {
     console.log(`Diagram renderer running on localhost:${PORT}`);
 });
 
@@ -291,7 +291,7 @@ const runTerraformCommands = async () => {
 
     if (ci || svg) {
         runHeadlessBrowserAndExportSVG(server, argv)
-    } else {
+    } else if (!process.env.INKDROP_DOCKER) {
         openUrl(`http://localhost:${PORT}/`);
     }
 }
