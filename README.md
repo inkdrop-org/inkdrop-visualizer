@@ -56,6 +56,13 @@ mv inkdrop /usr/local/bin/
 ```
 npm install -g inkdrop-visualizer
 ```
+
+**With Docker:**
+
+```
+docker pull inkdroporg/inkdrop:latest
+```
+
 ## CLI Usage
 Run inkdrop where you would run Terraform init/plan.
 ```
@@ -66,7 +73,21 @@ This will launch an interactive WebUI showing you which resources will change ac
 
 When you click on a resource you will get additional details such as variables and outputs used. 
 
-At the top left of the UI you can filter the diagram by resource type, tags and other built-in debugging filters . 
+At the top left of the UI you can filter the diagram by resource type, tags and other built-in debugging filters .
+
+## Run Inkdrop using Docker
+
+```sh
+docker run \
+  -v /path/to/your/terraform/root:/tfroot \  # Mount your Terraform root directory
+  --env TF_VERSION=1.7.1 \                   # Set the Terraform version you're using
+  -p 3000:3000 \                             # Map port 3000 for the WebUI
+  -it \                                      # Use -d instead of -it to run the container in detached mode
+  inkdroporg/inkdrop:latest \
+  plan.out [additional arguments]
+```
+
+Replace `/path/to/your/terraform/root` with the absolute path to your local Terraform root directory. Adjust the `TF_VERSION` to match the version of Terraform you're using locally (e.g., `1.7.1`). The `plan.out` argument refers to your Terraform plan file, and you can add any additional arguments required.
 
 ### Command Line Arguments
 
