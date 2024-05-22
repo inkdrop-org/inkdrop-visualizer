@@ -22,7 +22,8 @@
   </picture>
 </p>
 <p align="center">
-  <a href="https://github.com/inkdrop-org/inkdrop-gh-action-example/pull/5">🚀 CI Integration</a> | <a href="https://demo.inkdrop.ai">💻 Interactive Demo</a> | <a href="https://github.com/inkdrop-org/inkdrop-visualizer/issues/new">🙌 Give Feedback</a>
+  <a href="https://github.com/inkdrop-org/inkdrop-gh-action-example/pull/5">🚀 CI Integration</a> | <a href="https://demo.inkdrop.ai">💻 Interactive Demo</a> | <a href="https://github.com/inkdrop-org/inkdrop-visualizer/issues/new"> Give Feedback</a> | <a href="https://join.slack.com/t/inkdrop-group/shared_invite/zt-2jjbx5wz4-lyN4YLzlwuccD00rnMTDew">🙌 Join the Slack</a>
+</p> 
 </p>
 
 ## Overview
@@ -35,7 +36,7 @@ Benefits:
 - Document your infrastructure automatically.
 - Onboard engineers to a new project 10 times faster.
 
-## Quick Install
+## Installation
 **With Brew:**
 
 ```
@@ -57,13 +58,10 @@ mv inkdrop /usr/local/bin/
 npm install -g inkdrop-visualizer
 ```
 
-**With Docker:**
+[**With Docker:**](#Docker-Usage)
 
-```
-docker pull inkdroporg/inkdrop:latest
-```
-
-## CLI Usage
+## Usage
+### CLI Usage
 Run inkdrop where you would run Terraform init/plan.
 ```
 terraform plan -out plan.out
@@ -74,20 +72,6 @@ This will launch an interactive WebUI showing you which resources will change ac
 When you click on a resource you will get additional details such as variables and outputs used. 
 
 At the top left of the UI you can filter the diagram by resource type, tags and other built-in debugging filters .
-
-## Run Inkdrop using Docker
-
-```sh
-docker run \
-  -v /path/to/your/terraform/root:/tfroot \  # Mount your Terraform root directory
-  --env TF_VERSION=1.7.1 \                   # Set the Terraform version you're using
-  -p 3000:3000 \                             # Map port 3000 for the WebUI
-  -it \                                      # Use -d instead of -it to run the container in detached mode
-  inkdroporg/inkdrop:latest \
-  plan.out [additional arguments]
-```
-
-Replace `/path/to/your/terraform/root` with the absolute path to your local Terraform root directory. Adjust the `TF_VERSION` to match the version of Terraform you're using locally (e.g., `1.7.1`). The `plan.out` argument refers to your Terraform plan file, and you can add any additional arguments required.
 
 ### Command Line Arguments
 
@@ -105,32 +89,51 @@ Replace `/path/to/your/terraform/root` with the absolute path to your local Terr
 ![Static Badge](https://img.shields.io/badge/%20Note%3A-%20Without%20a%20plan%20file%20the%20diagram%20will%20be%20missing%20some%20functionality-blue)
 
 
-## CI Usage
+### CI Usage
 
 To run inkdrop from your CI process you will need to follow the following short tutorials: 
 
-[Github example](/github-action-integration)
+**[Github example](/github-action-integration)**
 
-[Atlantis example](/atlantis-integration)
+**[Atlantis example](/atlantis-integration)**
+
+**[Gitlab example (coming soon)]**
 
 The runner will comment an SVG Image in the PR. Using the Inkdrop extension this image becomes interactive and behaves like the CLI version when you click on it.
 
+### Docker Usage
+
+```sh
+docker run \
+  -v /path/to/your/terraform/root:/tfroot \  # Mount your Terraform root directory
+  --env TF_VERSION=1.5.7 \                   # Set the Terraform version you're using
+  -p 3000:3000 \                             # Map port 3000 for the WebUI
+  -it \                                      # Use -d instead of -it to run the container in detached mode
+  inkdroporg/inkdrop:latest \
+  plan.out [additional arguments]
+```
+
+Replace `/path/to/your/terraform/root` with the absolute path to your local Terraform root directory. Adjust the `TF_VERSION` to match the version of Terraform you're using locally (e.g., `1.5.7`). The `plan.out` argument refers to your Terraform plan file, and you can add any additional arguments required.
+
+## Misc
 ### Troubleshooting
 
 If you encounter any issues while using inkdrop, please use the `--debug` flag and report the issue. We're looking forward to help.
 
 ### Telemetry
+
 As this is a local CLI tool we have no information about your setup. The only telemetry we collect is a simple ping to our server, to estimate usage of the tool and the command line arguments you are using. To turn it off simply use the flag `--telemetry-off`.
 
 ### Development
 We welcome contributions and feedback! Feel free to open GitHub issues for bugs or feature requests.
 
-We are currently deciding which feature to build next according to user feedback.
+### Contact
 
 Feel free to reach out:
 
-antoine@inkdrop.ai
+[Slack](https://join.slack.com/t/inkdrop-group/shared_invite/zt-2jjbx5wz4-lyN4YLzlwuccD00rnMTDew)
 
-https://calendly.com/antoine-inkdrop/25-min
+[Email](mailto:antoine@inkdrop.ai)
 
-https://calendly.com/alberto-inkdrop/30min
+[Calendar](https://calendly.com/antoine-inkdrop/25-min)
+
