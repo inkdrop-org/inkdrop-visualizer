@@ -1,20 +1,15 @@
 # Inkdrop Github Action
-This page is a guide on how to add Inkdrop to your github workflow.
+Add Inkdrop to your GitHub workflow to visualize your Terraform infrastructure changes and review pull requests faster.
+<p align="center">
+  <picture width="100px" align="center">
+      <img alt="Inkdrop-Example" src="https://github.com/inkdrop-org/inkdrop-ci-chrome-extension/assets/86591160/ebcd7d11-3827-43cc-9e42-2307877a2023" width="500px" align="center">
+  </picture>
+</p>
 
-![image](https://github.com/inkdrop-org/inkdrop-ci-chrome-extension/assets/86591160/ebcd7d11-3827-43cc-9e42-2307877a2023)
-If you'd like to see Inkdrop in action in a repository here is a [link](https://github.com/inkdrop-org/inkdrop-gh-action-example/pull/5).
 
-Adding inkdrop to your CI process will allow you to:
 
-- Review Terraform pull requests faster.
-- Understand and document changes to your infrastructure.
-- Enable software developers and junior devops to review their changes with more confidence.
-
-Inkdrop uses an existing plan file and transforms it into an interactive diagram.
-
-### How to add Inkdrop to your Github workflow
-
-Create a plan file, and save it as an artifact
+## Installation
+**1. Create a Terraform plan file and save it as an artifact**
 ```yaml
 jobs:
   plan:
@@ -25,7 +20,7 @@ jobs:
           working-directory: .
           run: |
             terraform init
-            terraform plan -out plan.out #Create and save a plan file
+            terraform plan -out plan.out                       # Create and save a plan file
           env:
             AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
             AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -36,7 +31,7 @@ jobs:
             name: plan-artifact
             path: ./plan.out
 ```
-Now add the Inkdrop job at the end of your workflow:
+**2. Add the Inkdrop job to your workflow**
 ```yaml
 jobs:
   plan:
@@ -49,12 +44,21 @@ jobs:
         terraform_version: 1.7.0 # Your terraform version - Mandatory
         plan_artifact: plan-artifact # The artifact name - Mandatory (Set in previous job)
         plan_file_name: plan.out # The name of the plan file - Mandatory (Set in previous job)
-   ```
-This will comment the pull request with an image of the created diagram.
 
-Note: To make the image interactive you will need to download the [inkdrop extension](https://chromewebstore.google.com/detail/visualize-your-terraform/pddpcicnnongifmhilbamagnhiiibkki) 
+        # optional parameters
+        terraform_relative_dir: . # Specify the relative directory of your Terraform configuration. 
+        data_branch_name: # Specify the name of the branch to store the Inkdrop images.  Defaults to inkdrop-ci-data
+        inkdrop_version: # Specifies the version of Inkdrop to use (in the format vX.Y.Z) Defaults to latest       
+        diagram_readme: true # Creates a diagram on the README at the root of the project. Defaults to true
+        modules_diagram_readme: true # Creates a diagram for each directory containing a Terraform module. Defaults to true
+   ```
+This will comment the pull request with an interactive Terraform diagram.
 
 To interact with the diagram simply click on the commented image, this will open a local chrome tab with all functionalities.
+
+Note: To make the image interactive seamlessly you will need to download the [inkdrop extension](https://chromewebstore.google.com/detail/visualize-your-terraform/pddpcicnnongifmhilbamagnhiiibkki) 
+
+## Misc
 
 We decided to go with a Github action + extension as this keeps all data completely local and doesn't require you to spin up a self-hosted version or to deal with authenication & credentials.
 
