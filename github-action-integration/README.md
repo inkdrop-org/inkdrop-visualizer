@@ -1,15 +1,20 @@
 # Inkdrop Github Action
 Add Inkdrop to your GitHub workflow to visualize your Terraform infrastructure changes and review pull requests faster.
 <p align="center">
-  <picture width="100px" align="center">
+  <picture width="500px" align="center">
       <img alt="Inkdrop-Example" src="https://github.com/inkdrop-org/inkdrop-ci-chrome-extension/assets/86591160/ebcd7d11-3827-43cc-9e42-2307877a2023" width="500px" align="center">
   </picture>
 </p>
 
-
+<p align="center">
+  <a href="https://github.com/inkdrop-org/inkdrop-gh-action-example/pull/5">🚀 See it in Action</a> |
+  <a href="https://github.com/inkdrop-org/inkdrop-visualizer/github-action-integration/example-plan-and-run-inkdrop.yml">📄 Example Workflow</a> |
+  <a href="https://github.com/inkdrop-org/inkdrop-visualizer/issues/new">📣 Give Feedback</a> |
+  <a href="https://join.slack.com/t/inkdrop-group/shared_invite/zt-2jjbx5wz4-lyN4YLzlwuccD00rnMTDew">🙌 Join Slack</a>
+</p>
 
 ## Installation
-**1. Create a Terraform plan file and save it as an artifact**
+**Create a Terraform plan file and save it as an artifact**
 ```yaml
 jobs:
   plan:
@@ -31,7 +36,7 @@ jobs:
             name: plan-artifact
             path: ./plan.out
 ```
-**2. Add the Inkdrop job to your workflow**
+**Add the Inkdrop job to your workflow**
 ```yaml
 jobs:
   plan:
@@ -48,9 +53,22 @@ jobs:
    ```
 This will comment the pull request with an interactive Terraform diagram. To interact with the diagram simply click on the commented image, this will open a local chrome tab with all functionalities.
 
-Note: For a more seamless interaction you can download the [inkdrop extension](https://chromewebstore.google.com/detail/visualize-your-terraform/pddpcicnnongifmhilbamagnhiiibkki) 
+> **Note:** For an enhanced experience, install the [Inkdrop Extension](https://chromewebstore.google.com/detail/visualize-your-terraform/pddpcicnnongifmhilbamagnhiiibkki) to interact with the diagrams seamlessly.
 
-**3. Optional: Automatically Update Your Documentation/README with Webhooks**
+## Optional Configuration
+
+These are optional fields to give you more freedom about your implementation.
+
+| Name                   | Description                                                    | Type   | Default             |
+|------------------------|----------------------------------------------------------------|--------|---------------------|
+| `terraform_relative_dir `   |  Specifies the relative directory of your Terraform configuration. |string|.|
+| `data_branch_name`        | Names the branch to store the Inkdrop images.                  | string | `inkdrop-ci-data` |
+| `inkdrop_version`      | Specifies the version of Inkdrop to use (in the format vX.Y.Z).| string | `latest`            |
+| `diagram_readme`      | Enables automated updating or creation of README with Terraform diagrams.| boolean | `true` |
+| `modules_diagram_readme` | Creates a diagram for each directory containing a Terraform module in the README.| boolean | `true`  |
+| `webhook_url` | Specifies the URL listening to the webhook.                          | string | - |
+
+**Optional: Automatically update your documentation**
 
 ```yaml
 inkdrop-run:
@@ -73,35 +91,15 @@ The payload will be in JSON format, containing the following fields:
 
 `link`: The URL to the Inkdrop visualization tool for the current pull request
 
-This allows you to integrate the Inkdrop visualization directly into your existing workflow or notification system, making it easier to review infrastructure changes.
-
-## Misc
-
-Here's a link to a [github action example](/github-action-integration/example-plan-and-run-inkdrop.yml)
-
-We decided to go with a Github action + extension as this keeps all data completely local and doesn't require you to spin up a self-hosted version or to deal with authenication & credentials.
-
-
-
-### Configuration
-
-These are optional fields to give you more freedom about your implementation.
-
-| Name                   | Description                                                    | Type   | Default             |
-|------------------------|----------------------------------------------------------------|--------|---------------------|
-| `terraform_relative_dir `   |  Specifies the relative directory of your Terraform configuration. |string|.|
-| `data_branch_name`        | Names the branch to store the Inkdrop images.                  | string | `inkdrop-ci-data` |
-| `inkdrop_version`      | Specifies the version of Inkdrop to use (in the format vX.Y.Z).| string | `latest`            |
-| `diagram_readme`      | Enables automated updating or creation of README with Terraform diagrams.| boolean | `true` |
-| `modules_diagram_readme` | Creates a diagram for each directory containing a Terraform module in the README.| boolean | `true`  |
-
-Here's a link to a [github action example](/github-action-integration/example-plan-and-run-inkdrop.yml)
+> **Note:** We decided to go with a Github action + extension as this keeps all data completely local and doesn't require you to spin up a self-hosted version or to deal with authenication & credentials.
 
 ### Questions and Feedback
 Feel free to reach out should you run into any issues! We welcome contributions and feedback!
 
 [Open an Github Issue](https://github.com/inkdrop-org/inkdrop-visualizer/issues/new)
 
-antoine@inkdrop.ai
+[Slack](https://join.slack.com/t/inkdrop-group/shared_invite/zt-2jjbx5wz4-lyN4YLzlwuccD00rnMTDew)
 
-https://calendly.com/antoine-inkdrop/25-min
+[Email](mailto:antoine@inkdrop.ai)
+
+[Calendar](https://calendly.com/antoine-inkdrop/25-min)
