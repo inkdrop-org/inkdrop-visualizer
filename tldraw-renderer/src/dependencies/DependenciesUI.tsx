@@ -1,6 +1,6 @@
 import { Editor } from "@tldraw/tldraw";
 import { NodeGroup } from "../TLDWrapper";
-import { Dependency } from "./dependencies";
+import { Dependency, getExtendedModuleName } from "./dependencies";
 
 interface DependencyUIProps {
     dependencies: Dependency[];
@@ -25,7 +25,7 @@ const DependencyUI = ({
     const getResourceIcon = (dep: Dependency) => {
         const iconPath = nodeGroups.find(n =>
             n.type === dep.name.split(".")[0] && n.name === dep.name.split(".")[1] && (dep.module === "root_module" ?
-                !n.moduleName : dep.module === n.moduleName))?.iconPath || "";
+                !n.moduleName : dep.module === getExtendedModuleName(n)))?.iconPath || "";
         return (
             <img
                 className="w-4 h-4 relative"
@@ -42,13 +42,13 @@ const DependencyUI = ({
                     editor.select(...(Array.from(editor.getCurrentPageShapeIds()).filter((id) => {
                         const clickedNodeId = nodeGroups.find(n =>
                             n.type === dep.name.split(".")[0] && n.name === dep.name.split(".")[1] && (dep.module === "root_module" ?
-                                !n.moduleName : dep.module === n.moduleName))?.id
+                                !n.moduleName : dep.module === getExtendedModuleName(n)))?.id
                         return id.split(":")[1] === clickedNodeId
                     })))
                 } : type === "module" ? () => {
                     editor.select(...(Array.from(editor.getCurrentPageShapeIds()).filter((id) => {
                         const clickedModuleId = nodeGroups.find(n => {
-                            return n.moduleName === dep.name
+                            return getExtendedModuleName(n) === dep.name
                         })?.frameShapeId
                         return id === clickedModuleId
                     })))
@@ -61,7 +61,7 @@ const DependencyUI = ({
                         {
                             opacity: nodeGroups.find(n =>
                                 n.type === dep.name.split(".")[0] && n.name === dep.name.split(".")[1] && (dep.module === "root_module" ?
-                                    !n.moduleName : dep.module === n.moduleName))?.numberOfChanges === 0 ? 0.2 : 1,
+                                    !n.moduleName : dep.module === getExtendedModuleName(n)))?.numberOfChanges === 0 ? 0.2 : 1,
                             cursor: "pointer"
                         } :
                         type === "module" ? {

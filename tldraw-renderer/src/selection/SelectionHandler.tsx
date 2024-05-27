@@ -1,6 +1,6 @@
 import { MutableRefObject, useEffect, useState } from "react";
 import Sidebar from "../sidebar/Sidebar";
-import { Dependency, moduleDependencies, resourceDependencies } from "../dependencies/dependencies";
+import { Dependency, getExtendedModuleName, moduleDependencies, resourceDependencies } from "../dependencies/dependencies";
 import { NodeGroup, RenderInput, TFVariableOutput, Tag } from "../TLDWrapper";
 import DependencyUI from "../dependencies/DependenciesUI";
 import { Editor, TLShapeId } from "@tldraw/tldraw";
@@ -248,7 +248,7 @@ const SelectionHandler = ({
                     affected={affected}
                     sidebarWidth={sidebarWidth}
                     nodeGroups={nodeGroups}
-                    moduleName={selectedNode?.moduleName || selectedModule}
+                    moduleName={selectedNode ? getExtendedModuleName(selectedNode) : selectedModule}
                     type={selectedNode ? "resource" : "module"}
                     editor={editor} />}
             {sidebarWidth > 0 &&
