@@ -1,6 +1,7 @@
 import dagre from "dagre";
 import { NodeGroup } from "../TLDWrapper";
-import { Editor, TLShapeId } from "@tldraw/tldraw";
+import { Editor, TLShape, TLShapeId } from "@tldraw/tldraw";
+import { getExtendedModuleName } from "../dependencies/dependencies";
 
 const defaultWidth = 120, defaultHeight = 120
 
@@ -165,4 +166,100 @@ export const computeLayout = (nodeGroups: Map<string, NodeGroup>, computeTerrafo
         })
     })
     editor?.createShapes(arrowShapes)
+    if (Array.from(nodeGroups.values()).some((nodeGroup) => nodeGroup.moduleConnectionsIn.length > 0 || nodeGroup.moduleConnectionsOut.length > 0)) {
+        const f = new dagre.graphlib.Graph({ compound: true });
+        f.setGraph({ rankdir: "TB", ranksep: 120 });
+        f.setDefaultEdgeLabel(function () { return {}; });
+        const frames = editor?.getCurrentPageShapes().filter((shape) => shape.type === "frame" &&
+            shape.parentId === editor.getCurrentPageId()) || []
+        frames.forEach((shape) => {
+            f.setNode(shape.id.split(":")[1], {
+                label: (shape.props as any).name,
+                width: (shape.props as any).w,
+                height: (shape.props as any).h
+            })
+        })
+        Array.from(nodeGroups.values()).filter((nodeGroup) => !nodeGroup.moduleName)
+            .forEach((nodeGroup, key) => {
+                f.setNode(nodeGroup.id, {
+                    label: nodeGroup.name,
+                    width: defaultWidth,
+                    height: defaultHeight
+                })
+            })
+        nodeGroups.forEach((nodeGroup, key) => {
+            nodeGroup.moduleConnectionsOut.forEach((connection) => {
+
+                if (!nodeGroup.moduleName) {
+                    f.setEdge(key, connection)
+                }
+                else if (nodeGroup.moduleName && getExtendedModuleName(nodeGroup) !== connection &&
+                    !getExtendedModuleName(nodeGroup).startsWith(connection)
+                ) {
+                    f.setEdge(getExtendedModuleName(nodeGroup), connection)
+                }
+            })
+            nodeGroup.moduleConnectionsIn.forEach((connection) => {
+                if (!nodeGroup.moduleName) {
+                    f.setEdge(connection, key)
+                }
+                else if (nodeGroup.moduleName && getExtendedModuleName(nodeGroup) !== connection &&
+                    !getExtendedModuleName(nodeGroup).startsWith(connection)) {
+                    f.setEdge(connection, getExtendedModuleName(nodeGroup))
+                }
+            })
+        })
+
+        dagre.layout(f);
+        editor?.updateShapes(frames.map((frame) => {
+            return {
+                id: frame.id,
+                type: "frame",
+                x: f.node(frame.id.split(":")[1]).x - f.node(frame.id.split(":")[1]).width / 2,
+                y: f.node(frame.id.split(":")[1]).y - f.node(frame.id.split(":")[1]).height / 2
+            }
+        }))
+        editor?.updateShapes(
+            Array.from(nodeGroups.values()).filter((nodeGroup) => !nodeGroup.moduleName).map((nodeGroup) => {
+                return {
+                    id: nodeGroup.shapeId as TLShapeId,
+                    type: "node",
+                    x: f.node(nodeGroup.id).x - f.node(nodeGroup.id).width / 2,
+                    y: f.node(nodeGroup.id).y - f.node(nodeGroup.id).height / 2
+                }
+            })
+        )
+        const newArrowShapes: any[] = []
+        f.edges().forEach((edge) => {
+            newArrowShapes.push(
+                {
+                    id: "shape:" + edge.v + "-" + edge.w + ":" + date as TLShapeId,
+                    type: "arrow",
+                    props: {
+                        size: "s",
+                        start: {
+                            type: "binding",
+                            boundShapeId: "shape:" + edge.v + ":" + date as TLShapeId,
+                            normalizedAnchor: {
+                                x: 0.5,
+                                y: 0.5
+                            },
+                            isExact: false,
+                        },
+                        end: {
+                            type: "binding",
+                            boundShapeId: "shape:" + edge.w + ":" + date as TLShapeId,
+                            normalizedAnchor: {
+                                x: 0.5,
+                                y: 0.5
+                            },
+                            isExact: false,
+                        }
+                    }
+                }
+            )
+        })
+        editor?.createShapes(newArrowShapes)
+        editor?.zoomToFit()
+    }
 }

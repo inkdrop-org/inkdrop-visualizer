@@ -8,7 +8,7 @@ import { terraformResourcesCsv } from './terraformResourcesCsv';
 import '@tldraw/tldraw/tldraw.css'
 import { fetchIsDemo, getRenderInput, sendData, sendDebugLog } from './utils/storage';
 import { computeLayout } from './layout/computeLayout';
-import { getVariablesAndOutputs } from './dependencies/dependencies';
+import { getExtendedModuleName, getVariablesAndOutputs, resourceDependencies } from './dependencies/dependencies';
 import { getResourceNameAndType } from './utils/resources';
 import { filterOutNotNeededArgs } from './utils/filterPlanJson';
 import { demoShapes } from './layout/demoShapes';
@@ -31,6 +31,8 @@ export type NodeGroup = {
     mainNode: NodeModel,
     connectionsOut: string[],
     connectionsIn: string[],
+    moduleConnectionsIn: string[],
+    moduleConnectionsOut: string[],
     variableRefs?: string[],
     outputRefs?: string[],
     affectedOutputs?: string[],
@@ -297,6 +299,8 @@ const TLDWrapper = () => {
                                 iconPath: row["Icon Path"].trim(),
                                 connectionsIn: [],
                                 connectionsOut: [],
+                                moduleConnectionsIn: [],
+                                moduleConnectionsOut: [],
                                 moduleName: moduleName,
                                 stateFile: stateFile
                             })
@@ -516,6 +520,9 @@ const TLDWrapper = () => {
             { variables: [], outputs: [] }
         setVariables(variables)
         setOutputs(outputs)
+
+        computeVarOutDependencies(nodeGroups, variables, outputs)
+
         computeLayout(nodeGroups, computeTerraformPlan, editor, renderInput?.opacityFull || false)
         setShapesSnapshot(JSON.stringify(editor?.getCurrentPageShapes()))
 
@@ -535,6 +542,27 @@ const TLDWrapper = () => {
         }
 
         setStoredNodeGroups(Array.from(nodeGroups.values()))
+    }
+
+
+    const computeVarOutDependencies = (nodeGroups: Map<string, NodeGroup>, variables: TFVariableOutput[], outputs: TFVariableOutput[]) => {
+        nodeGroups.forEach((nodeGroup) => {
+            const { dependencies, affected } = resourceDependencies(Array.from(nodeGroups.values()), nodeGroup, variables, outputs)
+            dependencies.forEach((dep) => {
+                if (dep.module !== "root_module" && dep.module !== getExtendedModuleName(nodeGroup)) {
+                    if (!nodeGroup.moduleConnectionsIn.includes(dep.module)) {
+                        nodeGroup.moduleConnectionsIn.push(dep.module)
+                    }
+                }
+            })
+            affected.forEach((dep) => {
+                if (dep.module !== "root_module" && dep.module !== getExtendedModuleName(nodeGroup)) {
+                    if (!nodeGroup.moduleConnectionsOut.includes(dep.module)) {
+                        nodeGroup.moduleConnectionsOut.push(dep.module)
+                    }
+                }
+            })
+        })
     }
 
 
