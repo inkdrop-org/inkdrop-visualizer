@@ -1,6 +1,6 @@
 import { Editor } from "@tldraw/tldraw";
 import { NodeGroup } from "../TLDWrapper";
-import { Dependency } from "../dependencies/dependencies";
+import { Dependency, getExtendedModuleName } from "../dependencies/dependencies";
 
 export const computeShading = (selectedNode: NodeGroup, nodeGroups: NodeGroup[], editor: Editor, dependencies: Dependency[], affected: Dependency[]) => {
     const editorShapes = editor.getCurrentPageShapes()
@@ -10,8 +10,8 @@ export const computeShading = (selectedNode: NodeGroup, nodeGroups: NodeGroup[],
             if (node.id !== selectedNode.id &&
                 !node.connectionsIn.some((connectedId) => connectedId === selectedNode.id) &&
                 !node.connectionsOut.some((connectedId) => connectedId === selectedNode.id) &&
-                !dependencies.some((dep) => dep.type === "resource" && dep.name === node.type + "." + node.name && dep.module === (node.moduleName || "root_module")) &&
-                !affected.some((dep) => dep.type === "resource" && dep.name === node.type + "." + node.name && dep.module === (node.moduleName || "root_module"))
+                !dependencies.some((dep) => dep.type === "resource" && dep.name === node.type + "." + node.name && dep.module === (getExtendedModuleName(node) || "root_module")) &&
+                !affected.some((dep) => dep.type === "resource" && dep.name === node.type + "." + node.name && dep.module === (getExtendedModuleName(node) || "root_module"))
             ) {
                 editor.updateShape({ ...shape, opacity: 0.2 })
             } else {
