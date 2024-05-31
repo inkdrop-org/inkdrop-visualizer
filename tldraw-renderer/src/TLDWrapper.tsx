@@ -73,8 +73,13 @@ type State = {
 }
 
 export type RenderInput = {
-    planJson: string,
-    graph: string,
+    planJsons?: {
+        fileName: string,
+        content: string
+    }[],
+    graphs?: string[],
+    planJson?: string,
+    graph?: string,
     detailed: boolean,
     debug: boolean,
     showUnchanged: boolean,
@@ -107,12 +112,11 @@ const TLDWrapper = () => {
         const detailed = renderInput.detailed
         debugLog("Detailed view is " + (detailed ? "on" : "off") + ".")
         const showUnchanged = renderInput.showUnchanged
-        renderInput.planJson &&
+        renderInput.planJson || renderInput.planJsons &&
             debugLog("Unchanged resources are " + (showUnchanged ? "shown" : "hidden") + ".")
         const opacityFull = renderInput.opacityFull
         debugLog("Full opacity for unchanged resources is " + (opacityFull ? "on" : "off") + ".")
-        const model = fromDot(renderInput.graph)
-        parseModel(model, false)
+        parseModel(false)
     }, [renderInput, editor])
 
     // Forward logs in --debug mode
@@ -208,6 +212,30 @@ const TLDWrapper = () => {
             blockId = splitBlockId.slice(1).join(".")
         }
         return { processedBlockId: blockId, isData, isVariable, isResource, isLocal, isOutput, isProvider, isModule, isResourceWithName, moduleName, parentModules }
+    }
+
+    const mergePlans = (planJsons: {
+        fileName: string,
+        contentJson: any
+    }[]) => {
+        const resourceChanges: any[] = []
+        const configuration: any = {
+
+        }
+        planJsons.forEach((planJson) => {
+            const name = planJson.fileName
+
+            resourceChanges.push(...planJson.contentJson.resource_changes)
+            Object.entries(planJson.contentJson.configuration).forEach(([key, value]) => {
+                if (!configuration[key + "_" + name]) {
+                    configuration[key + "_" + name] = value
+                }
+            })
+        })
+        return {
+            resource_changes: resourceChanges,
+            configuration: configuration
+        }
     }
 
     const transformIntoPlanFormat = (stateData: State[]) => {
@@ -354,13 +382,22 @@ const TLDWrapper = () => {
         tagsRef.current = tags
     }
 
-    const parseModel = async (model: RootGraphModel, refreshFromToggle?: boolean) => {
-        const computeTerraformPlan = (renderInput?.planJson && renderInput?.planJson !== "") ? true : false
-        const remoteModels = renderInput?.states?.map((state) => {
-            return fromDot(state.graph)
-        })
+    const parseModel = async (refreshFromToggle?: boolean) => {
+        const computeTerraformPlan = ((renderInput?.planJson && renderInput?.planJson !== "") ||
+            (renderInput?.planJsons && renderInput.planJsons.length > 0)) ? true : false
+
+        const models = [
+            ...(renderInput?.graph ? [fromDot(renderInput?.graph)] : []),
+            ...(renderInput?.graphs?.map((graph) => fromDot(graph)) || []),
+            ...(renderInput?.states?.map((state) => {
+                return fromDot(state.graph)
+            }) || []),
+        ]
+
+        const model = models[0]
+
         debugLog("Aggregating multiple states graphs...")
-        remoteModels?.forEach((remoteModel) => {
+        models.slice(1).forEach((remoteModel) => {
             remoteModel.subgraphs[0].nodes.forEach((node) => {
                 model.subgraphs[0].addNode(node)
             })
@@ -369,14 +406,16 @@ const TLDWrapper = () => {
             })
         })
         debugLog(computeTerraformPlan ? "Terraform plan detected." : "No Terraform plan detected. Using static data.")
-        let planJsonObj: any = filterOutNotNeededArgs(computeTerraformPlan ?
+        /*let planJsonObj: any = filterOutNotNeededArgs(computeTerraformPlan ?
             typeof renderInput?.planJson === "string" ? JSON.parse(renderInput?.planJson!) : renderInput?.planJson : undefined)
         const remoteStateJsonObj = transformIntoPlanFormat(renderInput?.states || [])
-
         planJsonObj = {
             ...planJsonObj,
             resource_changes: [...planJsonObj?.resource_changes || [], ...remoteStateJsonObj?.resource_changes || []]
-        }
+        }    
+        
+        */
+
 
         const nodeGroups = new Map<string, NodeGroup>()
         const jsonArray = Papa.parse(terraformResourcesCsv, { delimiter: ",", header: true })
@@ -384,7 +423,7 @@ const TLDWrapper = () => {
         debugLog("Adding main resources...")
         model.subgraphs.forEach((subgraph) => {
             subgraph.nodes.forEach((node) => {
-                addNodeToGroup(node, nodeGroups, true, jsonArray, planJsonObj, computeTerraformPlan)
+                addNodeToGroup(node, nodeGroups, true, jsonArray, planJsonsObj, computeTerraformPlan)
             })
         })
 
@@ -392,8 +431,8 @@ const TLDWrapper = () => {
 
         debugLog("Aggregating secondary resources...")
         nodeGroups.forEach((nodeGroup) => {
-            getConnectedNodes(nodeGroup.mainNode, nodeGroup, nodeGroups, model.subgraphs[0], true, jsonArray, planJsonObj)
-            getConnectedNodes(nodeGroup.mainNode, nodeGroup, nodeGroups, model.subgraphs[0], false, jsonArray, planJsonObj)
+            getConnectedNodes(nodeGroup.mainNode, nodeGroup, nodeGroups, model.subgraphs[0], true, jsonArray, planJsonsObj)
+            getConnectedNodes(nodeGroup.mainNode, nodeGroup, nodeGroups, model.subgraphs[0], false, jsonArray, planJsonsObj)
         })
         debugLog("Aggregating secondary resources... Done.")
 
@@ -406,7 +445,7 @@ const TLDWrapper = () => {
                         return n.nodeModel.id === node.id
                     })
                 })) {
-                    addNodeToGroup(node, nodeGroups, false, jsonArray, planJsonObj, computeTerraformPlan)
+                    addNodeToGroup(node, nodeGroups, false, jsonArray, planJsonsObj, computeTerraformPlan)
                 }
             })
             debugLog("Adding unconnected resources (detailed view)... Done.")
@@ -516,7 +555,7 @@ const TLDWrapper = () => {
         })
         debugLog("Computing connections... Done.")
 
-        const { variables, outputs } = computeTerraformPlan ? getVariablesAndOutputs(nodeGroups, planJsonObj) :
+        const { variables, outputs } = computeTerraformPlan ? getVariablesAndOutputs(nodeGroups, planJsonsObj) :
             { variables: [], outputs: [] }
         setVariables(variables)
         setOutputs(outputs)
@@ -537,7 +576,7 @@ const TLDWrapper = () => {
         if (renderInput?.ci) {
             sendData({
                 ...renderInput,
-                planJson: planJsonObj
+                planJson: planJsonsObj
             })
         }
 
@@ -636,8 +675,7 @@ const TLDWrapper = () => {
 
     const refreshWhiteboard = () => {
         editor?.deleteShapes(Array.from(editor.getPageShapeIds(editor.getCurrentPageId())))
-        const model = fromDot(renderInput?.graph || "")
-        parseModel(model, true)
+        parseModel(true)
     }
 
 

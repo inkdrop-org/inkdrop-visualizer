@@ -12,6 +12,11 @@ export const argv = yargs(hideBin(process.argv))
             type: 'string'
         });
     })
+    .option('all-plans-in-tree', {
+        describe: 'Visualizes all plans in the current directory tree.',
+        type: 'boolean',
+        example: "inkdrop plan.out --all-plans-in-tree",
+    })
     .option('ci', {
         describe: 'Enables CI mode, which does not open the browser and logs extra details, that are used by the Inkdrop Chrome extension',
         type: 'boolean',
@@ -70,6 +75,7 @@ export const argv = yargs(hideBin(process.argv))
     .example([
         ['$0', 'Generates a diagram and opens its interactive version in a browser.'],
         ['$0 plan.out', 'Uses a Terraform plan file to visualize changes.'],
+        ['$0 plan.out --all-plans-in-tree', 'Visualizes all plan files named plan.out in the current directory tree.'],
         ['$0 --ci', 'Enables CI mode, which does not open the browser and logs extra details.'],
         ['$0 --detailed', 'Generates a diagram with comprehensive details for all resources.'],
         ['$0 --debug', 'Enables debug mode.'],

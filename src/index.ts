@@ -14,7 +14,7 @@ import { warnUserIfNotLatestVersion } from './utils/fetchLatestVersion';
 import { getCurrentFormattedDate } from './utils/time';
 const zipFile = require('is-zip-file');
 
-const MAX_BUFFER_SIZE = 10 * 1024 * 1024; // 10 MB
+const MAX_BUFFER_SIZE = 100 * 1024 * 1024; // 100 MB
 
 const execAsync = util.promisify(exec);
 
@@ -37,7 +37,7 @@ if ((argv as any).debug) {
     warnUserIfNotLatestVersion()
 }
 
-if ((argv as any).planfile) {
+if ((argv as any).planfile && !(argv as any).allPlansInTree) {
     if (!fs.existsSync((argv as any).planfile) || !fs.lstatSync((argv as any).planfile).isFile()) {
         console.error(`The path to the plan file is invalid: ${(argv as any).planfile}`);
         process.exit(1);
@@ -99,20 +99,21 @@ app.post('/debug-log', (req, res) => {
     res.status(200).json({ message: 'Log received' });
 })
 
-let planJson = ""
-let graph = ""
-
 const debug: boolean = (argv as any).debug || false
 const detailed: boolean = (argv as any).detailed || false
 const showUnchanged: boolean = (argv as any).showUnchanged || false
 const opacityFull: boolean = (argv as any).opacityFull || false
+const allPlansInTree: boolean = (argv as any).allPlansInTree || false
+const planPaths: string[] = allPlansInTree ? [] : [(argv as any).planfile]
+const planJsons: string[] = []
+const graphs: string[] = []
 
 const states: any[] = []
 
 app.get('/get-render-input', (req, res) => {
     res.status(200).json({
-        planJson,
-        graph,
+        planJsons,
+        graphs,
         detailed,
         debug,
         showUnchanged,
@@ -204,54 +205,34 @@ const retrieveRemoteState = async (projectPath: string, graphCommand: string) =>
     }
 }
 
-const runTerraformCommands = async () => {
-    if ((argv as any).planfile) {
-        zipFile.isZip((argv as any).planfile, async (err: any, isZip: boolean) => {
-            if (isZip) {
-                const { stdout: showStdout, stderr: showStderr } = await execAsync(`terraform show -json "${path.resolve((argv as any).planfile)}"`, {
-                    cwd: path.resolve((argv as any).path || "."),
-                    maxBuffer: MAX_BUFFER_SIZE
-                }).catch((err) => {
-                    console.error("Error while running 'terraform show -json':\n"
-                        + err)
-                    process.exit(1);
-                })
-                if (showStderr) {
-                    console.error(`${showStderr}`);
-                    process.exit(1);
-                }
-                planJson = showStdout
+const computePlanAndGraph = async (planPath: string, graphCommand: string) => {
+    let planJson = ""
+    let graph = ""
+    zipFile.isZip(path.join(path.resolve((argv as any).path || "."), planPath), async (err: any, isZip: boolean) => {
+        if (isZip) {
+            const { stdout: showStdout, stderr: showStderr } = await execAsync(`terraform show -json "${path.basename(planPath)}"`, {
+                cwd: path.join(path.resolve((argv as any).path || "."), planPath.split("/")[planPath.split("/").length - 2] || "."),
+                maxBuffer: MAX_BUFFER_SIZE
+            }).catch((err) => {
+                console.error("Error while running 'terraform show -json':\n"
+                    + err)
+                process.exit(1);
+            })
+            if (showStderr) {
+                console.error(`${showStderr}`);
+                process.exit(1);
             }
-            else {
-                planJson = fs.readFileSync((argv as any).planfile, 'utf8')
-            }
+            planJson = showStdout
         }
-        )
+        else {
+            planJson = fs.readFileSync(planPath, 'utf8')
+        }
     }
-
-    const { stdout: versionStdout, stderr: versionStderr } = await execAsync('terraform -v -json', {
-        cwd: path.resolve((argv as any).path || "."),
-        maxBuffer: MAX_BUFFER_SIZE
-    })
-        .catch((err) => {
-            console.error("Error while running 'terraform version':\n"
-                + err)
-            process.exit(1);
-        })
-
-    if (versionStderr) {
-        console.error(`${versionStderr}`);
-        process.exit(1);
-    }
-
-    const version = JSON.parse(versionStdout).terraform_version
-    const addGraphPlanFlag = semver.gte(version, "1.7.0")
-
-    const graphCommand = addGraphPlanFlag ? 'terraform graph -type=plan' : 'terraform graph'
+    )
 
     console.log("Computing terraform graph...")
     const { stdout: graphStdout, stderr: graphStderr } = await execAsync(graphCommand, {
-        cwd: path.resolve((argv as any).path || "."),
+        cwd: path.join(path.resolve((argv as any).path || "."), planPath.split("/")[planPath.split("/").length - 2] || "."),
         maxBuffer: MAX_BUFFER_SIZE
     })
         .catch((err) => {
@@ -273,6 +254,56 @@ const runTerraformCommands = async () => {
 
     graph = graphStdout
 
+    return { planJson, graph }
+}
+
+const runTerraformCommands = async () => {
+
+    if (allPlansInTree) {
+        console.log("Finding all plan files recursively...")
+        const { stdout: findPlansStdout, stderr: findPlansStderr } = await execAsync(`find . -name ${(argv as any).planfile}`, {
+            cwd: path.resolve((argv as any).path || "."),
+            maxBuffer: MAX_BUFFER_SIZE
+        })
+        if (findPlansStderr) {
+            console.error(`${findPlansStderr}`);
+            process.exit(1);
+        }
+        planPaths.push(...findPlansStdout.split("\n").filter((path: string) => path !== ""))
+        console.log(`Found ${planPaths.length} plan files.`)
+    }
+
+    console.log("planPaths", planPaths)
+
+    const { stdout: versionStdout, stderr: versionStderr } = await execAsync('terraform -v -json', {
+        cwd: path.resolve((argv as any).path || "."),
+        maxBuffer: MAX_BUFFER_SIZE
+    })
+        .catch((err) => {
+            console.error("Error while running 'terraform version':\n"
+                + err)
+            process.exit(1);
+        })
+
+    if (versionStderr) {
+        console.error(`${versionStderr}`);
+        process.exit(1);
+    }
+
+    const version = JSON.parse(versionStdout).terraform_version
+    const addGraphPlanFlag = semver.gte(version, "1.7.0")
+
+    const graphCommand = addGraphPlanFlag ? 'terraform graph -type=plan' : 'terraform graph'
+
+    //here the solution
+    for (const planPath of planPaths) {
+        const { planJson, graph } = await computePlanAndGraph(planPath, graphCommand)
+        console.log("planJson, graph", planJson, graph)
+        planJsons.push(planJson)
+        graphs.push(graph)
+    }
+
+
     const stateDirs = (argv as any).stateDirs || []
     if (stateDirs.length > 0) {
         await execAsync("rm -rf ./tmp-tf-cache-inkdrop && mkdir ./tmp-tf-cache-inkdrop",
@@ -285,6 +316,8 @@ const runTerraformCommands = async () => {
         await retrieveRemoteState(stateDir, graphCommand)
     }
     await cleanup()
+
+    console.log("plan, graph", planJsons, graphs)
 
     const ci = (argv as any).ci || false
     const svg = (argv as any).svg || false

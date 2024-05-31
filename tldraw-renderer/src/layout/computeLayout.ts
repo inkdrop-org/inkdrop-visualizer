@@ -9,7 +9,10 @@ export const computeLayout = (nodeGroups: Map<string, NodeGroup>, computeTerrafo
     const g = new dagre.graphlib.Graph({ compound: true });
     g.setGraph({ rankdir: "TB", ranksep: 120 });
     g.setDefaultEdgeLabel(function () { return {}; });
-    nodeGroups.forEach((nodeGroup, key) => {
+
+    Array.from(nodeGroups.entries()).sort((a, b) => {
+        return a[1].type.localeCompare(b[1].type)
+    }).forEach(([key, nodeGroup]) => {
 
         g.setNode(key, { label: nodeGroup.name, width: defaultWidth, height: defaultHeight })
         nodeGroup.connectionsOut.forEach((connection) => {
